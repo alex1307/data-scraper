@@ -1,0 +1,24 @@
+[package]
+name = "data-scraper"
+version = "1.0.0"
+authors = ["Ayagasha <alexander.todorov@ayagasha.com>"]
+edition = "2021"
+
+
+[dependencies]
+reqwest = {version = "0.11.7", features=["blocking"]}
+scraper = "0.16.0"
+crossterm = "0.26.1"
+encoding_rs = "0.8.32"
+tokio = { version = "1", features = ["full"] }
+protobuf = "3"
+protobuf-codegen = "3"
+protoc-rust = "^2.0"
+
+[[bin]]
+name="proto_gen"
+path="src/bin/proto.rs"
+
+[[bin]]
+name="scraper_app"
+path="src/bin/scraper.rs"

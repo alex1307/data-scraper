@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package mobile;
+
+message Car {
+    string id = 1;
+    string make = 2;
+    string model = 3;
+    string variant = 4;
+    string engine = 5;
+    string production_date = 6;
+    string phone = 7;
+    int32 power = 8;
+    string gear_type = 9;
+    int32 miliage = 10;
+    int32 view_counter = 11;
+    int32 price = 12;
+    string currency = 13;
+    string emission = 14;
+    bool registraion = 15;
+    repeated string extras = 16;
+    string color = 17;
+    string created_on = 18;
+    string updated_on = 19;
+}
