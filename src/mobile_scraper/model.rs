@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-
+use super::mobile_utils::extract_ascii_latin;
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchRequest {
     pub make: String,
     pub model: String,
@@ -11,13 +12,28 @@ pub struct SearchRequest {
     pub four_wheel_drive: bool,
     pub registration_number: bool,
 }   
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchResponse {
     pub slink: String,
     pub links: Vec<String>,
+    pub make: String,
+    pub model: String,
     pub number_of_vehicle: u16,
+    pub min_price: f32,
+    pub max_price: f32,
     pub sum_of_prices: f32,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetaHeader{
+    pub make: String,
+    pub model: String,
+    pub total_number: u16,
+    pub min_price: u32,
+    pub max_price: u32,
+}
+
+
 
 impl SearchRequest {
     pub fn new(make: String, model: String) -> Self {
@@ -87,5 +103,42 @@ impl SearchRequest {
         }
 
         return form_data;
+    }
+}
+
+impl MetaHeader{
+    pub fn from_string(raw: &str) -> Self {
+        let meta = extract_ascii_latin(raw);
+        let re = regex::Regex::new(r" {2,}").unwrap();
+        let split: Vec<&str> = re.split(&meta.trim()).collect();
+        if split.len() <= 4 {
+            return MetaHeader {
+                make: "".to_string(),
+                model: "".to_string(),
+                min_price: 0,
+                max_price: 0,
+                total_number: 0,
+            };
+        }
+
+        let make_model: Vec<&str> = split[0].split_whitespace().collect();
+
+        let (make, model) = if make_model.len() == 1 {
+            (make_model[0], "")
+        } else {
+            (make_model[0], make_model[1])
+        };
+
+        let min = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let max = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let total_number = split[3].replace(" ", "").parse::<u16>().unwrap_or(0);
+
+        MetaHeader {
+            make: make.to_string(),
+            model: model.to_string(),
+            min_price: min,
+            max_price: max,
+            total_number: total_number,
+        }
     }
 }
