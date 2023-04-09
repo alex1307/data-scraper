@@ -1,6 +1,7 @@
 pub mod model;
+pub mod mobile_utils;
 
-use encoding_rs::{Encoding, UTF_8, WINDOWS_1251};
+use encoding_rs::{UTF_8, WINDOWS_1251};
 use reqwest::blocking::Client;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
@@ -201,4 +202,40 @@ pub fn search_form_data(url: &str, input: &SearchRequest) -> Result<String, Box<
     let response = String::from_utf8_lossy(&utf8_html);
     println!("{}", response);
     return Ok(response.to_string());
+}
+
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    use super::model::MetaHeader;
+    use std::fs;
+    use std::io::Result;
+
+    fn read_file_from_resources(filename: &str) -> Result<String> {
+        let path = format!("resources/{}", filename);
+        fs::read_to_string(path)
+    }
+
+
+
+    #[test]
+    fn test_read_meta_data() {
+        let content = read_file_from_resources("found_13.html").unwrap();
+        let meta_content = get_found_result(&content).unwrap();
+        let meta = MetaHeader::from_string(&meta_content);
+        assert_eq!(meta.make, "Skoda");
+        assert_eq!(meta.model, "Octavia");
+        assert_eq!(meta.min_price, 2300);
+        assert_eq!(meta.max_price, 9999);
+        assert_eq!(meta.total_number, 13);
+    }
+
+    #[test]
+    fn test_read_links() {
+        let content = read_file_from_resources("found_13.html").unwrap();
+        let links = get_links(&content).unwrap();
+        assert_eq!(links.len(), 1);
+    }
+
 }
