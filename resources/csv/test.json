@@ -1,0 +1,14 @@
+[
+  {
+    "make": "Toyota",
+    "model": "Corolla",
+    "from_year": 2010,
+    "to_year": 2015
+  },
+  {
+    "make": "Honda",
+    "model": "Civic",
+    "from_year": 2012,
+    "to_year": 2017
+  }
+]
