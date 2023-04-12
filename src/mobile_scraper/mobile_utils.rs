@@ -7,21 +7,30 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
         return (0, 0);
     }
 
-    if input.trim().contains("няма намерени") {
+    let contains_numeric = input.chars().any(|c| c.is_numeric());
+    if !contains_numeric {
         return (0, 0);
     }
-
-    if !input.contains("от общо") {
-        return (0, 0);
-    }
-
     let re = Regex::new(r"\d+").unwrap();
-    let numbers: Vec<u32> = re.find_iter(input).map(|mat| mat.as_str().parse().unwrap()).collect();
-    
-    let n = numbers[1];
-    let k = numbers[2];
-    
-   return (n, k);
+    let mut numbers: Vec<u32> = Vec::new();
+    for mat in re.find_iter(input) {
+        match mat.as_str().parse() {
+            Ok(n) => numbers.push(n),
+            Err(_) => {
+                // Handle invalid number here.
+                println!("Invalid number: {}", mat.as_str());
+                return (0, 0);
+            }
+        }
+    }
+
+    if numbers.len() < 2 {
+        return (0, 0);
+    }
+    let n = numbers[0];
+    let k = numbers[1];
+
+    return (n, k);
 }
 
 pub fn extract_ascii_latin(text: &str) -> String {
@@ -54,7 +63,7 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
 
     let min = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
     let max = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
-    let total_number = split[3].replace(" ", "").parse::<u16>().unwrap_or(0);
+    let total_number = split[3].replace(" ", "").parse::<u32>().unwrap_or(0);
 
     MetaHeader {
         make: make.to_string(),
@@ -64,8 +73,6 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
         total_number,
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -88,11 +95,9 @@ mod tests {
         assert_eq!(meta.max_price, 9999);
         assert_eq!(meta.total_number, 13);
     }
-
 }
 
-
-// Path: src/mobile_scraper/mobile_utils.rs 
+// Path: src/mobile_scraper/mobile_utils.rs
 // Compare this snippet from src/mobile_scraper/mod.rs:
 //         println!("{}", div.text().collect::<String>());
 //     }
