@@ -1,38 +1,52 @@
+use std::{
+    thread,
+    time::{Duration, SystemTime},
+};
 
-use data_scraper::mobile_scraper::{self, model::SearchRequest};
-use encoding_rs::{UTF_8, WINDOWS_1251};
+use chrono::{Local, DateTime};
+use data_scraper::{
+    mobile_scraper::{
+        get_found_result, get_links, get_pages, get_vehicles_prices,
+        model::{MetaHeader, SearchRequest, VehiclePrice}, data_processor, parse_details,
+    },
+    writer::data_persistance::{MobileData, MobileDataWriter}, configure_log4rs,
+};
 
 fn main() {
-    let mut user_search_input = SearchRequest::new("Mercedes-Benz".to_string(), "C".to_string());
-    user_search_input.set_from_year(2010);
-    user_search_input.set_to_year(2011);
-    let list_results = mobile_scraper::search_form_data("https://www.mobile.bg/pcgi/mobile.cgi", &user_search_input).unwrap();
-    let links = mobile_scraper::get_links(list_results.as_ref()).unwrap();
-    let meta_content = mobile_scraper::get_found_result(list_results.as_ref()).unwrap();
-    println!("{}", meta_content);
-    for link in links {
-        println!("{}", link);
+    configure_log4rs();
+    //scrape_sold_vehicles("//www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s0ozx4&f1=1");
+    scrape_vehicle_details("//www.mobile.bg/pcgi/mobile.cgi?act=4&adv=11680172133317294&slink=s0ozx4")
+}
+
+//https://www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s0ozx4&f1=1
+fn scrape_sold_vehicles(url: &str) {
+    let mut data_processor = data_processor::DataProcessor::from_file("resources/data/mobile_sold.csv").unwrap();
+    let html = get_pages(url).unwrap();
+    let meta_content = get_found_result(&html).unwrap();
+    let meta_data = MetaHeader::from_string(&meta_content);
+    let vehicle_prices: Vec<VehiclePrice> = get_vehicles_prices(&html);
+    data_processor.process(&vehicle_prices);
+    data_processor.save().unwrap();
+    if meta_data.total_number > 20 {
+        let all_pages = meta_data.total_number / 20;
+        let second_page = &get_links(&html).unwrap()[0];
+        for page in 2..all_pages + 2 {
+            let url = second_page.replace("f1=2", format!("f1={}", page).as_str());
+            let page_content = get_pages(url.as_str()).unwrap();
+            let page_vehicle = get_vehicles_prices(&page_content);
+            data_processor.process(&page_vehicle);
+            data_processor.save().unwrap();
+            let wait_time = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                % 11;
+            thread::sleep(Duration::from_secs(wait_time));
+        }
     }
-    // let response = reqwest::blocking::get(
-    //     "https://www.mobile.bg/pcgi/mobile.cgi?act=4&adv=11661885115343676&slink=ruvu7y",
-    // )
-    // .unwrap();
+}
 
-    // // Read the response body as a byte array
-    // let bytes = response.bytes().unwrap().to_vec();
-
-    // // Decode the byte array using the Windows-1251 encoding
-    // let (html, _, _) = WINDOWS_1251.decode(&bytes);
-
-    // // Convert the decoded text to UTF-8
-    // let utf8_html = UTF_8.encode(&html).0;
-
-    // // Print the UTF-8 encoded text to the console
-    // println!("{}", String::from_utf8_lossy(&utf8_html));
-    // let _ = mobile_scraper::parse_details(String::from_utf8_lossy(&utf8_html).as_ref());
-    // let list = mobile_scraper::search().unwrap();
-    // let links = mobile_scraper::get_links(list.as_ref()).unwrap();
-    // for link in links {
-    //     println!("{}", link);
-    // }
+fn scrape_vehicle_details(adv_url: &str) {
+    let html = get_pages(adv_url).unwrap();
+    parse_details(&html);
 }
