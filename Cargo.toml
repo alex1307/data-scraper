@@ -10,24 +10,29 @@ reqwest = {version = "0.11.7", features=["blocking"]}
 scraper = "0.16.0"
 crossterm = "0.26.1"
 encoding_rs = "0.8.32"
+futures = "0.3.28"
 tokio = { version = "1", features = ["full"] }
-protobuf = "3"
-protobuf-codegen = "3"
-protoc-rust = "^2.0"
 regex = "1.7.3"
 log = { version = "0.4", features = ["max_level_info", "release_max_level_info"] }
 log4rs = "1.2.0"
 lazy_static = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9.21"
 csv = "1.2.1"
 chrono = "0.4.19"
+crossbeam = "0.8.1"
+
 
 [[bin]]
-name="proto_gen"
-path="src/bin/proto.rs"
+name="sold"
+path="src/bin/sold.rs"
 
 [[bin]]
 name="scraper_app"
 path="src/bin/scraper.rs"
+
+[[bin]]
+name="metadata"
+path="src/bin/metadata.rs"
 

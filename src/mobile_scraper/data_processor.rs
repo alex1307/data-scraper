@@ -1,105 +1,139 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::HashSet, fmt::Debug};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 
-use log::debug;
+use log::{error, info};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
-use super::model::VehiclePrice;
+use crate::writer::data_persistance::{MobileData, MobileDataWriter};
 
-fn load_data_into_hashmap(
+use super::model::{Identity, Header};
+
+fn load_data<T: Clone + Serialize + DeserializeOwned + Debug>(
     file_path: &str,
-) -> Result<HashMap<String, VehiclePrice>, Box<dyn Error>> {
+) -> Result<Vec<T>, Box<dyn Error>> {
     let mut file = File::open(file_path)?;
     let mut data = String::new();
     file.read_to_string(&mut data)?;
 
     let mut reader = csv::Reader::from_reader(data.as_bytes());
-    let mut hashmap = HashMap::new();
+    let mut values = vec![];
     for record in reader.deserialize() {
         if record.is_err() {
+            error!("Error while reading record: {:?}", record);
             continue;
         }
-        let record: VehiclePrice = record?;
-        println!("{:?}", record);
-        hashmap.insert(record.id.clone(), record);
+        let record: T = record?;
+        values.push(record);
     }
-
-    Ok(hashmap)
+    Ok(values)
 }
 
-pub struct DataProcessor {
+pub struct DataProcessor<T: Serialize + DeserializeOwned + Clone + Identity + Debug> {
     file_name: String,
     ids: HashSet<String>,
-    data: HashMap<String, VehiclePrice>,
-    new_data: HashMap<String, VehiclePrice>,
+    updated_ids: HashSet<String>,
+    values: Vec<T>,
+    do_update: bool,
 }
 
-impl DataProcessor {
+impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataProcessor<T> {
     pub fn from_file(file_name: &str) -> Result<Self, Box<dyn Error>> {
-        let path = std::path::Path::new(file_name);
-        if !path.exists() {
-            File::create(file_name)?;
-            debug!("File {} created.", file_name);
-            return Ok(DataProcessor {
-                file_name: file_name.to_string(),
-                ids: HashSet::new(),
-                data: HashMap::new(),
-                new_data: HashMap::new(),
-            });
-        }
-        let data = load_data_into_hashmap(file_name)?;
-        let ids = data.keys().cloned().collect();
+        let values = load_data(&file_name)?;
+        info!("Found {} records in file {}", values.len(), &file_name);
+        let ids:HashSet<String> = values.iter().map(|v: &T| v.get_id().clone()).collect();
+        info!("Unique ids: {}", ids.len());
         Ok(DataProcessor {
             file_name: file_name.to_string(),
             ids,
-            data,
-            new_data: HashMap::new(),
+            updated_ids: HashSet::new(),
+            values,
+            do_update: false,
         })
     }
 
-    pub fn process(&mut self, source: &Vec<VehiclePrice>) {
-        for value in source {
-            self.new_data.insert(value.id.clone(), value.clone());
+    pub fn new_values(&mut self, source: &Vec<T>) -> Vec<T> {
+        if source.is_empty() {
+            return vec![];
         }
+        let mut new_values = vec![];
+        source.iter().for_each(|v| {
+            if !self.ids.contains(&v.get_id()) {
+                new_values.push(v.clone());
+            } 
+        });
+        self
+            .ids
+            .extend(new_values.iter().map(|v| v.get_id().clone()));
+        new_values
+    }
+
+    pub fn process(&mut self, source: &Vec<T>, target: Option<&str>) -> Vec<T>{
+        if source.is_empty() {
+            return vec![];
+        }
+
+        //Get new and updated values
+        let mut new_values = vec![];
+        let mut updated_values = vec![];
+        source.iter().for_each(|v| {
+            if !self.ids.contains(&v.get_id()) {
+                new_values.push(v.clone());
+            } else {
+                updated_values.push(v.clone());
+            }
+        });
+        info!("Found new values: {}", new_values.len());
+        //Save the new values only
+        let data = MobileData::Payload(new_values.clone());
+        let target_file_name = target.unwrap_or(&self.file_name);
+        data.write_csv(target_file_name, false).unwrap();
         
-        if self.data.is_empty() {
-            return;
+        self.values.append(&mut new_values.clone());
+        self.ids
+            .extend(new_values.iter().map(|v| v.get_id().clone()));
+        if self.do_update {
+            for value in updated_values {
+                self.values
+                    .iter_mut()
+                    .filter(|v| v.get_id() == value.get_id())
+                    .for_each(|v| *v = value.clone());
+                self.updated_ids.insert(value.get_id());
+            }
         }
-
-        for value in source {
-            self.new_data.insert(value.id.clone(), value.clone());
-        }
-
-        let source_ids = self.new_data.keys().cloned().collect::<HashSet<String>>();
-        let removed_ids = &self.ids - &source_ids;
-        for sold_id in removed_ids {
-            let mut sold = self.data.get(&sold_id).unwrap().clone();
-            sold.sold = true;
-            self.new_data.insert(sold_id, sold);
-        }
+        new_values
     }
 
-    pub fn save(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut writer = csv::Writer::from_path(&self.file_name)?;
-        for (_, value) in &self.new_data {
-            writer.serialize(value)?;
-        }
-        self.data = self.new_data.clone();
-        self.ids = self.data.keys().cloned().collect();
-        self.new_data.clear();
-        Ok(())
+   pub fn do_update(&mut self, do_update: bool) {
+        self.do_update = do_update;
     }
+
+    pub fn get_updated_ids(&self) -> &HashSet<String> {
+        &self.updated_ids
+    }
+
+    pub fn get_ids(&self) -> &HashSet<String> {
+        &self.ids
+    }
+
+    pub fn get_values(&self) -> &Vec<T> {
+        &self.values
+    }
+    
 }
 
 #[cfg(test)]
 mod test {
 
+    use std::fs::remove_file;
+
     use log::info;
 
     use crate::{
         configure_log4rs,
-        mobile_scraper::{get_vehicles_prices, utils::read_file_from},
+        mobile_scraper::{get_vehicles_prices, utils::read_file_from, model::MobileList},
     };
 
     use super::*;
@@ -108,43 +142,16 @@ mod test {
     fn test_load_data_into_hashmap() {
         configure_log4rs();
         info!("test_load_data_into_hashmap");
-        let mut mercedes_processor =
-            DataProcessor::from_file("resources/csv/Mercedes_SL.csv").unwrap();
+        let test_file = "resources/test-data/csv/test_data.csv";
+        std::fs::copy("resources/test-data/csv/source.csv", test_file).unwrap();
+        let mut mercedes_processor:DataProcessor<MobileList> =
+            DataProcessor::from_file(test_file).unwrap();
         let html = read_file_from("resources/html", "Mercedes_SL.html").unwrap();
-        let vehicle_prices: Vec<VehiclePrice> = get_vehicles_prices(&html);
-        mercedes_processor.process(&vehicle_prices);
-        assert_eq!(mercedes_processor.data.len(), 0);
-        mercedes_processor.save().unwrap();
-        assert_eq!(mercedes_processor.data.len(), 11);
-        let mut new_mercedes_sl = vec![];
-        for i in 1..11 {
-            if i % 3 == 0 {
-                let mut m = vehicle_prices[i].clone();
-                m.id = format!("{}-{}", i, i);
-                new_mercedes_sl.push(m);
-            } else if i % 4 == 0 {
-                let mut m = vehicle_prices[i].clone();
-                m.sold = true;
-                new_mercedes_sl.push(m);
-            } else {
-                new_mercedes_sl.push(vehicle_prices[i].clone());
-            }
-        }
-        assert_eq!(new_mercedes_sl.len(), 10);
-        mercedes_processor.process(&new_mercedes_sl);
-        mercedes_processor.save().unwrap();
-        assert_eq!(mercedes_processor.data.len(), 14);
-        let mut solded = 0;
-        for m in mercedes_processor.data.values() {
-            if m.sold {
-                solded += 1;
-            }
-        }
-        //Deleted are 6 = 2 (%4) + 3 (%3) + 1 (i == 0)
-        assert_eq!(solded, 6);
-        mercedes_processor.data.clear();
-        mercedes_processor.process(&vehicle_prices);
-        mercedes_processor.save().unwrap();
-        assert_eq!(mercedes_processor.data.len(), 11);
-    }
+        let vehicle_prices: Vec<MobileList> = get_vehicles_prices(&html);
+        assert_eq!(mercedes_processor.values.len(), 10);
+        assert_eq!(vehicle_prices.len(), 11);
+        mercedes_processor.process(&vehicle_prices, None);
+        assert_eq!(mercedes_processor.values.len(), 11);
+        remove_file(test_file).unwrap();
+    }   
 }
