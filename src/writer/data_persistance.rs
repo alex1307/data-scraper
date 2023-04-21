@@ -1,12 +1,14 @@
-use std::{fs::File, io::Write};
+use std::{fs::File, io::{Write, BufWriter}, error::Error};
 
 use csv::WriterBuilder;
 
 use serde::{Deserialize, Serialize};
 
+use crate::mobile_scraper::model::{Header};
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MobileData<T> {
-    Vehicles(Vec<T>),
+    Payload(Vec<T>),
     // Other data types can be added here
 }
 
@@ -17,7 +19,7 @@ pub trait MobileDataWriter<T> {
 
 fn open_file(file_path: &str) -> std::io::Result<File> {
     let file = std::fs::OpenOptions::new()
-        .create(true)
+        .create(false)
         .append(true)
         .open(file_path)?;
     Ok(file)
@@ -26,7 +28,7 @@ fn open_file(file_path: &str) -> std::io::Result<File> {
 impl<T: Serialize + Clone> MobileDataWriter<T> for MobileData<T> {
     fn write_json(&self, file_path: &str) -> std::io::Result<()> {
         let data = match self {
-            MobileData::Vehicles(v) => serde_json::to_string_pretty(v)?,
+            MobileData::Payload(v) => serde_json::to_string_pretty(v)?,
         };
         let mut file = open_file(file_path)?;
         file.write_all(data.as_bytes())?;
@@ -35,7 +37,7 @@ impl<T: Serialize + Clone> MobileDataWriter<T> for MobileData<T> {
 
     fn write_csv(&self, file_path: &str, has_headers: bool) -> std::io::Result<()> {
         let _data = match self {
-            MobileData::Vehicles(v) => {
+            MobileData::Payload(v) => {
                 let file = open_file(file_path)?;
                 let mut wtr = WriterBuilder::new()
                     .has_headers(has_headers)
@@ -48,6 +50,20 @@ impl<T: Serialize + Clone> MobileDataWriter<T> for MobileData<T> {
         };
         Ok(())
     }
+}
+
+pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Box<dyn Error>> {
+    let path = std::path::Path::new(file_path);
+    if path.exists() {
+        return Err(format!("File {} already exists.", file_path).into());
+    }
+    let line = T::heder().join(","); // Convert the vector to a comma-separated string
+    let file = File::create(file_path)?; // Create a new file for writing
+    let mut writer = BufWriter::new(file);
+    writer.write_all(line.as_bytes())?;
+    writer.write_all(b"\r\n")?;
+    writer.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -99,7 +115,7 @@ mod tests {
                 to_year: 2017,
             },
         ];
-        let data = MobileData::Vehicles(vehicles);
+        let data = MobileData::Payload(vehicles);
 
         let test_file = "test.json";
         data.write_json(test_file)?;
@@ -126,7 +142,7 @@ mod tests {
                 to_year: 2017,
             },
         ];
-        let data = MobileData::Vehicles(vehicles);
+        let data = MobileData::Payload(vehicles);
 
         let test_file = "test.csv";
         data.write_csv(test_file, true)?;
@@ -154,7 +170,7 @@ mod tests {
                 to_year: 2017,
             },
         ];
-        let data = MobileData::Vehicles(vehicles);
+        let data = MobileData::Payload(vehicles);
 
         let test_file = "test.csv";
         data.write_csv(test_file, true)?;
@@ -177,7 +193,7 @@ mod tests {
                 to_year: 2017,
             },
         ];
-        let data = MobileData::Vehicles(new_vehicles);
+        let data = MobileData::Payload(new_vehicles);
         data.write_csv(test_file, false)?;
         let number_of_records = count_csv_records(test_file)?;
         assert_eq!(number_of_records, 4);

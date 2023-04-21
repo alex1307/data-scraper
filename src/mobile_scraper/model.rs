@@ -1,9 +1,15 @@
-use log::info;
+use chrono::Local;
+use crossbeam::channel::{Receiver, self};
+use log::{info, error};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use super::currency::Currency;
+use crate::writer::data_persistance::{create_empty_csv, MobileData, MobileDataWriter};
+
+use super::currency::{Currency, Engine, Gearbox};
 use super::mobile_utils::extract_ascii_latin;
 use std::collections::HashMap;
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SearchRequest {
@@ -32,36 +38,69 @@ pub struct SearchResponse {
     pub sum_of_prices: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct MetaHeader {
+    pub timestamp: String,
+    pub meta_type: String,
     pub make: String,
     pub model: String,
     pub total_number: u32,
     pub min_price: u32,
     pub max_price: u32,
+    pub created_on: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VehiclePrice {
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MobileList {
     pub id: String,
     pub make: String,
     pub model: String,
+    pub currency: Currency,
     pub price: u32,
-    pub promoted: bool,
-    pub sold: bool,
     pub millage: u32,
     pub year: u16,
-    pub currency: Currency,
-    pub created_on: u64,
-    pub updated_on: Option<u64>,
+    pub promoted: bool,
+    pub sold: bool,
+    pub url: String,
+    pub created_on: String,
 }
 
-impl PartialEq for VehiclePrice {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct MobileDetails {
+    pub id: String,
+    #[serde(skip)]
+    pub engine: Engine,
+    #[serde(skip)]
+    pub gearbox: Gearbox,
+
+    pub currency: Currency,
+    pub price: u32,
+    pub power: u16,
+    pub phone: String,
+    pub view_count: u32,
+    #[serde(skip)]
+    pub extras: Vec<String>,
+    pub equipment: u64,
+    pub created_on: String,
+}
+
+impl PartialEq for MobileList {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
             && self.price == other.price
             && self.promoted == other.promoted
             && self.sold == other.sold
+    }
+}
+
+impl MobileDetails {
+    pub fn new(id: String, phone: String) -> Self {
+        MobileDetails {
+            id,
+            phone,
+            created_on: Local::now().format("%Y-%m-%d").to_string(),
+            ..Default::default()
+        }
     }
 }
 
@@ -175,28 +214,32 @@ impl SearchRequest {
         info!("form_data: {:?}", &form_data);
 
         return form_data;
-
     }
 }
 
+
 impl MetaHeader {
-    pub fn from_string(raw: &str) -> Self {
+    pub fn from_string(raw: &str, meta_type: String) -> Self {
         let meta = extract_ascii_latin(raw);
         let re = regex::Regex::new(r" {2,}").unwrap();
         let split: Vec<&str> = re.split(meta.trim()).collect();
         for s in split.clone() {
             info!("split: {}", s);
         }
+        let timestamp = chrono::Utc::now().timestamp().to_string();
         if split.len() <= 4 {
             let min_price = split[0].replace(" ", "").parse::<u32>().unwrap_or(0);
             let max_price = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
             let total_number = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
             return MetaHeader {
-                make: "".to_string(),
-                model: "".to_string(),
+                timestamp,
+                meta_type,
+                make: "ALL".to_string(),
+                model: "ALL".to_string(),
                 min_price,
                 max_price,
                 total_number,
+                created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
             };
         }
 
@@ -213,32 +256,204 @@ impl MetaHeader {
         let total_number = split[3].replace(" ", "").parse::<u32>().unwrap_or(0);
 
         MetaHeader {
+            timestamp,
+            meta_type,
             make: make.to_string(),
             model: model.to_string(),
             min_price: min,
             max_price: max,
-            total_number: total_number,
+            total_number,
+            created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
         }
     }
 }
 
-impl VehiclePrice {
-    pub fn new(id: String, make: String, model: String, price: u32, currency: Currency) -> Self {
-        VehiclePrice {
+pub trait Identity {
+    fn get_id(&self) -> String;
+}
+
+impl Identity for MetaHeader {
+    fn get_id(&self) -> String {
+        self.timestamp.clone()
+    }
+}
+
+impl Header for MetaHeader {
+    fn heder() -> Vec<&'static str> {
+        return vec!["timestamp", 
+            "meta_type", 
+            "make", 
+            "model", 
+            "total_number", 
+            "min_price", 
+            "max_price",
+            "created_on"];
+    }
+}
+
+impl MobileList {
+    pub fn new(
+        id: String,
+        make: String,
+        model: String,
+        price: u32,
+        currency: Currency,
+        created_on: String,
+    ) -> Self {
+        MobileList {
             id,
             make,
             model,
             price,
             currency,
             sold: false,
-            created_on: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            updated_on: None,
+            created_on,
             promoted: false,
             millage: 0,
+            url: "".to_string(),
             year: 0,
         }
+    }
+}
+
+impl Identity for MobileList {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+}
+
+impl Identity for MobileDetails {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+}
+
+pub trait Header {
+    fn heder() -> Vec<&'static str>;
+}
+
+impl Header for MobileList {
+    fn heder() -> Vec<&'static str> {
+        return vec![
+            "id",
+            "make",
+            "model",
+            "currency",
+            "price",
+            "millage",
+            "year",
+            "promoted",
+            "sold",
+            "created_on",
+        ];
+    }
+}
+
+impl Header for MobileDetails  {
+    fn heder() -> Vec<&'static str> {
+        return vec![
+            "id",
+            "engine",
+            "gearbox",
+            "power",
+            "phone",
+            "view_count",
+            "equipment",
+            "created_on",
+        ];
+    }
+}
+
+
+pub enum Message<T: Clone + DeserializeOwned + Serialize + Identity + Header> {
+    Data(Vec<T>),
+    Value(T),
+    Stop,   
+}
+
+pub struct Processor <T: Clone + DeserializeOwned + Serialize + Identity + Header>{
+    receiver: Receiver<Message<T>>,
+    data: Vec<T>,
+    file: String,
+    cache_size: u32,
+}
+
+impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
+    pub fn new(receiver: Receiver<Message<T>>, file: &str) -> Self{
+        match create_empty_csv::<T>(file) {
+            Ok(_) => info!("File {} created", file),
+            Err(e) => error!("Error creating file {}: {}", file, e),
+        }
+        Self{
+            receiver,
+            data: vec![],
+            file: file.to_string(),
+            cache_size: 100,
+        }
+    }
+
+    pub fn handle(&mut self) {
+        info!("Start handling messages");
+        loop{
+            let mut do_exit = false;
+            match self.receiver.recv_timeout(Duration::from_secs(3)) {
+                Ok(message) => {
+                    match message {
+                        Message::Data(data) => {
+                            info!("Data message received: {}", data.len());
+                            self.data.extend(data);
+                        }
+
+                        Message::Stop => {
+                            info!("Stop message received");
+                            do_exit = true;
+                        }
+                        Message::Value(value) => {
+                            self.data.push(value);
+                        },
+                    }
+                }
+                Err(e) => match e {
+                    channel::RecvTimeoutError::Timeout => {
+                        // No message received within the timeout
+                    }
+                    channel::RecvTimeoutError::Disconnected => {
+                        error!("Channel is disconnected");
+                        break;
+                    }
+                },
+            }
+            
+            // Check if there are more messages available without blocking
+            for message in self.receiver.try_iter() {
+                match message {
+                    Message::Data(data) => {
+                        self.data.extend(data);
+                    }
+                    Message::Stop => {
+                        do_exit = true;
+                    }
+                    Message::Value(_) => todo!(),
+                }
+            }
+            
+            if self.data.len() >= self.cache_size as usize {
+                let data = MobileData::Payload(self.data.clone());
+                data.write_csv(&self.file, false).unwrap();
+                info!("write {} records to {}", self.data.len(), &self.file);
+                self.data.clear();
+            }
+
+            if do_exit {
+                break;
+            }
+        }
+        if self.data.len() > 0{
+            let data = MobileData::Payload(self.data.clone());
+            data.write_csv(&self.file, false).unwrap();
+            info!("write {} records to {}", self.data.len(), &self.file);
+            self.data.clear();
+        }
+        
     }
 }

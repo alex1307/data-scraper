@@ -45,11 +45,14 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
     let split: Vec<&str> = re.split(&meta.trim()).collect();
     if split.len() <= 4 {
         return MetaHeader {
+            timestamp: chrono::Local::now().timestamp().to_string(),
+            meta_type: "NEW".to_string(),
             make: "".to_string(),
             model: "".to_string(),
             min_price: 0,
             max_price: 0,
             total_number: 0,
+            created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
         };
     }
 
@@ -66,11 +69,14 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
     let total_number = split[3].replace(" ", "").parse::<u32>().unwrap_or(0);
 
     MetaHeader {
+        timestamp: chrono::Local::now().timestamp().to_string(),
+        meta_type: "NEW".to_string(),
         make: make.to_string(),
         model: model.to_string(),
         min_price: min,
         max_price: max,
         total_number,
+        created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
     }
 }
 
