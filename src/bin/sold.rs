@@ -1,68 +1,88 @@
-use std::{time::{SystemTime, Duration}, thread::{self}, vec};
+use std::{
+    thread,
+    time::{Duration, Instant, SystemTime},
+    vec,
+};
 
-use crossbeam::channel::Sender;
+
 use data_scraper::{
-    configure_log4rs,
+    config::MobileConfig::{ConfigData, Mobile, LinkData},
+    configure_log4rs, listing_url,
     mobile_scraper::{
-        data_processor::{self, DataProcessor}, get_pages, get_vehicles_prices,
-        model::{MobileDetails, Message, Processor, MobileList},
-        parse_details,
+        data_processor::{self, DataProcessor},
+        model::{MetaHeader, MobileList, VehicleList},
     },
 };
-use log::info;
+use log::{error, info};
 
 
- fn main() {
+fn main() {
     configure_log4rs();
-    let _html = get_pages("//www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s31et9&f1=1")
-        .unwrap();
-    // let meta_header = meta_data(&html, "SOLD");
-    // info!("Extracted meta data {:?}", meta_header);
-    let (tx, rx) = crossbeam::channel::unbounded::<Message<MobileList>>();
-    let mut processor = Processor::new(rx, "resources/data/mobile_sold_1.csv");
-    let mut tasks = vec![];
-    tasks.push(thread::spawn(move || processor.handle()));
-    tasks.push(thread::spawn(move || download_vehicle_prices("s3gfw0", "SOLD", "resources/data/mobile_sold_1.csv", &tx.clone(), 1, 27)));
-    
-    for task in tasks {
-        task.join().unwrap();
-    }   
-    
+    let mobile_config = Mobile::from_file("config/mobile_config.yml");
+    let _ = process(mobile_config.config[0].clone(), "resources/data/dealer.csv");
+    let _ = process(mobile_config.config[1].clone(), "resources/data/private.csv");
 }
 
- fn download_vehicle_prices(slink:&str, search_type: &str, source_file: &str,sender: &Sender<Message<MobileList>>, start: i32, end: i32) {
-    let mut data_processor =
-        data_processor::DataProcessor::from_file(source_file).unwrap();
-     
-    for i in start..end{
-        let url = format!("//www.mobile.bg/pcgi/mobile.cgi?act=3&slink={}&f1={}", slink, i);
-        let html = get_pages(url.as_str()).unwrap();
-        let vehicle_prices: Vec<MobileList> = get_vehicles_prices(&html);
-        let new = data_processor.new_values(&vehicle_prices);
-        let wait_time = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                % 7 + 3; // min 3 sec, max 10 sec
-            thread::sleep(Duration::from_secs(wait_time));
-            sender.send(Message::Data(new.clone())).unwrap();
-        info!("Sent {} records", new.len());
+fn process(config: ConfigData, target_file: &str) -> Vec<MobileList> {
+    let mut data_processor:DataProcessor<MobileList> = data_processor::DataProcessor::from_file(target_file).unwrap();
+    let sold_vehicles: Vec<MobileList> = collect_vehicles(config.sold, config.dealear_type.clone());
+    let new_vehicle = collect_vehicles(config.new, config.dealear_type);
+    data_processor.process(&new_vehicle, None);
+    data_processor.process(&sold_vehicles, None);
+    vec![]
+}
+
+fn collect_vehicles(link: LinkData, dealer: String) -> Vec<MobileList> {
+    let slink = &link.link;
+    let start_time = Instant::now();
+    let first_page_url = listing_url(slink, 1);
+    let headar_data = MetaHeader::from_url(&first_page_url);
+    let pages = headar_data.page_numbers();
+    if pages == 0 {
+        error!("No pages found for {}", slink);
+        return vec![];
     }
-    sender.send(Message::Stop).unwrap();
-    info!("Sent Stop");
-}
+    let min_wait_time: u64 = 3;
+    let max_wait_time: u64 = 10;
+    info!(
+        "Estimated time to download {} pages should take between {} and {} seconds",
+        pages,
+        pages * min_wait_time as u32,
+        pages * max_wait_time as u32
+    );
+    let mut mobile_list = vec![];
+    let search_promoted_only = &link.name == "NEW";
+    info!("Search promoted only {}", search_promoted_only);
+    for i in 1..pages + 1 {
+        let url = listing_url(slink, i as i32);
+        let results = VehicleList::from_url(&url, dealer.clone());
+        if search_promoted_only {
+            let promoted = results.promoted();
+            if promoted.is_empty() {
+                break;
+            }
+            mobile_list.extend(promoted);
+        } else {
+            mobile_list.extend(results.results());
+        }
 
-
-fn scrape_vehicle_details(vehicles: &Vec<MobileList>) {
-    info!("Extracting details for {} vehicles", vehicles.len());
-    let mut data_processor: DataProcessor<MobileDetails> =
-        data_processor::DataProcessor::from_file("resources/data/details.csv").unwrap();
-    let mut details: Vec<MobileDetails> = vec![];
-    for vehicle in vehicles {
-        info!("Extracting details for {}", vehicle.url);
-        let scrapted = parse_details(vehicle.url.as_str()).unwrap();
-        details.push(scrapted);
+        wait(min_wait_time, max_wait_time);
     }
-    data_processor.process(&details, None);
+    let end_time = Instant::now();
+    info!(
+        "Downloaded {} pages in {} seconds",
+        pages,
+        end_time.duration_since(start_time).as_secs()
+    );
+    mobile_list
 }
 
+fn wait(min: u64, max: u64) {
+    let wait_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        % max
+        + min; // min 3 sec, max 10 sec
+    thread::sleep(Duration::from_secs(wait_time));
+}
