@@ -1,18 +1,14 @@
-
 use lazy_static::lazy_static;
 use serde_yaml::Value;
 use std::collections::HashMap;
 
-
-
-
 lazy_static! {
     pub static ref EQUIPMENT: HashMap<u64, String> = {
-        let yaml_str = std::fs::read_to_string("config/equipment.yml").unwrap();    
+        let yaml_str = std::fs::read_to_string("config/equipment.yml").unwrap();
         let yaml_value: Value = serde_yaml::from_str(&yaml_str).unwrap();
         match yaml_value["equipment"].clone() {
             Value::Mapping(map) => {
-                let mut result_map:HashMap<u64, String> = HashMap::new();
+                let mut result_map: HashMap<u64, String> = HashMap::new();
                 for (key, value) in map {
                     let key = key.as_i64().unwrap() as u64;
                     let value = value.as_str().unwrap().to_owned();
@@ -20,9 +16,9 @@ lazy_static! {
                 }
                 result_map
             }
-        
-        _ => HashMap::new()
-    }
+
+            _ => HashMap::new(),
+        }
     };
 }
 
@@ -36,7 +32,7 @@ pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {
     keys
 }
 
-pub fn get_equipment_as_u64( values: Vec<String>) -> u64 {
+pub fn get_equipment_as_u64(values: Vec<String>) -> u64 {
     let mut sum = 0;
     for (key, value) in EQUIPMENT.iter() {
         if values.contains(&value) {
@@ -62,7 +58,6 @@ pub fn get_values_by_equipment_id(keymask: u64) -> Vec<String> {
     values
 }
 
-
 #[cfg(test)]
 mod test {
     use std::vec;
@@ -71,15 +66,25 @@ mod test {
 
     #[test]
     fn get_petrol_automatic() {
-        let values = vec!["Бензинов".to_string(), 
-            "Ръчна".to_string(), 
-            "4x4".to_string(), 
-            "Система за контрол на скоростта (автопилот)".to_string()];
+        let values = vec![
+            "Бензинов".to_string(),
+            "Ръчна".to_string(),
+            "4x4".to_string(),
+            "Система за контрол на скоростта (автопилот)".to_string(),
+        ];
 
         let equipment_id = get_equipment_as_u64(values);
         println!("{}", equipment_id); // Output: 7
         assert_eq!(equipment_id, 20971586);
-        let values = equipment::get_values_by_equipment_id( equipment_id);
-        assert_eq!(values, vec!["Бензинов", "Ръчна", "4x4", "Система за контрол на скоростта (автопилот)"]);
+        let values = equipment::get_values_by_equipment_id(equipment_id);
+        assert_eq!(
+            values,
+            vec![
+                "Бензинов",
+                "Ръчна",
+                "4x4",
+                "Система за контрол на скоростта (автопилот)"
+            ]
+        );
     }
 }

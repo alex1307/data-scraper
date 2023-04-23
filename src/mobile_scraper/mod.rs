@@ -1,10 +1,10 @@
 pub mod currency;
 pub mod data_processor;
+pub mod details_scraper;
+pub mod equipment;
 pub mod mobile_utils;
 pub mod model;
 pub mod utils;
-pub mod equipment;
-pub mod details_scraper;
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::info;
@@ -21,7 +21,7 @@ use crate::mobile_scraper::{
 
 use self::{
     currency::Currency,
-    model::{SearchRequest, MobileDetails, MobileList},
+    model::{MobileDetails, MobileList, SearchRequest},
 };
 pub const SEARCH_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi";
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -60,7 +60,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Error>> {
     let html = get_pages(url).unwrap();
-    if html.contains("обява е изтрита или не е активна"){
+    if html.contains("обява е изтрита или не е активна") {
         return Err("not found".into());
     }
     let document = Html::parse_document(&html);
@@ -136,7 +136,7 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
     return Ok(details);
 }
 
-pub fn get_found_result(html: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
     let fragment = Html::parse_document(&html);
     let selector = Selector::parse("meta[name=description]").unwrap();
     let description = fragment
@@ -166,7 +166,6 @@ pub fn get_links(html: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> 
 }
 
 fn extract_price(element: &ElementRef) -> Option<(u32, Currency)> {
-    
     let selector = Selector::parse("span.price").unwrap();
     let element = match element.select(&selector).next() {
         Some(e) => e,
@@ -208,10 +207,11 @@ fn get_url(element: &ElementRef) -> Option<String> {
 }
 
 fn get_id_from_url(url: String) -> Option<String> {
-    let id = url.split('&')
-                .find(|s| s.starts_with("adv="))?
-                .split('=')
-                .last()?;
+    let id = url
+        .split('&')
+        .find(|s| s.starts_with("adv="))?
+        .split('=')
+        .last()?;
     Some(id.to_owned())
 }
 
@@ -308,11 +308,18 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
         let prices = extract_price(&element);
         let make_and_mode = make_and_mode(&element, HashMap::new());
         if let Some(url) = get_url(&element) {
-            let id = get_id_from_url(url.clone());  
+            let id = get_id_from_url(url.clone());
             if id.is_some() && prices.is_some() && make_and_mode.is_some() {
                 let (make, model) = make_and_mode.unwrap();
                 let (price, currency) = prices.unwrap();
-                let mut vehicle_price = MobileList::new(id.unwrap(), make, model, price, currency, created_on.clone());
+                let mut vehicle_price = MobileList::new(
+                    id.unwrap(),
+                    make,
+                    model,
+                    price,
+                    currency,
+                    created_on.clone(),
+                );
                 vehicle_price.promoted = is_top_or_vip(&element);
                 vehicle_price.sold = is_sold(&element);
                 let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
@@ -322,7 +329,6 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
                 vehicle_prices.push(vehicle_price);
             }
         }
-        
     }
     info!("Found {} vehicles", vehicle_prices.len());
     vehicle_prices
@@ -407,8 +413,8 @@ mod test {
     #[test]
     fn test_read_meta_data() {
         let content = read_file_from_resources("found_13.html").unwrap();
-        let meta_content = get_found_result(&content).unwrap();
-        let meta = MetaHeader::from_string(&meta_content, "SELL".to_string());
+        let meta_content = get_header_data(&content).unwrap();
+        let meta = MetaHeader::from_string(&meta_content, "SELL".to_string(), "ALL".to_string());
         assert_eq!(meta.make, "Skoda");
         assert_eq!(meta.model, "Octavia");
         assert_eq!(meta.min_price, 2300);
@@ -451,8 +457,14 @@ mod test {
             if adv.is_some() && prices.is_some() && make_and_mode.is_some() {
                 let (make, model) = make_and_mode.unwrap();
                 let (price, currency) = prices.unwrap();
-                let mut vehicle_price =
-                    MobileList::new(adv.unwrap(), make, model, price, currency, created_on.clone());
+                let mut vehicle_price = MobileList::new(
+                    adv.unwrap(),
+                    make,
+                    model,
+                    price,
+                    currency,
+                    created_on.clone(),
+                );
                 vehicle_price.promoted = is_top_or_vip(&element);
                 vehicle_price.sold = is_sold(&element);
                 let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);

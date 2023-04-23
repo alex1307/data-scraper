@@ -1,7 +1,7 @@
-use std::{collections::HashSet, fmt::Debug};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
+use std::{collections::HashSet, fmt::Debug};
 
 use log::{error, info};
 use serde::de::DeserializeOwned;
@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::writer::data_persistance::{MobileData, MobileDataWriter};
 
-use super::model::{Identity, Header};
+use super::model::{Header, Identity};
 
 fn load_data<T: Clone + Serialize + DeserializeOwned + Debug>(
     file_path: &str,
@@ -39,11 +39,11 @@ pub struct DataProcessor<T: Serialize + DeserializeOwned + Clone + Identity + De
     do_update: bool,
 }
 
-impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataProcessor<T> {
+impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug + Header> DataProcessor<T> {
     pub fn from_file(file_name: &str) -> Result<Self, Box<dyn Error>> {
         let values = load_data(&file_name)?;
         info!("Found {} records in file {}", values.len(), &file_name);
-        let ids:HashSet<String> = values.iter().map(|v: &T| v.get_id().clone()).collect();
+        let ids: HashSet<String> = values.iter().map(|v: &T| v.get_id().clone()).collect();
         info!("Unique ids: {}", ids.len());
         Ok(DataProcessor {
             file_name: file_name.to_string(),
@@ -62,15 +62,14 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataPro
         source.iter().for_each(|v| {
             if !self.ids.contains(&v.get_id()) {
                 new_values.push(v.clone());
-            } 
+            }
         });
-        self
-            .ids
+        self.ids
             .extend(new_values.iter().map(|v| v.get_id().clone()));
         new_values
     }
 
-    pub fn process(&mut self, source: &Vec<T>, target: Option<&str>) -> Vec<T>{
+    pub fn process(&mut self, source: &Vec<T>, target: Option<&str>) -> Vec<T> {
         if source.is_empty() {
             return vec![];
         }
@@ -90,7 +89,7 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataPro
         let data = MobileData::Payload(new_values.clone());
         let target_file_name = target.unwrap_or(&self.file_name);
         data.write_csv(target_file_name, false).unwrap();
-        
+
         self.values.append(&mut new_values.clone());
         self.ids
             .extend(new_values.iter().map(|v| v.get_id().clone()));
@@ -106,7 +105,7 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataPro
         new_values
     }
 
-   pub fn do_update(&mut self, do_update: bool) {
+    pub fn do_update(&mut self, do_update: bool) {
         self.do_update = do_update;
     }
 
@@ -121,7 +120,6 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug +Header> DataPro
     pub fn get_values(&self) -> &Vec<T> {
         &self.values
     }
-    
 }
 
 #[cfg(test)]
@@ -133,7 +131,7 @@ mod test {
 
     use crate::{
         configure_log4rs,
-        mobile_scraper::{get_vehicles_prices, utils::read_file_from, model::MobileList},
+        mobile_scraper::{get_vehicles_prices, model::MobileList, utils::read_file_from},
     };
 
     use super::*;
@@ -144,7 +142,7 @@ mod test {
         info!("test_load_data_into_hashmap");
         let test_file = "resources/test-data/csv/test_data.csv";
         std::fs::copy("resources/test-data/csv/source.csv", test_file).unwrap();
-        let mut mercedes_processor:DataProcessor<MobileList> =
+        let mut mercedes_processor: DataProcessor<MobileList> =
             DataProcessor::from_file(test_file).unwrap();
         let html = read_file_from("resources/html", "Mercedes_SL.html").unwrap();
         let vehicle_prices: Vec<MobileList> = get_vehicles_prices(&html);
@@ -153,5 +151,5 @@ mod test {
         mercedes_processor.process(&vehicle_prices, None);
         assert_eq!(mercedes_processor.values.len(), 11);
         remove_file(test_file).unwrap();
-    }   
+    }
 }

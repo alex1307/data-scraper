@@ -1,12 +1,14 @@
 use chrono::Local;
-use crossbeam::channel::{Receiver, self};
-use log::{info, error};
+use crossbeam::channel::{self, Receiver};
+use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::listing_url;
 use crate::writer::data_persistance::{create_empty_csv, MobileData, MobileDataWriter};
 
 use super::currency::{Currency, Engine, Gearbox};
+use super::{get_pages, get_header_data, get_vehicles_prices};
 use super::mobile_utils::extract_ascii_latin;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -48,6 +50,7 @@ pub struct MetaHeader {
     pub min_price: u32,
     pub max_price: u32,
     pub created_on: String,
+    pub dealer: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,6 +66,7 @@ pub struct MobileList {
     pub sold: bool,
     pub url: String,
     pub created_on: String,
+    pub dealer: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -217,9 +221,47 @@ impl SearchRequest {
     }
 }
 
-
 impl MetaHeader {
-    pub fn from_string(raw: &str, meta_type: String) -> Self {
+    pub fn from_url(url: &str) -> Self {
+        let html = get_pages(url).unwrap();
+        let content = get_header_data(&html).unwrap();
+        let meta = extract_ascii_latin(&content);
+        let re = regex::Regex::new(r" {2,}").unwrap();
+        let split: Vec<&str> = re.split(meta.trim()).collect();
+        for s in split.clone() {
+            info!("split: {}", s);
+        }
+        let min_price = split[0].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let max_price = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let total_number = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
+        if split.len() <= 4 {
+            return MetaHeader {
+                min_price,
+                max_price,
+                total_number,
+                ..Default::default()
+            };
+        }
+
+        let make_model: Vec<&str> = split[0].split_whitespace().collect();
+        let (make, model) = if make_model.len() == 1 {
+            (make_model[0], "")
+        } else {
+            (make_model[0], make_model[1])
+        };
+
+        MetaHeader {
+            make: make.to_string(),
+            model: model.to_string(),
+            min_price,
+            max_price,
+            total_number,
+            ..Default::default()
+            
+        }
+    }
+
+    pub fn from_string(raw: &str, meta_type: String, dealer: String) -> Self {
         let meta = extract_ascii_latin(raw);
         let re = regex::Regex::new(r" {2,}").unwrap();
         let split: Vec<&str> = re.split(meta.trim()).collect();
@@ -240,6 +282,7 @@ impl MetaHeader {
                 max_price,
                 total_number,
                 created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
+                dealer,
             };
         }
 
@@ -264,8 +307,18 @@ impl MetaHeader {
             max_price: max,
             total_number,
             created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
+            dealer,
         }
     }
+
+    pub fn page_numbers(&self) -> u32 {
+        let mut pages = self.total_number / 20;
+        if self.total_number % 20 > 0 {
+            pages += 1;
+        }
+        pages
+    }
+
 }
 
 pub trait Identity {
@@ -279,15 +332,18 @@ impl Identity for MetaHeader {
 }
 
 impl Header for MetaHeader {
-    fn heder() -> Vec<&'static str> {
-        return vec!["timestamp", 
-            "meta_type", 
-            "make", 
-            "model", 
-            "total_number", 
-            "min_price", 
+    fn header() -> Vec<&'static str> {
+        return vec![
+            "timestamp",
+            "dealer",
+            "meta_type",
+            "make",
+            "model",
+            "total_number",
+            "min_price",
             "max_price",
-            "created_on"];
+            "created_on"
+        ];
     }
 }
 
@@ -312,6 +368,7 @@ impl MobileList {
             millage: 0,
             url: "".to_string(),
             year: 0,
+            dealer: "ALL".to_string(),
         }
     }
 }
@@ -329,11 +386,11 @@ impl Identity for MobileDetails {
 }
 
 pub trait Header {
-    fn heder() -> Vec<&'static str>;
+    fn header() -> Vec<&'static str>;
 }
 
 impl Header for MobileList {
-    fn heder() -> Vec<&'static str> {
+    fn header() -> Vec<&'static str> {
         return vec![
             "id",
             "make",
@@ -349,8 +406,8 @@ impl Header for MobileList {
     }
 }
 
-impl Header for MobileDetails  {
-    fn heder() -> Vec<&'static str> {
+impl Header for MobileDetails {
+    fn header() -> Vec<&'static str> {
         return vec![
             "id",
             "engine",
@@ -364,27 +421,26 @@ impl Header for MobileDetails  {
     }
 }
 
-
 pub enum Message<T: Clone + DeserializeOwned + Serialize + Identity + Header> {
     Data(Vec<T>),
     Value(T),
-    Stop,   
+    Stop,
 }
 
-pub struct Processor <T: Clone + DeserializeOwned + Serialize + Identity + Header>{
+pub struct Processor<T: Clone + DeserializeOwned + Serialize + Identity + Header> {
     receiver: Receiver<Message<T>>,
     data: Vec<T>,
     file: String,
     cache_size: u32,
 }
 
-impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
-    pub fn new(receiver: Receiver<Message<T>>, file: &str) -> Self{
+impl<T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T> {
+    pub fn new(receiver: Receiver<Message<T>>, file: &str) -> Self {
         match create_empty_csv::<T>(file) {
             Ok(_) => info!("File {} created", file),
             Err(e) => error!("Error creating file {}: {}", file, e),
         }
-        Self{
+        Self {
             receiver,
             data: vec![],
             file: file.to_string(),
@@ -394,25 +450,23 @@ impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
 
     pub fn handle(&mut self) {
         info!("Start handling messages");
-        loop{
+        loop {
             let mut do_exit = false;
             match self.receiver.recv_timeout(Duration::from_secs(3)) {
-                Ok(message) => {
-                    match message {
-                        Message::Data(data) => {
-                            info!("Data message received: {}", data.len());
-                            self.data.extend(data);
-                        }
-
-                        Message::Stop => {
-                            info!("Stop message received");
-                            do_exit = true;
-                        }
-                        Message::Value(value) => {
-                            self.data.push(value);
-                        },
+                Ok(message) => match message {
+                    Message::Data(data) => {
+                        info!("Data message received: {}", data.len());
+                        self.data.extend(data);
                     }
-                }
+
+                    Message::Stop => {
+                        info!("Stop message received");
+                        do_exit = true;
+                    }
+                    Message::Value(value) => {
+                        self.data.push(value);
+                    }
+                },
                 Err(e) => match e {
                     channel::RecvTimeoutError::Timeout => {
                         // No message received within the timeout
@@ -423,7 +477,7 @@ impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
                     }
                 },
             }
-            
+
             // Check if there are more messages available without blocking
             for message in self.receiver.try_iter() {
                 match message {
@@ -436,7 +490,7 @@ impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
                     Message::Value(_) => todo!(),
                 }
             }
-            
+
             if self.data.len() >= self.cache_size as usize {
                 let data = MobileData::Payload(self.data.clone());
                 data.write_csv(&self.file, false).unwrap();
@@ -448,12 +502,49 @@ impl <T: Clone + DeserializeOwned + Serialize + Identity + Header> Processor<T>{
                 break;
             }
         }
-        if self.data.len() > 0{
+        if self.data.len() > 0 {
             let data = MobileData::Payload(self.data.clone());
             data.write_csv(&self.file, false).unwrap();
             info!("write {} records to {}", self.data.len(), &self.file);
             self.data.clear();
         }
-        
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct VehicleList{
+    pub results: Vec<MobileList>,
+    empty: bool,
+}
+
+impl VehicleList {
+    pub fn from_url(url:&str, dealer: String) -> Self {
+        if let Ok(html) = get_pages(&url){
+            let mut vehicle_prices: Vec<MobileList> = get_vehicles_prices(&html);
+            for vehicle in vehicle_prices.iter_mut() {
+                vehicle.dealer = dealer.clone();
+            }
+            return VehicleList{
+                empty: vehicle_prices.is_empty(),
+                results: vehicle_prices,
+                
+            }
+        }
+        VehicleList{
+            empty: true,
+            results: vec![],
+        }
+    }
+
+    pub fn results(&self) -> Vec<MobileList> {
+        self.results.clone()
+    }
+
+    pub fn promoted(&self) -> Vec<MobileList> {
+        self.results.iter().filter(|x| x.promoted).cloned().collect()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.empty
     }
 }

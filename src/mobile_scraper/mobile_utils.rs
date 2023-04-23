@@ -53,6 +53,7 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
             max_price: 0,
             total_number: 0,
             created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
+            dealer: "ALL".to_string(),
         };
     }
 
@@ -77,6 +78,7 @@ pub fn read_meta_data(raw: &str) -> MetaHeader {
         max_price: max,
         total_number,
         created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
+        dealer: "ALL".to_string(),
     }
 }
 

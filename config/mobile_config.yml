@@ -1,0 +1,22 @@
+- config:
+    dealear_type: DEALER
+    all:
+      name: ALL
+      link: s4mb6z
+    sold:
+      name: SOLD
+      link: s4maga
+    new:
+      name: 'IN SALE'
+      link: s4mcfc
+- config:
+    dealear_type: PRIVATE
+    all:
+      name: ALL
+      link: s4mbhc
+    sold:
+      name: SOLD
+      link: s4mam3
+    new:
+      name: 'IN SALE'
+      link: s4mc5e

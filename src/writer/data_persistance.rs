@@ -1,10 +1,14 @@
-use std::{fs::File, io::{Write, BufWriter}, error::Error};
+use std::{
+    error::Error,
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use csv::WriterBuilder;
 
 use serde::{Deserialize, Serialize};
 
-use crate::mobile_scraper::model::{Header};
+use crate::mobile_scraper::model::Header;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MobileData<T> {
@@ -57,7 +61,7 @@ pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Bo
     if path.exists() {
         return Err(format!("File {} already exists.", file_path).into());
     }
-    let line = T::heder().join(","); // Convert the vector to a comma-separated string
+    let line = T::header().join(","); // Convert the vector to a comma-separated string
     let file = File::create(file_path)?; // Create a new file for writing
     let mut writer = BufWriter::new(file);
     writer.write_all(line.as_bytes())?;

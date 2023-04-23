@@ -1,36 +1,59 @@
-use std::{thread::sleep, time::Duration};
-
 use data_scraper::{
-    configure_log4rs,
+    config::MobileConfig::{ConfigData, Mobile},
+    configure_log4rs, listing_url,
     mobile_scraper::{
         data_processor::{self, DataProcessor},
-        get_found_result, get_pages,
+        get_header_data, get_pages,
         model::MetaHeader,
     },
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     configure_log4rs();
-    let all_url = "//www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s3gfi1&f1=1";
-    let sold_url = "//www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s3gfw0&f1=1";
-    let new_sales_url = "//www.mobile.bg/pcgi/mobile.cgi?act=3&slink=s3gfo4&f1=1";
-    let all = meta_data(all_url, "ALL");
-    info!("ALL data {:?}", all);
-    sleep(Duration::from_secs(1));
-    let sold = meta_data(sold_url, "SOLD");
-    info!("SOLD meta data {:?}", sold);
-    sleep(Duration::from_secs(1));
-    let sales = meta_data(new_sales_url, "SALE"); 
-    info!("SALE data {:?}", sales);
+    let mobile_config: Mobile = Mobile::from_file("config/mobile_config.yml");
+    info!("Config {:?}", mobile_config);
+    let dealer_meta_data = process(mobile_config.config[0].clone());
+    let private_meta_data = process(mobile_config.config[1].clone());
+    info!("Dealer Meta Data {:?}", dealer_meta_data);
+    info!("Private Meta Data {:?}", private_meta_data);
     Ok(())
 }
 
-fn meta_data(url: &str, meta_type: &str) -> MetaHeader {
-    let html = get_pages(url).unwrap();
+fn process(config: ConfigData) -> Vec<MetaHeader> {
+    let all_listing_url = listing_url(&config.all.link, 1);
+    let sold_listing_url = listing_url(&config.sold.link, 1);
+    let new_listing_url = listing_url(&config.new.link, 1);
+
     let mut meta_data_processor: DataProcessor<MetaHeader> =
         data_processor::DataProcessor::from_file("resources/data/mobile_meta_data.csv").unwrap();
-    let meta_content = get_found_result(&html).unwrap();
-    let meta_data = MetaHeader::from_string(&meta_content, meta_type.to_string());
-    meta_data_processor.process(&vec![meta_data.clone()], None);
+
+    let new_meta_data = create_meta_data(
+        &new_listing_url,
+        config.new.name,
+        config.dealear_type.clone(),
+    );
+    let sold_meta_data = create_meta_data(
+        &sold_listing_url,
+        config.sold.name,
+        config.dealear_type.clone(),
+    );
+    let all_meta_data = create_meta_data(
+        &all_listing_url,
+        config.all.name,
+        config.dealear_type.clone(),
+    );
+    let meta_data = vec![
+        all_meta_data.clone(),
+        new_meta_data.clone(),
+        sold_meta_data.clone(),
+    ];
+    meta_data_processor.process(&vec![all_meta_data, new_meta_data, sold_meta_data], None);
+    meta_data
+}
+
+fn create_meta_data(url: &str, meta_type: String, dealer: String) -> MetaHeader {
+    let html = get_pages(url).unwrap();
+    let meta_content = get_header_data(&html).unwrap();
+    let meta_data = MetaHeader::from_string(&meta_content, meta_type, dealer);
     meta_data
 }
