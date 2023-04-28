@@ -32,7 +32,7 @@ pub fn make_and_mode(
         }
     }
 
-    return None;
+    None
 }
 
 pub fn is_top_or_vip(element: &ElementRef) -> bool {
@@ -46,12 +46,12 @@ pub fn is_top_or_vip(element: &ElementRef) -> bool {
         }
     }
 
-    return false;
+    false
 }
 
 pub fn is_sold(element: &ElementRef) -> bool {
     let filter = r#"img"#;
-    let selector = Selector::parse(&filter).unwrap();
+    let selector = Selector::parse(filter).unwrap();
     let images = element.select(&selector);
 
     for img_element in images {
@@ -71,11 +71,11 @@ pub fn get_milllage_and_year(element: &ElementRef, is_promoted: bool) -> (u32, u
         false => r#"td[colspan="4"]"#,
     };
 
-    let selector = Selector::parse(&filter).unwrap();
+    let selector = Selector::parse(filter).unwrap();
     let mut txt = element.select(&selector).next().unwrap().inner_html();
     txt = extract_ascii_latin(&txt);
-    let numbers = extract_numbers(&txt);
-    numbers
+    
+    extract_numbers(&txt)
 }
 
 pub fn extract_numbers(input: &str) -> (u32, u32) {
@@ -106,7 +106,7 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
     let n = numbers[0];
     let k = numbers[1];
 
-    return (n, k);
+    (n, k)
 }
 
 pub fn extract_ascii_latin(text: &str) -> String {

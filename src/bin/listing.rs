@@ -25,8 +25,8 @@ async fn main() {
                 let processor = ListProcessor::new(
                     link.link.clone(),
                     config.dealear_type.clone(),
-                    metadata.total_number.clone(),
-                    link.filter.clone(),
+                    metadata.total_number,
+                    link.filter,
                     tx.clone(),
                 );
                 let cloned = processor.clone();

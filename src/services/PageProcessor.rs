@@ -39,7 +39,7 @@ impl ListProcessor {
             let results = process_link(&url).await;
 
             for m in results {
-                let mut dealer: HashMap<String, String> = HashMap::from(m);
+                let mut dealer: HashMap<String, String> = m;
                 if self.promoted && dealer.contains_key("promoted") {
                     let value = dealer.get("promoted").unwrap();
                     if "false" == value {

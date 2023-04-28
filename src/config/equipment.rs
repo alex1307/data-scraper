@@ -26,7 +26,7 @@ pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {
     let mut keys = Vec::new();
     for (key, value) in EQUIPMENT.iter() {
         if values.contains(&value.as_str()) {
-            keys.push(key.clone());
+            keys.push(*key);
         }
     }
     keys
@@ -35,7 +35,7 @@ pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {
 pub fn get_equipment_as_u64(values: Vec<String>) -> u64 {
     let mut sum = 0;
     for (key, value) in EQUIPMENT.iter() {
-        if values.contains(&value) {
+        if values.contains(value) {
             sum += 2_u64.pow(*key as u32);
         }
     }

@@ -67,7 +67,7 @@ impl Identity for MobileList {
 
 impl Header for MobileList {
     fn header() -> Vec<&'static str> {
-        return vec![
+        vec![
             "id",
             "make",
             "model",
@@ -78,14 +78,14 @@ impl Header for MobileList {
             "promoted",
             "sold",
             "created_on",
-        ];
+        ]
     }
 }
 
 impl FromStr for MobileList {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut values = s.split(",");
+        let mut values = s.split(',');
         let id = values.next().unwrap().to_string();
         let make = values.next().unwrap().to_string();
         let model = values.next().unwrap().to_string();

@@ -35,7 +35,7 @@ impl Identity for MobileDetails {
 
 impl Header for MobileDetails {
     fn header() -> Vec<&'static str> {
-        return vec![
+        vec![
             "id",
             "engine",
             "gearbox",
@@ -44,7 +44,7 @@ impl Header for MobileDetails {
             "view_count",
             "equipment",
             "created_on",
-        ];
+        ]
     }
 }
 

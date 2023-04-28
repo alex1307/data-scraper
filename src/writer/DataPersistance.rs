@@ -40,7 +40,7 @@ impl<T: Serialize + Clone> MobileDataWriter<T> for MobileData<T> {
     }
 
     fn write_csv(&self, file_path: &str, has_headers: bool) -> std::io::Result<()> {
-        let _data = match self {
+        match self {
             MobileData::Payload(v) => {
                 let file = open_file(file_path)?;
                 let mut wtr = WriterBuilder::new()
