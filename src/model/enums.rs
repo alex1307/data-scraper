@@ -33,6 +33,11 @@ pub enum Gearbox {
     NotAvailable,
 }
 
+pub enum Payload<T> {
+    Empty,
+    Data(Vec<T>),
+}
+
 impl Default for Engine {
     fn default() -> Self {
         Engine::NotAvailable

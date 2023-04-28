@@ -1,11 +1,7 @@
 use std::{thread, vec};
 
 use data_scraper::{
-    configure_log4rs,
-    mobile_scraper::{
-        details_scraper::read_list,
-        model::{Message, MobileDetails, Processor},
-    },
+    configure_log4rs, get_pages, get_url, read_list, read_list_from_file, Message, Processor,
 };
 
 fn main() {

@@ -62,7 +62,7 @@ pub fn get_values_by_equipment_id(keymask: u64) -> Vec<String> {
 mod test {
     use std::vec;
 
-    use crate::mobile_scraper::equipment::{self, get_equipment_as_u64};
+    use crate::config::equipment::{get_equipment_as_u64, get_values_by_equipment_id};
 
     #[test]
     fn get_petrol_automatic() {
@@ -76,7 +76,7 @@ mod test {
         let equipment_id = get_equipment_as_u64(values);
         println!("{}", equipment_id); // Output: 7
         assert_eq!(equipment_id, 20971586);
-        let values = equipment::get_values_by_equipment_id(equipment_id);
+        let values = get_values_by_equipment_id(equipment_id);
         assert_eq!(
             values,
             vec![

@@ -1,0 +1,22 @@
+use data_scraper::stream_utils;
+use futures::{channel::mpsc::Receiver, Stream};
+use std::time::Duration;
+use tokio::{sync::mpsc, time::sleep};
+
+#[tokio::main]
+async fn main() {
+    let (mut tx, mut rx) = mpsc::channel::<Message<MobileList>>(10);
+
+    tokio::spawn(async move {
+        read_list(
+            "resources/data/mobile_list.csv",
+            vec!["s4g00w".to_string()],
+            &tx.clone(),
+        )
+        .await;
+    });
+
+    let stream = stream_utils::convert_mpsc_to_stream(&mut rx);
+    tokio::pin!(stream);
+    stream_utils::message_consumer(stream).await;
+}
