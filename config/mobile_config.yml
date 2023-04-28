@@ -1,22 +1,33 @@
-- config:
+config:
+  - 
     dealear_type: DEALER
-    all:
-      name: ALL
-      link: s4mb6z
-    sold:
-      name: SOLD
-      link: s4maga
-    new:
-      name: 'IN SALE'
-      link: s4mcfc
-- config:
+    file_name: resources/data/dealers_data.csv
+    links:
+      - name: ALL
+        link: s6xxgc
+        scrape: false
+        filter: false
+      - name: SOLD
+        link: s6xxbp
+        scrape: true
+        filter: false
+      - name: IN SALE
+        link: s6xv0s
+        scrape: true
+        filter: true
+  - 
     dealear_type: PRIVATE
-    all:
-      name: ALL
-      link: s4mbhc
-    sold:
-      name: SOLD
-      link: s4mam3
-    new:
-      name: 'IN SALE'
-      link: s4mc5e
+    file_name: resources/data/private_data.csv
+    links:
+      - name: ALL
+        link: s6xxgc
+        scrape: false
+        filter: false
+      - name: SOLD
+        link: s6xxbp
+        scrape: true
+        filter: false
+      - name: IN SALE
+        link: s6xv0s
+        scrape: true
+        filter: true

@@ -1,11 +1,10 @@
 use data_scraper::{
-    config::MobileConfig::{ConfigData, Mobile},
-    configure_log4rs, listing_url,
-    mobile_scraper::{
-        data_processor::{self, DataProcessor},
-        get_header_data, get_pages,
-        model::MetaHeader,
-    },
+    config::links::{ConfigData, Mobile},
+    configure_log4rs,
+    downloader::Scraper::{get_header_data, get_pages},
+    listing_url,
+    model::meta::MetaHeader,
+    services::FileProcessor::{self, DataProcessor},
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,40 +19,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn process(config: ConfigData) -> Vec<MetaHeader> {
-    let all_listing_url = listing_url(&config.all.link, 1);
-    let sold_listing_url = listing_url(&config.sold.link, 1);
-    let new_listing_url = listing_url(&config.new.link, 1);
+    let mut data = vec![];
+    for link_config in config.links.iter() {
+        let listing_url = listing_url(&link_config.link, 1);
+        let html = get_pages(&listing_url).unwrap();
+        let meta_content = get_header_data(&html).unwrap();
+        let meta_data = MetaHeader::from_string(
+            &meta_content,
+            link_config.name.clone(),
+            config.dealear_type.clone(),
+        );
+        data.push(meta_data);
+    }
 
     let mut meta_data_processor: DataProcessor<MetaHeader> =
-        data_processor::DataProcessor::from_file("resources/data/mobile_meta_data.csv").unwrap();
-
-    let new_meta_data = create_meta_data(
-        &new_listing_url,
-        config.new.name,
-        config.dealear_type.clone(),
-    );
-    let sold_meta_data = create_meta_data(
-        &sold_listing_url,
-        config.sold.name,
-        config.dealear_type.clone(),
-    );
-    let all_meta_data = create_meta_data(
-        &all_listing_url,
-        config.all.name,
-        config.dealear_type.clone(),
-    );
-    let meta_data = vec![
-        all_meta_data.clone(),
-        new_meta_data.clone(),
-        sold_meta_data.clone(),
-    ];
-    meta_data_processor.process(&vec![all_meta_data, new_meta_data, sold_meta_data], None);
-    meta_data
-}
-
-fn create_meta_data(url: &str, meta_type: String, dealer: String) -> MetaHeader {
-    let html = get_pages(url).unwrap();
-    let meta_content = get_header_data(&html).unwrap();
-    let meta_data = MetaHeader::from_string(&meta_content, meta_type, dealer);
-    meta_data
+        FileProcessor::DataProcessor::from_file("resources/data/mobile_meta_data.csv").unwrap();
+    meta_data_processor.process(&data, None);
+    data
 }

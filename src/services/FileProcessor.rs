@@ -4,14 +4,14 @@ use std::io::Read;
 use std::{collections::HashSet, fmt::Debug};
 
 use log::{error, info};
+
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::writer::data_persistance::{MobileData, MobileDataWriter};
+use crate::model::traits::{Header, Identity};
+use crate::writer::DataPersistance::{MobileData, MobileDataWriter};
 
-use super::model::{Header, Identity};
-
-fn load_data<T: Clone + Serialize + DeserializeOwned + Debug>(
+fn load_data<T: Clone + DeserializeOwned + Debug>(
     file_path: &str,
 ) -> Result<Vec<T>, Box<dyn Error>> {
     let mut file = File::open(file_path)?;
@@ -30,8 +30,8 @@ fn load_data<T: Clone + Serialize + DeserializeOwned + Debug>(
     }
     Ok(values)
 }
-
-pub struct DataProcessor<T: Serialize + DeserializeOwned + Clone + Identity + Debug> {
+#[derive(Debug, Clone)]
+pub struct DataProcessor<T: Identity + Clone + Header> {
     file_name: String,
     ids: HashSet<String>,
     updated_ids: HashSet<String>,
@@ -39,7 +39,7 @@ pub struct DataProcessor<T: Serialize + DeserializeOwned + Clone + Identity + De
     do_update: bool,
 }
 
-impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug + Header> DataProcessor<T> {
+impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataProcessor<T> {
     pub fn from_file(file_name: &str) -> Result<Self, Box<dyn Error>> {
         let values = load_data(&file_name)?;
         info!("Found {} records in file {}", values.len(), &file_name);
@@ -54,7 +54,7 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug + Header> DataPr
         })
     }
 
-    pub fn new_values(&mut self, source: &Vec<T>) -> Vec<T> {
+    pub fn new_values(&self, source: &Vec<T>) -> Vec<T> {
         if source.is_empty() {
             return vec![];
         }
@@ -64,8 +64,6 @@ impl<T: Clone + DeserializeOwned + Serialize + Identity + Debug + Header> DataPr
                 new_values.push(v.clone());
             }
         });
-        self.ids
-            .extend(new_values.iter().map(|v| v.get_id().clone()));
         new_values
     }
 
@@ -131,7 +129,8 @@ mod test {
 
     use crate::{
         configure_log4rs,
-        mobile_scraper::{get_vehicles_prices, model::MobileList, utils::read_file_from},
+        downloader::{Scraper::get_vehicles_prices, Utils::read_file_from},
+        model::list::MobileList,
     };
 
     use super::*;

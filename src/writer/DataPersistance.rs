@@ -8,7 +8,7 @@ use csv::WriterBuilder;
 
 use serde::{Deserialize, Serialize};
 
-use crate::mobile_scraper::model::Header;
+use crate::model::traits::Header;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MobileData<T> {

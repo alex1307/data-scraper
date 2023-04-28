@@ -1,65 +1,153 @@
-pub mod currency;
-pub mod data_processor;
-pub mod details_scraper;
-pub mod equipment;
-pub mod mobile_utils;
-pub mod model;
-pub mod utils;
-
+use crate::config::equipment::get_equipment_as_u64;
+use crate::downloader::Utils::extract_integers;
+use crate::downloader::Utils::get_milllage_and_year;
+use crate::downloader::Utils::is_sold;
+use crate::downloader::Utils::is_top_or_vip;
+use crate::downloader::Utils::make_and_mode;
+use crate::model::details::MobileDetails;
+use crate::model::enums::{Currency, Engine, Gearbox};
+use crate::model::list::MobileList;
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::info;
-use reqwest::blocking::Client;
+
 use scraper::{ElementRef, Html, Selector};
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
+use std::str::FromStr;
 
-use crate::mobile_scraper::{
-    currency::{Engine, Gearbox},
-    mobile_utils::{extract_ascii_latin, extract_numbers},
-    utils::extract_integers,
-};
+use super::FormDataRequest;
 
-use self::{
-    currency::Currency,
-    model::{MobileDetails, MobileList, SearchRequest},
-};
-pub const SEARCH_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi";
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::new();
-    let mut form_data = HashMap::new();
-    form_data.insert("topmenu", "1".to_owned());
-    form_data.insert("rub_pub_save", 1.to_string());
-    form_data.insert("act", 3.to_string());
-    form_data.insert("f0", "151.251.224.1".to_owned());
-    form_data.insert("f5", "Mercedes-Benz".to_owned());
-    form_data.insert("f6", "C".to_owned());
-    form_data.insert("f10", 2010.to_string());
-    form_data.insert("f11", 2012.to_string());
-    form_data.insert("f20", 1.to_string());
-
-    let res = client
-        .get("https://www.mobile.bg/pcgi/mobile.cgi?act=4&adv=11661885115343676&slink=ruvu7y")
-        .send()?;
-    let body = res.text()?;
-    println!("{}", body);
-    let document = Html::parse_document(&body);
-    let selector = Selector::parse("a").unwrap();
-    for element in document.select(&selector) {
-        let href = element.clone().value().attr("href").unwrap_or("");
-        let txt = element.text().collect::<Vec<_>>().join("");
-        let bytes = txt.bytes().collect::<Vec<_>>();
-        println!("{}", href);
-        // Decode the byte array using the Windows-1251 encoding
-        let (html, _, _) = WINDOWS_1251.decode(&bytes);
-
-        println!("text: {}", html);
-        let utf8_html = UTF_8.encode(&html).0;
-        println!("utf-8: {}", String::from_utf8_lossy(&utf8_html));
+pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
+    if url.contains("act=4") {
+        return details2map(url).await;
+    } else {
+        return list2map(url).await;
     }
-    Ok(())
 }
+
+async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
+    let html = get_pages_async(url).await.unwrap();
+    if html.contains("обява е изтрита или не е активна") {
+        return vec![];
+    }
+    let document = Html::parse_document(&html);
+    let mut selector = Selector::parse("div.phone").unwrap();
+    let mut map = HashMap::new();
+    map.insert("type".to_string(), "DETAILS".to_string());
+    if let Some(adv_value) = get_id_from_url(url.to_string()) {
+        map.insert("adv".to_string(), adv_value.to_string());
+    } else {
+        return vec![];
+    }
+
+    let phone = document
+        .select(&selector)
+        .next()
+        .unwrap()
+        .text()
+        .collect::<Vec<_>>()
+        .join("");
+    map.insert("phone".to_string(), phone);
+
+    selector = Selector::parse("ul.dilarData").unwrap();
+    for element in document.select(&selector) {
+        let txt = element.text().collect::<Vec<_>>().join("_");
+        let lines = txt.lines();
+        for l in lines {
+            if l.contains("_") {
+                let v = l.split("_").collect::<Vec<&str>>();
+                if v.len() >= 3 {
+                    if "Тип двигател" == v[1] {
+                        map.insert("engine".to_string(), v[2].to_string());
+                    }
+                    if "Скоростна кутия" == v[1] {
+                        map.insert("gearbox".to_string(), v[2].to_string());
+                    }
+
+                    if v[1].contains("Мощност") {
+                        map.insert("power".to_string(), v[2].to_string());
+                    }
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+    }
+    selector = Selector::parse("span.advact").unwrap();
+    for element in document.select(&selector) {
+        let txt = element.text().collect::<Vec<_>>().join(" ");
+        println!("view counter: {}", txt.trim());
+        map.insert(
+            "view_count".to_string(),
+            extract_integers(&txt)[0].to_string(),
+        );
+    }
+    selector = Selector::parse("span#details_price").unwrap();
+    for element in document.select(&selector) {
+        let txt = element.text().collect::<Vec<_>>().join("");
+        let (price, currency) = process_price(txt);
+        map.insert("currency".to_string(), currency.to_string());
+        map.insert("price".to_string(), price.to_string());
+    }
+    selector = Selector::parse("div.title").unwrap();
+    for element in document.select(&selector) {
+        let txt = element.text().collect::<Vec<_>>().join("_");
+        println!("make and model: {}", txt.trim());
+    }
+    selector = Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
+    let divs = document.select(&selector);
+    let mut extras = vec![];
+    for div in divs {
+        extras.push(div.text().collect::<String>().replace("•", ""));
+    }
+
+    if !&extras.is_empty() {
+        map.insert(
+            "equipment".to_string(),
+            get_equipment_as_u64(extras).to_string(),
+        );
+    }
+    return vec![map];
+}
+
+async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
+    let html = get_pages_async(url).await.unwrap();
+    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let document = Html::parse_document(&html);
+
+    let selector = Selector::parse("table.tablereset").unwrap();
+    let mut results = vec![];
+    for element in document.select(&selector) {
+        let mut result = HashMap::new();
+        result.insert("type".to_string(), "LIST".to_string());
+        let prices = extract_price(&element);
+        let make_and_mode = make_and_mode(&element, HashMap::new());
+        if let Some(url) = get_url(&element) {
+            let id = get_id_from_url(url.clone());
+            if id.is_some() && prices.is_some() && make_and_mode.is_some() {
+                result.insert("id".to_string(), id.unwrap().to_string());
+                let (make, model) = make_and_mode.unwrap();
+                result.insert("make".to_string(), make);
+                result.insert("model".to_string(), model);
+                let (price, currency) = prices.unwrap();
+                result.insert("price".to_string(), price.to_string());
+                result.insert("currency".to_string(), currency.to_string());
+                result.insert("created_on".to_string(), created_on.clone());
+                let is_promoted = is_top_or_vip(&element);
+                result.insert("promoted".to_string(), is_promoted.to_string());
+                result.insert("sold".to_string(), is_sold(&element).to_string());
+                let (year, millage) = get_milllage_and_year(&element, is_promoted);
+                result.insert("year".to_string(), year.to_string());
+                result.insert("millage".to_string(), millage.to_string());
+                results.push(result);
+            }
+        }
+    }
+    info!("Found {} vehicles", results.len());
+    results
+}
+
 pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Error>> {
-    let html = get_pages(url).unwrap();
+    let html = get_pages(url)?;
     if html.contains("обява е изтрита или не е активна") {
         return Err("not found".into());
     }
@@ -131,7 +219,7 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
     }
     details.extras = extras.clone();
     if !&extras.is_empty() {
-        details.equipment = equipment::get_equipment_as_u64(extras);
+        details.equipment = get_equipment_as_u64(extras);
     }
     return Ok(details);
 }
@@ -198,12 +286,13 @@ fn process_price(text: String) -> (u32, Currency) {
 
 fn get_url(element: &ElementRef) -> Option<String> {
     let selector = Selector::parse("td.valgtop a.mmm").unwrap();
-    for e in element.select(&selector) {
-        let href = e.value().attr("href").unwrap();
-        return Some(href.to_string());
+    match element.select(&selector).next() {
+        Some(e) => {
+            let href = e.value().attr("href").unwrap();
+            Some(href.to_owned())
+        }
+        None => None,
     }
-
-    return None;
 }
 
 fn get_id_from_url(url: String) -> Option<String> {
@@ -215,28 +304,8 @@ fn get_id_from_url(url: String) -> Option<String> {
     Some(id.to_owned())
 }
 
-fn extract_adv_value(html: &str) -> Option<String> {
-    let fragment = Html::parse_fragment(html);
-    let selector = Selector::parse("a").unwrap();
-    let element = match fragment.select(&selector).next() {
-        Some(e) => e,
-        None => return None, // return None if no <a> element is found
-    };
-    let href_attr = match element.value().attr("href") {
-        Some(attr) => attr,
-        None => return None, // return None if no href attribute is found
-    };
-    info!("href: {}", href_attr);
-    let adv_value = href_attr
-        .split('&')
-        .find(|s| s.starts_with("adv="))?
-        .split('=')
-        .last()?;
-    Some(adv_value.to_owned())
-}
-
 pub fn search() -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::builder()
+    let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
         .build()?;
     let mut form_data = HashMap::new();
@@ -268,12 +337,14 @@ pub fn search() -> Result<String, Box<dyn std::error::Error>> {
     return Ok(response.to_string());
 }
 
-pub fn search_form_data(input: &SearchRequest) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::builder()
+pub fn search_form_data(
+    input: &FormDataRequest::Request,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
         .build()?;
     let body: Vec<u8> = client
-        .post(SEARCH_URL)
+        .post("https://www.mobile.bg/pcgi/mobile.cgi")
         .form(&input.to_form_data())
         .send()?
         .bytes()
@@ -285,8 +356,22 @@ pub fn search_form_data(input: &SearchRequest) -> Result<String, Box<dyn std::er
     return Ok(response.to_string());
 }
 
+pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
+        .build()?;
+    let https_url = format!("https:{}", url);
+    let body: Vec<u8> = client.get(&https_url).send().await?.bytes().await?.to_vec();
+    // Decode the byte array using the Windows-1251 encoding
+    let (html, _, _) = WINDOWS_1251.decode(&body);
+    // Convert the decoded text to UTF-8
+    let utf8_html = UTF_8.encode(&html).0;
+    let response = String::from_utf8_lossy(&utf8_html);
+    return Ok(response.to_string());
+}
+
 pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::builder()
+    let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
         .build()?;
     let https_url = format!("https:{}", url);
@@ -302,6 +387,7 @@ pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
 pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
     let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let document = Html::parse_document(&html);
+
     let selector = Selector::parse("table.tablereset").unwrap();
     let mut vehicle_prices = vec![];
     for element in document.select(&selector) {
@@ -334,76 +420,15 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
     vehicle_prices
 }
 
-fn make_and_mode(
-    element: &ElementRef,
-    models: HashMap<&str, Vec<&str>>,
-) -> Option<(String, String)> {
-    let selector = Selector::parse("td.valgtop a.mmm").unwrap();
-    for e in element.select(&selector) {
-        let inner_html = e.inner_html();
-        let strings = inner_html.split_ascii_whitespace().collect::<Vec<&str>>();
-        if strings.is_empty() || strings.len() < 2 {
-            continue;
-        }
-        if models.is_empty() {
-            return Some((strings[0].to_string(), strings[1].to_string()));
-        }
-    }
-
-    return None;
-}
-
-fn is_top_or_vip(element: &ElementRef) -> bool {
-    let top = vec!["top", "vip"];
-    for value in top {
-        let filter = format!(r#"img[alt="{}"][class="noborder"]"#, value);
-        let selector = Selector::parse(&filter).unwrap();
-        let img_element_exists = element.select(&selector).next().is_some();
-        if img_element_exists {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-fn is_sold(element: &ElementRef) -> bool {
-    let filter = r#"img"#;
-    let selector = Selector::parse(&filter).unwrap();
-    let images = element.select(&selector);
-
-    for img_element in images {
-        if let Some(src) = img_element.value().attr("src") {
-            if src.contains("kaparirano.svg") {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-fn get_milllage_and_year(element: &ElementRef, is_promoted: bool) -> (u32, u32) {
-    let filter = match is_promoted {
-        true => r#"td[colspan="3"]"#,
-        false => r#"td[colspan="4"]"#,
-    };
-
-    let selector = Selector::parse(&filter).unwrap();
-    let mut txt = element.select(&selector).next().unwrap().inner_html();
-    txt = extract_ascii_latin(&txt);
-    let numbers = extract_numbers(&txt);
-    numbers
-}
-
 #[cfg(test)]
 mod test {
-    use crate::mobile_scraper::model::MobileList;
 
-    use super::model::MetaHeader;
-    use super::*;
     use std::fs;
     use std::io::Result;
+
+    use crate::downloader::Scraper::{get_header_data, get_links};
+
+    use crate::model::meta::MetaHeader;
 
     fn read_file_from_resources(filename: &str) -> Result<String> {
         let path = format!("resources/html/{}", filename);
@@ -427,66 +452,5 @@ mod test {
         let content = read_file_from_resources("found_13.html").unwrap();
         let links = get_links(&content).unwrap();
         assert_eq!(links.len(), 0);
-    }
-
-    #[test]
-    fn test_extract_adv_value() {
-        let html = r#"<a href="//www.mobile.bg/pcgi/mobile.cgi?act=4&amp;adv=11677834464646619&amp;slink=rwjxia" class="mmm">Skoda Octavia 1.6i</a>"#;
-        assert_eq!(
-            extract_adv_value(html),
-            Some("11677834464646619".to_owned())
-        );
-
-        let html = r#"<a href="//www.mobile.bg/pcgi/mobile.cgi?act=4&amp;slink=rwjxia" class="mmm">Skoda Octavia 1.6i</a>"#;
-        assert_eq!(extract_adv_value(html), None);
-
-        let html = r#"<p>Some text</p>"#;
-        assert_eq!(extract_adv_value(html), None);
-    }
-    #[test]
-    fn test_collect_all_prices() {
-        let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let html = read_file_from_resources("sold.html").unwrap();
-        let document = Html::parse_document(&html);
-        let selector = Selector::parse("table.tablereset").unwrap();
-        println!("found {} elements", document.select(&selector).count());
-        for element in document.select(&selector) {
-            let prices = extract_price(&element);
-            let adv = extract_adv_value(&element.inner_html());
-            let make_and_mode = make_and_mode(&element, HashMap::new());
-            if adv.is_some() && prices.is_some() && make_and_mode.is_some() {
-                let (make, model) = make_and_mode.unwrap();
-                let (price, currency) = prices.unwrap();
-                let mut vehicle_price = MobileList::new(
-                    adv.unwrap(),
-                    make,
-                    model,
-                    price,
-                    currency,
-                    created_on.clone(),
-                );
-                vehicle_price.promoted = is_top_or_vip(&element);
-                vehicle_price.sold = is_sold(&element);
-                let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
-                vehicle_price.year = year as u16;
-                vehicle_price.millage = millage;
-                println!("vehicle_price: {:?}", vehicle_price);
-            }
-        }
-    }
-
-    #[test]
-    fn test_is_top() {
-        let html = read_file_from_resources("found_13.html").unwrap();
-        let document = Html::parse_document(&html);
-        let selector = Selector::parse("table.tablereset").unwrap();
-        println!("found {} elements", document.select(&selector).count());
-        for element in document.select(&selector) {
-            let prices = extract_price(&element);
-            let adv = extract_adv_value(&element.inner_html());
-            if adv.is_some() && prices.is_some() {
-                println!("adv: {:?}, price: {:?}", adv, prices);
-            }
-        }
     }
 }

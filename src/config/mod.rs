@@ -1,1 +1,2 @@
-pub mod MobileConfig;
+pub mod equipment;
+pub mod links;

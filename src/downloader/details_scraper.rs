@@ -4,19 +4,19 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crossbeam::channel::Sender;
 use log::{error, info};
+use tokio::sync::mpsc::Sender;
 
 pub const THREADS: usize = 4;
 
-use crate::mobile_scraper::{
+use crate::downloader::{
     data_processor::{self, DataProcessor},
     get_pages,
     model::{Identity, Message, MobileDetails, MobileList},
     parse_details,
 };
 
-pub fn read_list(source_file: &str, links: Vec<String>, sender: &Sender<Message<MobileDetails>>) {
+pub async fn read_list(source_file: &str, links: Vec<String>, sender: &Sender<Message<MobileList>>) {
     if links.is_empty() {
         error!("No links to process");
         return;
@@ -41,7 +41,7 @@ pub fn read_list(source_file: &str, links: Vec<String>, sender: &Sender<Message<
         info!("Sending slink: {} and records {}", slink, params.len());
         // let jh = thread::spawn(move || {
         info!("Task {} started", idx);
-        download_details(param_slink, params, &param_sender); // Your asynchronous code here
+        download_details(param_slink, params, &param_sender).await; // Your asynchronous code here
         info!("Task {} finished", idx);
         // });
         // handles.push(jh);
@@ -50,11 +50,13 @@ pub fn read_list(source_file: &str, links: Vec<String>, sender: &Sender<Message<
     // for handle in handles {
     //     handle.join().unwrap(); // Wait for the threads to finish
     // }
-    sender.send(Message::Stop).unwrap();
+    sender.send(Message::Stop).await;
     info!("Sent Stop. Processed {} records", values.len());
 }
 
-fn download_details(
+
+
+async fn download_details(
     slink: String,
     values: Vec<MobileList>,
     sender: &Sender<Message<MobileDetails>>,
@@ -80,7 +82,7 @@ fn download_details(
             % 3
             + 1; // min 3 sec, max 10 sec
         thread::sleep(Duration::from_secs(wait_time));
-        sender.send(Message::Value(details.clone())).unwrap();
+        sender.send(Message::Value(details.clone())).await;
         info!("Sent {:?} records", details);
     }
     info!("Done. Processed {} records", values.len());
