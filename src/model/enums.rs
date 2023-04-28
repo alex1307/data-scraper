@@ -3,33 +3,35 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Currency {
+    #[default]
     BGN,
     EUR,
     USD,
 }
 
-impl Default for Currency {
-    fn default() -> Self {
-        Currency::BGN
-    }
-}
+
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Engine {
     Petrol,
     Diesel,
     Hybrid,
     Electric,
     PluginHybrid,
+    #[default]
     NotAvailable,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Gearbox {
     Automatic,
     Manual,
     Semiautomatic,
+    #[default]
     NotAvailable,
 }
 
@@ -38,17 +40,9 @@ pub enum Payload<T> {
     Data(Vec<T>),
 }
 
-impl Default for Engine {
-    fn default() -> Self {
-        Engine::NotAvailable
-    }
-}
 
-impl Default for Gearbox {
-    fn default() -> Self {
-        Gearbox::NotAvailable
-    }
-}
+
+
 
 impl ToString for Gearbox {
     fn to_string(&self) -> String {

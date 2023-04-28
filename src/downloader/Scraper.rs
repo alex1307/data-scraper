@@ -19,9 +19,9 @@ use super::FormDataRequest;
 
 pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
     if url.contains("act=4") {
-        return details2map(url).await;
+        details2map(url).await
     } else {
-        return list2map(url).await;
+        list2map(url).await
     }
 }
 
@@ -35,7 +35,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
     map.insert("type".to_string(), "DETAILS".to_string());
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
-        map.insert("adv".to_string(), adv_value.to_string());
+        map.insert("adv".to_string(), adv_value);
     } else {
         return vec![];
     }
@@ -54,8 +54,8 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
         for l in lines {
-            if l.contains("_") {
-                let v = l.split("_").collect::<Vec<&str>>();
+            if l.contains('_') {
+                let v = l.split('_').collect::<Vec<&str>>();
                 if v.len() >= 3 {
                     if "Тип двигател" == v[1] {
                         map.insert("engine".to_string(), v[2].to_string());
@@ -97,7 +97,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
     let divs = document.select(&selector);
     let mut extras = vec![];
     for div in divs {
-        extras.push(div.text().collect::<String>().replace("•", ""));
+        extras.push(div.text().collect::<String>().replace('•', ""));
     }
 
     if !&extras.is_empty() {
@@ -106,7 +106,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
             get_equipment_as_u64(extras).to_string(),
         );
     }
-    return vec![map];
+    vec![map]
 }
 
 async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
@@ -174,14 +174,14 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
         for l in lines {
-            if l.contains("_") {
-                let v = l.split("_").collect::<Vec<&str>>();
+            if l.contains('_') {
+                let v = l.split('_').collect::<Vec<&str>>();
                 if v.len() >= 3 {
                     if "Тип двигател" == v[1] {
-                        details.engine = Engine::from_str(&v[2])?;
+                        details.engine = Engine::from_str(v[2])?;
                     }
                     if "Скоростна кутия" == v[1] {
-                        details.gearbox = Gearbox::from_str(&v[2])?;
+                        details.gearbox = Gearbox::from_str(v[2])?;
                     }
 
                     if v[1].contains("Мощност") {
@@ -197,7 +197,7 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
     for element in document.select(&selector) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         println!("view counter: {}", txt.trim());
-        details.view_count = extract_integers(&txt)[0] as u32;
+        details.view_count = extract_integers(&txt)[0];
     }
     selector = Selector::parse("span#details_price").unwrap();
     for element in document.select(&selector) {
@@ -215,17 +215,17 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
     let divs = document.select(&selector);
     let mut extras = vec![];
     for div in divs {
-        extras.push(div.text().collect::<String>().replace("•", ""));
+        extras.push(div.text().collect::<String>().replace('•', ""));
     }
     details.extras = extras.clone();
     if !&extras.is_empty() {
         details.equipment = get_equipment_as_u64(extras);
     }
-    return Ok(details);
+    Ok(details)
 }
 
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let fragment = Html::parse_document(&html);
+    let fragment = Html::parse_document(html);
     let selector = Selector::parse("meta[name=description]").unwrap();
     let description = fragment
         .select(&selector)
@@ -239,7 +239,7 @@ pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>>
 }
 
 pub fn get_links(html: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let document = Html::parse_document(&html);
+    let document = Html::parse_document(html);
     let selector = Selector::parse("a.pageNumbers").unwrap();
     let mut links = vec![];
     for element in document.select(&selector) {
@@ -250,7 +250,7 @@ pub fn get_links(html: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> 
             links.push(txt.to_string());
         }
     }
-    return Ok(links);
+    Ok(links)
 }
 
 fn extract_price(element: &ElementRef) -> Option<(u32, Currency)> {
@@ -268,7 +268,7 @@ fn process_price(text: String) -> (u32, Currency) {
     if !contains_numeric {
         return (0, Currency::BGN);
     }
-    let v = text.replace(" ", "");
+    let v = text.replace(' ', "");
     let v1 = v.replace("&nbsp;", "");
     let (price_str, currency) = if v1.contains("USD") {
         (v1.trim_end_matches("USD"), Currency::USD)
@@ -334,7 +334,7 @@ pub fn search() -> Result<String, Box<dyn std::error::Error>> {
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
-    return Ok(response.to_string());
+    Ok(response.to_string())
 }
 
 pub fn search_form_data(
@@ -353,7 +353,7 @@ pub fn search_form_data(
     let (html, _, _) = WINDOWS_1251.decode(&body);
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
-    return Ok(response.to_string());
+    Ok(response.to_string())
 }
 
 pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -367,7 +367,7 @@ pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Er
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
-    return Ok(response.to_string());
+    Ok(response.to_string())
 }
 
 pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -375,18 +375,18 @@ pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
         .build()?;
     let https_url = format!("https:{}", url);
-    let body: Vec<u8> = client.get(&https_url).send()?.bytes().unwrap().to_vec();
+    let body: Vec<u8> = client.get(https_url).send()?.bytes().unwrap().to_vec();
     // Decode the byte array using the Windows-1251 encoding
     let (html, _, _) = WINDOWS_1251.decode(&body);
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
-    return Ok(response.to_string());
+    Ok(response.to_string())
 }
 
 pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
     let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let document = Html::parse_document(&html);
+    let document = Html::parse_document(html);
 
     let selector = Selector::parse("table.tablereset").unwrap();
     let mut vehicle_prices = vec![];

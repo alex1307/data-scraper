@@ -123,6 +123,6 @@ impl Request {
         if self.sold {
             form_data.insert("f94".to_string(), "1".to_string());
         }
-        return form_data;
+        form_data
     }
 }

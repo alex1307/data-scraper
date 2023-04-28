@@ -76,7 +76,7 @@ impl<T: Debug + Serialize + DeserializeOwned + Clone + Header> Processor<T> {
                 break;
             }
         }
-        if self.data.len() > 0 {
+        if !self.data.is_empty() {
             let data = MobileData::Payload(self.data.clone());
             data.write_csv(&self.file, false).unwrap();
             info!("write {} records to {}", self.data.len(), &self.file);

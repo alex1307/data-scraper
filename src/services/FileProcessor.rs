@@ -41,9 +41,9 @@ pub struct DataProcessor<T: Identity + Clone + Header> {
 
 impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataProcessor<T> {
     pub fn from_file(file_name: &str) -> Result<Self, Box<dyn Error>> {
-        let values = load_data(&file_name)?;
+        let values = load_data(file_name)?;
         info!("Found {} records in file {}", values.len(), &file_name);
-        let ids: HashSet<String> = values.iter().map(|v: &T| v.get_id().clone()).collect();
+        let ids: HashSet<String> = values.iter().map(|v: &T| v.get_id()).collect();
         info!("Unique ids: {}", ids.len());
         Ok(DataProcessor {
             file_name: file_name.to_string(),
@@ -90,7 +90,7 @@ impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataPr
 
         self.values.append(&mut new_values.clone());
         self.ids
-            .extend(new_values.iter().map(|v| v.get_id().clone()));
+            .extend(new_values.iter().map(|v| v.get_id()));
         if self.do_update {
             for value in updated_values {
                 self.values

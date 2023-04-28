@@ -32,7 +32,7 @@ impl Identity for MetaHeader {
 
 impl Header for MetaHeader {
     fn header() -> Vec<&'static str> {
-        return vec![
+        vec![
             "timestamp",
             "dealer",
             "meta_type",
@@ -42,7 +42,7 @@ impl Header for MetaHeader {
             "min_price",
             "max_price",
             "created_on",
-        ];
+        ]
     }
 }
 
@@ -54,9 +54,9 @@ impl MetaHeader {
         let meta = extract_ascii_latin(&content);
         let re = regex::Regex::new(r" {2,}").unwrap();
         let split: Vec<&str> = re.split(meta.trim()).collect();
-        let min_price = split[0].replace(" ", "").parse::<u32>().unwrap_or(0);
-        let max_price = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
-        let total_number = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let min_price = split[0].replace(' ', "").parse::<u32>().unwrap_or(0);
+        let max_price = split[1].replace(' ', "").parse::<u32>().unwrap_or(0);
+        let total_number = split[2].replace(' ', "").parse::<u32>().unwrap_or(0);
         if split.len() <= 4 {
             return MetaHeader {
                 min_price,
@@ -92,9 +92,9 @@ impl MetaHeader {
         }
         let timestamp = chrono::Utc::now().timestamp().to_string();
         if split.len() <= 4 {
-            let min_price = split[0].replace(" ", "").parse::<u32>().unwrap_or(0);
-            let max_price = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
-            let total_number = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
+            let min_price = split[0].replace(' ', "").parse::<u32>().unwrap_or(0);
+            let max_price = split[1].replace(' ', "").parse::<u32>().unwrap_or(0);
+            let total_number = split[2].replace(' ', "").parse::<u32>().unwrap_or(0);
             return MetaHeader {
                 timestamp,
                 meta_type,
@@ -116,9 +116,9 @@ impl MetaHeader {
             (make_model[0], make_model[1])
         };
 
-        let min = split[1].replace(" ", "").parse::<u32>().unwrap_or(0);
-        let max = split[2].replace(" ", "").parse::<u32>().unwrap_or(0);
-        let total_number = split[3].replace(" ", "").parse::<u32>().unwrap_or(0);
+        let min = split[1].replace(' ', "").parse::<u32>().unwrap_or(0);
+        let max = split[2].replace(' ', "").parse::<u32>().unwrap_or(0);
+        let total_number = split[3].replace(' ', "").parse::<u32>().unwrap_or(0);
 
         MetaHeader {
             timestamp,

@@ -24,7 +24,7 @@ lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
 }
 
-pub fn configure_log4rs() -> () {
+pub fn configure_log4rs() {
     INIT_LOGGER.call_once(|| {
         log4rs::init_file("config/log4rs.yml", Default::default()).unwrap();
         info!("SUCCESS: Loggers are configured with dir: _log/*");
