@@ -74,7 +74,7 @@ pub fn get_milllage_and_year(element: &ElementRef, is_promoted: bool) -> (u32, u
     let selector = Selector::parse(filter).unwrap();
     let mut txt = element.select(&selector).next().unwrap().inner_html();
     txt = extract_ascii_latin(&txt);
-    
+
     extract_numbers(&txt)
 }
 

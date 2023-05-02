@@ -65,4 +65,10 @@ mod tests {
         // }
         println!("{:#?}", config);
     }
+
+    #[test]
+    fn mobile_test() {
+        let config = Mobile::from_file("config/mobile_config.yml");
+        println!("{:#?}", config);
+    }
 }

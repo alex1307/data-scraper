@@ -1,10 +1,9 @@
 use data_scraper::{
     config::links::{ConfigData, Mobile},
-    configure_log4rs,
     downloader::Scraper::{get_header_data, get_pages},
-    listing_url,
     model::meta::MetaHeader,
     services::FileProcessor::{self, DataProcessor},
+    utils::{configure_log4rs, listing_url},
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,7 +32,7 @@ fn process(config: ConfigData) -> Vec<MetaHeader> {
     }
 
     let mut meta_data_processor: DataProcessor<MetaHeader> =
-        FileProcessor::DataProcessor::from_file("resources/data/mobile_meta_data.csv").unwrap();
+        FileProcessor::DataProcessor::from_file("resources/data/mobile_meta_data.csv");
     meta_data_processor.process(&data, None);
     data
 }

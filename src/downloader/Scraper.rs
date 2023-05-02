@@ -8,6 +8,7 @@ use crate::model::details::MobileDetails;
 use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
 use encoding_rs::{UTF_8, WINDOWS_1251};
+use log::error;
 use log::info;
 
 use scraper::{ElementRef, Html, Selector};
@@ -136,13 +137,15 @@ async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
                 result.insert("promoted".to_string(), is_promoted.to_string());
                 result.insert("sold".to_string(), is_sold(&element).to_string());
                 let (year, millage) = get_milllage_and_year(&element, is_promoted);
+                if (0, 0) == (year, millage) {
+                    error!("Failed to get year and millage for {}", url);
+                }
                 result.insert("year".to_string(), year.to_string());
                 result.insert("millage".to_string(), millage.to_string());
                 results.push(result);
             }
         }
     }
-    info!("Found {} vehicles", results.len());
     results
 }
 
@@ -411,7 +414,6 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
                 let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
                 vehicle_price.year = year as u16;
                 vehicle_price.millage = millage;
-                vehicle_price.url = url;
                 vehicle_prices.push(vehicle_price);
             }
         }
