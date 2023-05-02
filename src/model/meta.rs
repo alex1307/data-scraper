@@ -6,7 +6,7 @@ use crate::{
         Scraper::{get_header_data, get_pages},
         Utils::extract_ascii_latin,
     },
-    listing_url,
+    utils::listing_url,
 };
 
 use super::traits::{Header, Identity};

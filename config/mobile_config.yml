@@ -4,30 +4,30 @@ config:
     file_name: resources/data/dealers_data.csv
     links:
       - name: ALL
-        link: s6xxgc
+        link: s8s34t
         scrape: false
         filter: false
       - name: SOLD
-        link: s6xxbp
-        scrape: true
+        link: s8s3gb
+        scrape: false
         filter: false
       - name: IN SALE
-        link: s6xv0s
-        scrape: true
+        link: s8s3nl
+        scrape: false
         filter: true
   - 
     dealear_type: PRIVATE
     file_name: resources/data/private_data.csv
     links:
       - name: ALL
-        link: s6xxgc
+        link: s8s3to
         scrape: false
         filter: false
       - name: SOLD
-        link: s6xxbp
+        link: s8s40z
         scrape: true
         filter: false
       - name: IN SALE
-        link: s6xv0s
+        link: s8s45t
         scrape: true
         filter: true

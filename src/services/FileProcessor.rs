@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::{collections::HashSet, fmt::Debug};
@@ -11,12 +10,16 @@ use serde::Serialize;
 use crate::model::traits::{Header, Identity};
 use crate::writer::DataPersistance::{MobileData, MobileDataWriter};
 
-fn load_data<T: Clone + DeserializeOwned + Debug>(
-    file_path: &str,
-) -> Result<Vec<T>, Box<dyn Error>> {
-    let mut file = File::open(file_path)?;
+fn load_data<T: Clone + DeserializeOwned + Debug>(file_path: &str) -> Vec<T> {
+    let mut file = File::open(file_path).unwrap();
     let mut data = String::new();
-    file.read_to_string(&mut data)?;
+    match file.read_to_string(&mut data) {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Error while reading file: {:?}", e);
+            return vec![];
+        }
+    }
 
     let mut reader = csv::Reader::from_reader(data.as_bytes());
     let mut values = vec![];
@@ -25,10 +28,10 @@ fn load_data<T: Clone + DeserializeOwned + Debug>(
             error!("Error while reading record: {:?}", record);
             continue;
         }
-        let record: T = record?;
+        let record: T = record.unwrap();
         values.push(record);
     }
-    Ok(values)
+    values
 }
 #[derive(Debug, Clone)]
 pub struct DataProcessor<T: Identity + Clone + Header> {
@@ -40,18 +43,18 @@ pub struct DataProcessor<T: Identity + Clone + Header> {
 }
 
 impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataProcessor<T> {
-    pub fn from_file(file_name: &str) -> Result<Self, Box<dyn Error>> {
-        let values = load_data(file_name)?;
+    pub fn from_file(file_name: &str) -> Self {
+        let values = load_data(file_name);
         info!("Found {} records in file {}", values.len(), &file_name);
         let ids: HashSet<String> = values.iter().map(|v: &T| v.get_id()).collect();
         info!("Unique ids: {}", ids.len());
-        Ok(DataProcessor {
+        DataProcessor {
             file_name: file_name.to_string(),
             ids,
             updated_ids: HashSet::new(),
             values,
             do_update: false,
-        })
+        }
     }
 
     pub fn new_values(&self, source: &Vec<T>) -> Vec<T> {
@@ -89,8 +92,7 @@ impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataPr
         data.write_csv(target_file_name, false).unwrap();
 
         self.values.append(&mut new_values.clone());
-        self.ids
-            .extend(new_values.iter().map(|v| v.get_id()));
+        self.ids.extend(new_values.iter().map(|v| v.get_id()));
         if self.do_update {
             for value in updated_values {
                 self.values
@@ -128,9 +130,9 @@ mod test {
     use log::info;
 
     use crate::{
-        configure_log4rs,
         downloader::{Scraper::get_vehicles_prices, Utils::read_file_from},
         model::list::MobileList,
+        utils::configure_log4rs,
     };
 
     use super::*;
@@ -141,8 +143,7 @@ mod test {
         info!("test_load_data_into_hashmap");
         let test_file = "resources/test-data/csv/test_data.csv";
         std::fs::copy("resources/test-data/csv/source.csv", test_file).unwrap();
-        let mut mercedes_processor: DataProcessor<MobileList> =
-            DataProcessor::from_file(test_file).unwrap();
+        let mut mercedes_processor: DataProcessor<MobileList> = DataProcessor::from_file(test_file);
         let html = read_file_from("resources/html", "Mercedes_SL.html").unwrap();
         let vehicle_prices: Vec<MobileList> = get_vehicles_prices(&html);
         assert_eq!(mercedes_processor.values.len(), 10);

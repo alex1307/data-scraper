@@ -19,7 +19,6 @@ pub struct MobileList {
     pub year: u16,
     pub promoted: bool,
     pub sold: bool,
-    pub url: String,
     pub created_on: String,
     pub dealer: String,
 }
@@ -52,7 +51,6 @@ impl MobileList {
             created_on,
             promoted: false,
             millage: 0,
-            url: "".to_string(),
             year: 0,
             dealer: "ALL".to_string(),
         }
@@ -78,6 +76,7 @@ impl Header for MobileList {
             "promoted",
             "sold",
             "created_on",
+            "dealer",
         ]
     }
 }
@@ -96,7 +95,6 @@ impl FromStr for MobileList {
         let promoted = values.next().unwrap().parse::<bool>().unwrap();
         let sold = values.next().unwrap().parse::<bool>().unwrap();
         let created_on = values.next().unwrap().to_string();
-        let url = values.next().unwrap().to_string();
         let dealer = values.next().unwrap().to_string();
         Ok(MobileList {
             id,
@@ -109,7 +107,6 @@ impl FromStr for MobileList {
             promoted,
             sold,
             created_on,
-            url,
             dealer,
         })
     }
@@ -133,19 +130,21 @@ impl From<HashMap<String, String>> for MobileList {
             .unwrap_or(default_0)
             .parse::<u32>()
             .unwrap();
-        let year = map.get("year").unwrap_or(default_0).parse::<u16>().unwrap();
+        let year = match map.get("year").unwrap_or(default_0).parse::<u16>() {
+            Ok(year) => year,
+            Err(_) => 0,
+        };
         let promoted = map
             .get("promoted")
-            .unwrap_or(&"".to_string())
+            .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
         let sold = map
             .get("sold")
-            .unwrap_or(&"".to_string())
+            .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
         let created_on = map.get("created_on").unwrap_or(default_str).to_string();
-        let url = map.get("url").unwrap_or(default_str).to_string();
         let dealer = map.get("dealer").unwrap_or(default_str).to_string();
         MobileList {
             id,
@@ -158,7 +157,6 @@ impl From<HashMap<String, String>> for MobileList {
             promoted,
             sold,
             created_on,
-            url,
             dealer,
         }
     }
