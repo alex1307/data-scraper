@@ -74,13 +74,11 @@ pub fn config_files<T: Serialize + Header>(source: &Vec<ConfigData>) {
 }
 
 pub mod crossbeam_utils {
-    use std::thread;
 
     use chrono::Duration;
-    use crossbeam::channel::{Receiver, TryRecvError};
-    use crossbeam_channel::RecvError;
+    use crossbeam::channel::Receiver;
+
     use futures::Stream;
-    use log::info;
 
     pub fn to_stream<T>(rx: &mut Receiver<T>) -> impl Stream<Item = T> + '_ {
         async_stream::stream! {
