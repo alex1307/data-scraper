@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::model::traits::{Header, Identity};
-use crate::writer::DataPersistance::{MobileData, MobileDataWriter};
+use crate::writer::persistance::{MobileData, MobileDataWriter};
 
 fn load_data<T: Clone + DeserializeOwned + Debug>(file_path: &str) -> Vec<T> {
     let mut file = File::open(file_path).unwrap();
@@ -130,7 +130,7 @@ mod test {
     use log::info;
 
     use crate::{
-        downloader::{Scraper::get_vehicles_prices, Utils::read_file_from},
+        downloader::{scraper::get_vehicles_prices, utils::read_file_from},
         model::list::MobileList,
         utils::configure_log4rs,
     };

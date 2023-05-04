@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     downloader::{
-        Scraper::{get_header_data, get_pages},
-        Utils::extract_ascii_latin,
+        scraper::{get_header_data, get_pages},
+        utils::extract_ascii_latin,
     },
     utils::listing_url,
 };

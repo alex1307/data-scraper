@@ -1,9 +1,9 @@
 use crate::config::equipment::get_equipment_as_u64;
-use crate::downloader::Utils::extract_integers;
-use crate::downloader::Utils::get_milllage_and_year;
-use crate::downloader::Utils::is_sold;
-use crate::downloader::Utils::is_top_or_vip;
-use crate::downloader::Utils::make_and_mode;
+use crate::downloader::utils::extract_integers;
+use crate::downloader::utils::get_milllage_and_year;
+use crate::downloader::utils::is_sold;
+use crate::downloader::utils::is_top_or_vip;
+use crate::downloader::utils::make_and_mode;
 use crate::model::details::MobileDetails;
 use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
@@ -16,7 +16,7 @@ use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use super::FormDataRequest;
+use super::form_data_request;
 
 pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
     if url.contains("act=4") {
@@ -27,6 +27,7 @@ pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
 }
 
 async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
+    info!("Processing details {}", url);
     let html = get_pages_async(url).await.unwrap();
     if html.contains("обява е изтрита или не е активна") {
         return vec![];
@@ -36,7 +37,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
     map.insert("type".to_string(), "DETAILS".to_string());
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
-        map.insert("adv".to_string(), adv_value);
+        map.insert("id".to_string(), adv_value);
     } else {
         return vec![];
     }
@@ -341,7 +342,7 @@ pub fn search() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 pub fn search_form_data(
-    input: &FormDataRequest::Request,
+    input: &form_data_request::Request,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
@@ -428,7 +429,7 @@ mod test {
     use std::fs;
     use std::io::Result;
 
-    use crate::downloader::Scraper::{get_header_data, get_links};
+    use crate::downloader::scraper::{get_header_data, get_links};
 
     use crate::model::meta::MetaHeader;
 

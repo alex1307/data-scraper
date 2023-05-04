@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec};
 use data_scraper::{
     config::links::Mobile,
     model::{list::MobileList, meta::MetaHeader},
-    services::PageProcessor::ListProcessor,
+    services::page_processor::ListProcessor,
     utils::{config_files, configure_log4rs},
 };
 

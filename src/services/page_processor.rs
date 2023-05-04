@@ -4,7 +4,7 @@ use crossbeam_channel::Sender;
 use log::{error, info};
 
 use crate::{
-    downloader::Scraper::process_link,
+    downloader::scraper::process_link,
     utils::{listing_url, wait},
 };
 
@@ -80,5 +80,4 @@ impl ListProcessor {
             self.name, self.dealer, self.slink
         );
     }
-
 }

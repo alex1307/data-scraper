@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use data_scraper::config::links::Mobile;
 use data_scraper::model::list::MobileList;
 use data_scraper::model::meta::MetaHeader;
-use data_scraper::services::FileProcessor;
-use data_scraper::services::PageProcessor::ListProcessor;
+use data_scraper::services::file_processor;
+use data_scraper::services::page_processor::ListProcessor;
 use data_scraper::utils::crossbeam_utils::to_stream;
 use data_scraper::utils::{config_files, configure_log4rs};
 
@@ -20,7 +20,6 @@ fn main() {
     let mobile_config = Mobile::from_file("config/mobile_config.yml");
     info!("Config {:#?}", mobile_config);
     config_files::<MobileList>(&mobile_config.config);
-
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<HashMap<String, String>>();
     {
@@ -47,8 +46,8 @@ fn main() {
                 let stream = Box::pin(to_stream(&mut rx));
                 let mut counter = 0;
 
-                let mut processor: FileProcessor::DataProcessor<MobileList> =
-                    FileProcessor::DataProcessor::from_file("resources/data/listing.csv");
+                let mut processor: file_processor::DataProcessor<MobileList> =
+                    file_processor::DataProcessor::from_file("resources/data/listing.csv");
                 let mut values = vec![];
                 let mut map_counter: HashMap<String, i32> = HashMap::new();
                 futures::pin_mut!(stream);
