@@ -48,7 +48,7 @@ impl Header for MetaHeader {
 
 impl MetaHeader {
     pub fn from_slink(slink: &str) -> Self {
-        let url = &listing_url(slink, 1);
+        let url = &listing_url(slink, "1");
         let html = get_pages(url).unwrap();
         let content = get_header_data(&html).unwrap();
         let meta = extract_ascii_latin(&content);

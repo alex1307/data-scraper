@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn process(config: ConfigData) -> Vec<MetaHeader> {
     let mut data = vec![];
     for link_config in config.links.iter() {
-        let listing_url = listing_url(&link_config.link, 1);
+        let listing_url = listing_url(&link_config.link, "1");
         let html = get_pages(&listing_url).unwrap();
         let meta_content = get_header_data(&html).unwrap();
         let meta_data = MetaHeader::from_string(

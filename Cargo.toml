@@ -8,13 +8,9 @@ edition = "2021"
 [dependencies]
 reqwest = {version = "0.11.7", features=["blocking"]}
 scraper = "0.16.0"
-crossterm = "0.26.1"
 encoding_rs = "0.8.32"
 futures = "0.3.28"
 tokio = { version = "1.28.0", features = ["full"] }
-tokio-stream = {version="0.1.14", features=["full"]}
-tokio-threadpool = "0.1.18"
-tokio-test = "0.4.2"
 regex = "1.7.3"
 log = { version = "0.4", features = ["max_level_info", "release_max_level_info"] }
 log4rs = "1.2.0"
@@ -26,8 +22,6 @@ csv = "1.2.1"
 chrono = "0.4.19"
 crossbeam = "0.8.1"
 crossbeam-channel = "0.5.1"
-merge-streams = "0.1.2"
-futures-lite = "1.13.0"
 async-stream = "0.3.5"
 
 

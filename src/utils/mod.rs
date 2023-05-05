@@ -1,4 +1,3 @@
-pub mod merge;
 use std::{
     error::Error,
     fs::File,
@@ -21,7 +20,7 @@ pub fn configure_log4rs() {
     });
 }
 
-pub fn listing_url(slink: &str, page_number: u32) -> String {
+pub fn listing_url(slink: &str, page_number: &str) -> String {
     format!(
         "{}{}",
         LISTING_URL,
