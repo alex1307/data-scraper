@@ -3,33 +3,21 @@ use std::{fs::File, io::Read};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Link {
-    pub name: String,
-    pub link: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct LinkData {
     pub name: String,
     pub link: String,
     pub scrape: bool,
     pub filter: bool,
+    pub dealer: String,
+    pub link_type: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct LinksData {
-    pub name: String,
-    pub links: Vec<String>,
-}
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ConfigData {
     pub dealear_type: String,
     pub file_name: String,
     pub links: Vec<LinkData>,
 }
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct DealerConfig {}
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Mobile {

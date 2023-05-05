@@ -11,9 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct MobileDetails {
     pub id: String,
-    #[serde(skip)]
     pub engine: Engine,
-    #[serde(skip)]
     pub gearbox: Gearbox,
 
     pub currency: Currency,
@@ -37,6 +35,8 @@ impl Header for MobileDetails {
     fn header() -> Vec<&'static str> {
         vec![
             "id",
+            "currency",
+            "price",
             "engine",
             "gearbox",
             "power",
@@ -84,7 +84,7 @@ impl From<HashMap<String, String>> for MobileDetails {
             .unwrap_or(default_0)
             .parse::<u64>()
             .unwrap_or(0);
-        let created_on = map.get("created_on").unwrap_or(default_str).to_string();
+        let created_on = Local::now().format("%Y-%m-%d").to_string();
         let price = map
             .get("price")
             .unwrap_or(default_0)

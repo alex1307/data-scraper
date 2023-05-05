@@ -5,6 +5,7 @@ use crate::downloader::utils::is_sold;
 use crate::downloader::utils::is_top_or_vip;
 use crate::downloader::utils::make_and_mode;
 use crate::model::details::MobileDetails;
+use crate::model::enums::Payload;
 use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
 use encoding_rs::{UTF_8, WINDOWS_1251};
@@ -18,19 +19,28 @@ use std::str::FromStr;
 
 use super::form_data_request;
 
+pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
+    if url.contains("act=4") {
+        let m = details2map(url).await;
+        Payload::Value::<HashMap<String, String>>(m)
+    } else {
+        Payload::Data(list2map(url).await)
+    }
+}
+
 pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
     if url.contains("act=4") {
-        details2map(url).await
+        vec![details2map(url).await]
     } else {
         list2map(url).await
     }
 }
 
-async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
+async fn details2map(url: &str) -> HashMap<String, String> {
     info!("Processing details {}", url);
     let html = get_pages_async(url).await.unwrap();
     if html.contains("обява е изтрита или не е активна") {
-        return vec![];
+        return HashMap::new();
     }
     let document = Html::parse_document(&html);
     let mut selector = Selector::parse("div.phone").unwrap();
@@ -39,7 +49,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
         map.insert("id".to_string(), adv_value);
     } else {
-        return vec![];
+        return HashMap::new();
     }
 
     let phone = document
@@ -67,7 +77,7 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
                     }
 
                     if v[1].contains("Мощност") {
-                        map.insert("power".to_string(), v[2].to_string());
+                        map.insert("power".to_string(), extract_integers(v[2])[0].to_string());
                     }
                 }
             }
@@ -99,16 +109,22 @@ async fn details2map(url: &str) -> Vec<HashMap<String, String>> {
     let divs = document.select(&selector);
     let mut extras = vec![];
     for div in divs {
-        extras.push(div.text().collect::<String>().replace('•', ""));
+        extras.push(
+            div.text()
+                .collect::<String>()
+                .replace('•', "")
+                .trim()
+                .to_string(),
+        );
     }
-
     if !&extras.is_empty() {
         map.insert(
             "equipment".to_string(),
             get_equipment_as_u64(extras).to_string(),
         );
     }
-    vec![map]
+    info!("Details: {:#?}", map);
+    map
 }
 
 async fn list2map(url: &str) -> Vec<HashMap<String, String>> {

@@ -5,34 +5,51 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
     #[default]
+    #[serde(rename = "BGN")]
     BGN,
+
+    #[serde(rename = "EUR")]
     EUR,
+
+    #[serde(rename = "USD")]
     USD,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Engine {
+    #[serde(rename = "Petrol")]
     Petrol,
+    #[serde(rename = "Diesel")]
     Diesel,
+    #[serde(rename = "Hybrid")]
     Hybrid,
+    #[serde(rename = "Electric")]
     Electric,
+
     PluginHybrid,
     #[default]
+    #[serde(rename = "N/A")]
     NotAvailable,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Gearbox {
+    #[serde(rename = "Automatic")]
     Automatic,
+    #[serde(rename = "Manual")]
     Manual,
+    #[serde(rename = "Semi-automatic")]
     Semiautomatic,
     #[default]
+    #[serde(rename = "N/A")]
     NotAvailable,
 }
 
 pub enum Payload<T> {
     Empty,
     Data(Vec<T>),
+    Value(T),
+    Done,
 }
 
 impl ToString for Gearbox {

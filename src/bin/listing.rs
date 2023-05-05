@@ -2,8 +2,8 @@ use std::{collections::HashMap, vec};
 
 use data_scraper::{
     config::links::Mobile,
-    model::{list::MobileList, meta::MetaHeader},
-    services::page_processor::ListProcessor,
+    model::{enums::Payload, list::MobileList, meta::MetaHeader},
+    services::streamer::DataStream,
     utils::{config_files, configure_log4rs},
 };
 
@@ -21,20 +21,15 @@ async fn main() {
     {
         for config in mobile_config.config {
             for link in config.links {
-                let (tx, rx) = crossbeam_channel::unbounded::<HashMap<String, String>>();
+                let (tx, rx) = crossbeam_channel::unbounded::<Payload<HashMap<String, String>>>();
                 recievers.push(rx);
                 let metadata = MetaHeader::from_slink(&link.link);
-                let processor = ListProcessor::new(
-                    link.link.clone(),
-                    link.name.clone(),
-                    config.dealear_type.clone(),
-                    metadata.total_number,
-                    link.filter,
-                    tx.clone(),
-                );
-                let cloned = processor.clone();
+                let pages: Vec<String> = (1..=metadata.page_numbers())
+                    .map(|n| n.to_string())
+                    .collect();
+                let mut processor = DataStream::new(link.clone(), pages, tx.clone());
                 tasks.push(tokio::spawn(async move {
-                    cloned.start_producer().await;
+                    processor.stream().await;
                 }));
             }
         }
