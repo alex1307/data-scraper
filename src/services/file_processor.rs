@@ -139,7 +139,7 @@ mod test {
 
     #[test]
     fn test_load_data_into_hashmap() {
-        configure_log4rs();
+        configure_log4rs("config/dev_log4rs.yaml");
         info!("test_load_data_into_hashmap");
         let test_file = "resources/test-data/csv/test_data.csv";
         std::fs::copy("resources/test-data/csv/source.csv", test_file).unwrap();

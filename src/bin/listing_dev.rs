@@ -19,7 +19,7 @@ use tokio::task::block_in_place;
 fn main() {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
-    configure_log4rs();
+    configure_log4rs("config/loggers/dev_log4rs.yml");
     let mobile_config = Mobile::from_file("config/mobile_config.yml");
     info!("Config {:#?}", mobile_config);
     config_files::<MobileList>(&mobile_config.config);
