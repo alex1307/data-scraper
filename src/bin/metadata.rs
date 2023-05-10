@@ -6,7 +6,7 @@ use data_scraper::{
     downloader::scraper::{get_header_data, get_pages},
     model::meta::MetaHeader,
     services::file_processor::{self, DataProcessor},
-    utils::{configure_log4rs, listing_url, config_files},
+    utils::{config_files, configure_log4rs, listing_url},
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
