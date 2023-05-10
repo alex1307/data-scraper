@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
+use data_scraper::config::app_config::AppConfig;
 use data_scraper::config::links::Mobile;
 use data_scraper::model::enums::Payload;
 use data_scraper::model::list::MobileList;
@@ -19,8 +20,20 @@ use tokio::spawn;
 use tokio::task::block_in_place;
 #[tokio::main]
 async fn main() {
-    configure_log4rs("config/loggers/listing_log4rs.yml");
-    let mobile_config = Mobile::from_file("config/mobile_config.yml");
+    let app_config = AppConfig::from_file("config/config.yml");
+    let logger_file_name = format!("{}/listing_log4rs.yml", app_config.get_log4rs_config());
+    let listing_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
+    let scrpaer_config_file = app_config.get_scraper_config();
+    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+    configure_log4rs(&logger_file_name);
+    info!("----------------------------------------");
+    info!("Starting *LISTING* application on {}", created_on);
+    info!("scraper config file: {}", scrpaer_config_file);
+    info!("listing data file: {}", listing_data_file_name);
+    info!("number of threads: {}", app_config.get_num_threads());
+    info!("----------------------------------------");
+    let mobile_config = Mobile::from_file(scrpaer_config_file);
     info!("Config {:#?}", mobile_config);
     config_files::<MobileList>(&mobile_config.config);
     let mut tasks = Vec::new();
@@ -51,7 +64,7 @@ async fn main() {
 
         tasks.push(
             async move {
-                process::<MobileList>(&mut rx, "resources/data/listing.csv", &mut counter).await
+                process::<MobileList>(&mut rx, &listing_data_file_name, &mut counter).await
             }
             .boxed(),
         );

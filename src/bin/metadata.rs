@@ -1,23 +1,39 @@
 use data_scraper::{
-    config::links::{ConfigData, Mobile},
+    config::{
+        app_config::AppConfig,
+        links::{ConfigData, Mobile},
+    },
     downloader::scraper::{get_header_data, get_pages},
     model::meta::MetaHeader,
     services::file_processor::{self, DataProcessor},
-    utils::{configure_log4rs, listing_url},
+    utils::{configure_log4rs, listing_url, config_files},
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    configure_log4rs("config/loggers/meta_log4rs.yml");
-    let mobile_config: Mobile = Mobile::from_file("config/mobile_config.yml");
+    let app_config = AppConfig::from_file("config/config.yml");
+    let logger_file_name = format!("{}/meta_log4rs.yml", app_config.get_log4rs_config());
+    let metadata_data_file_name = format!("{}/mobile_meta_data.csv", app_config.get_data_dir());
+    let scrpaer_config_file = app_config.get_scraper_config();
+    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+    configure_log4rs(&logger_file_name);
+    info!("----------------------------------------");
+    info!("Starting *METADATA* application on {}", created_on);
+    info!("scraper config file: {}", scrpaer_config_file);
+    info!("listing data file: {}", metadata_data_file_name);
+    info!("number of threads: {}", app_config.get_num_threads());
+    info!("----------------------------------------");
+    let mobile_config: Mobile = Mobile::from_file(scrpaer_config_file);
     info!("Config {:?}", mobile_config);
-    let dealer_meta_data = process(mobile_config.config[0].clone());
-    let private_meta_data = process(mobile_config.config[1].clone());
+    config_files::<MetaHeader>(&mobile_config.config);
+    let dealer_meta_data = process(mobile_config.config[0].clone(), &metadata_data_file_name);
+    let private_meta_data = process(mobile_config.config[1].clone(), &metadata_data_file_name);
     info!("Dealer Meta Data {:?}", dealer_meta_data);
     info!("Private Meta Data {:?}", private_meta_data);
     Ok(())
 }
 
-fn process(config: ConfigData) -> Vec<MetaHeader> {
+fn process(config: ConfigData, file_name: &str) -> Vec<MetaHeader> {
     let mut data = vec![];
     for link_config in config.links.iter() {
         let listing_url = listing_url(&link_config.link, "1");
@@ -32,7 +48,7 @@ fn process(config: ConfigData) -> Vec<MetaHeader> {
     }
 
     let mut meta_data_processor: DataProcessor<MetaHeader> =
-        file_processor::DataProcessor::from_file("resources/data/mobile_meta_data.csv");
+        file_processor::DataProcessor::from_file(file_name);
     meta_data_processor.process(&data, None);
     data
 }

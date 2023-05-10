@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
+use data_scraper::config::app_config::AppConfig;
 use data_scraper::config::links::Mobile;
 use data_scraper::model::details::MobileDetails;
 use data_scraper::model::enums::Payload;
@@ -16,21 +17,37 @@ use data_scraper::utils::{config_files, configure_log4rs, create_empty_csv};
 
 use futures::future::{self, FutureExt};
 use futures::stream::{self, StreamExt};
-use log::error;
+use log::{error, info};
 use tokio::task::block_in_place;
 
 fn main() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    configure_log4rs("config/loggers/dev_log4rs.yml");
+
+    let app_config = AppConfig::from_file("config/config.yml");
+    let logger_file_name = format!("{}/details_log4rs.yml", app_config.get_log4rs_config());
+    let source_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
+    let scrpaer_config_file = app_config.get_scraper_config();
+    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
+
+    configure_log4rs(&logger_file_name);
+    info!("----------------------------------------");
+    info!("Starting DETAILS application on {}", created_on);
+    info!("scraper config file: {}", scrpaer_config_file);
+    info!("target file: {}", details_file_name);
+    info!("source data file: {}", source_data_file_name);
+    info!("number of threads: {}", app_config.get_num_threads());
+    info!("----------------------------------------");
+
     let processor: file_processor::DataProcessor<MobileList> =
-        file_processor::DataProcessor::from_file("resources/data/listing.csv");
+        file_processor::DataProcessor::from_file(&source_data_file_name);
     let ids: Vec<String> = processor.get_ids().iter().cloned().collect();
-    let chunk_size = ids.len() / 8;
+    let chunk_size = ids.len() / app_config.get_num_threads();
     let chunks = ids
         .chunks(chunk_size)
         .map(|c| c.to_vec())
         .collect::<Vec<_>>();
-    let mobile_config = Mobile::from_file("config/mobile_config.yml");
+    let mobile_config = Mobile::from_file(scrpaer_config_file);
     config_files::<MobileDetails>(&mobile_config.config);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
@@ -61,10 +78,8 @@ fn main() {
 
         tasks.push(
             async move {
-                let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
-                let file_name = format!("resources/data/details_{}.csv", created_on);
-                let _ = create_empty_csv::<MobileDetails>(&file_name);
-                process::<MobileDetails>(&mut rx, &file_name, &mut counter).await
+                let _ = create_empty_csv::<MobileDetails>(&details_file_name);
+                process::<MobileDetails>(&mut rx, &details_file_name, &mut counter).await
             }
             .boxed(),
         );
@@ -76,88 +91,4 @@ fn main() {
             });
         });
     }
-
-    // for m in all {
-    //     let slink = if m.dealer == "DEALER" {
-    //         if m.sold == "SOLD" {
-    //             info!("{} {} {}", m.slink, m.dealer, m.sold);
-    //             ""
-    //         } else {
-    //             ""
-    //         }
-    //     } else {
-    //         if m.sold == "SOLD" {
-    //             info!("{} {} {}", m.slink, m.dealer, m.sold);
-    //             ""
-    //         } else {
-    //             ""
-    //         }
-    //     };
-    // }
-
-    // info!("Config {:#?}", mobile_config);
-    // config_files::<MobileList>(&mobile_config.config);
-
-    // let mut tasks = Vec::new();
-    // let (tx, mut rx) = crossbeam::channel::unbounded::<HashMap<String, String>>();
-    // {
-    //     for config in mobile_config.config {
-    //         for link in config.links {
-    //             if link.scrape == false {
-    //                 info!("Skipping {:#?}, {}", &link.name, &link.link);
-    //                 continue;
-    //             }
-    //             let metadata = MetaHeader::from_slink(&link.link);
-    //             let processor = ListProcessor::new(
-    //                 link.link.clone(),
-    //                 link.name.clone(),
-    //                 config.dealear_type.clone(),
-    //                 metadata.page_numbers(),
-    //                 link.filter,
-    //                 tx.clone(),
-    //             );
-    //             tasks.push(processor.start_producer().boxed());
-    //         }
-    //     }
-    //     tasks.push(
-    //         async move {
-    //             let stream = Box::pin(to_stream(&mut rx));
-    //             let mut counter = 0;
-
-    //             let mut processor: FileProcessor::DataProcessor<MobileList> =
-    //                 FileProcessor::DataProcessor::from_file("resources/data/listing.csv");
-    //             let mut values = vec![];
-    //             let mut map_counter: HashMap<String, i32> = HashMap::new();
-    //             futures::pin_mut!(stream);
-    //             while let Some(data) = stream.next().await {
-    //                 counter += 1;
-    //                 if let Some(count) = map_counter.get_mut(&data["slink"]) {
-    //                     *count += 1;
-    //                 } else {
-    //                     map_counter.insert(data["slink"].clone(), 1);
-    //                 }
-    //                 let value = MobileList::from(data);
-    //                 values.push(MobileList::from(value));
-    //                 if values.len() >= 20 {
-    //                     info!("Sending {:?}", values.len());
-    //                     processor.process(&values, None);
-    //                     values = vec![];
-    //                     info!("Statistic {:#?}", map_counter);
-    //                 }
-    //             }
-    //             if !values.is_empty() {
-    //                 processor.process(&values, None);
-    //             }
-    //             info!("Total Data {:?}", counter);
-    //         }
-    //         .boxed(),
-    //     );
-    //     let task_futures = stream::iter(tasks).map(|t| rt.spawn(t));
-    //     block_in_place(|| {
-    //         rt.block_on(async {
-    //             let handles = task_futures.collect::<Vec<_>>().await;
-    //             future::join_all(handles).await;
-    //         });
-    //     });
-    //}
 }

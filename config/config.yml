@@ -1,25 +1,4 @@
-dealers:
-  all:
-    name: ALL
-    link: s4mb6z
-  sold:
-    name: SOLD
-    link: s4maga
-  new:
-    name: 'IN SALE'
-    links:
-      - s4mcfc
-      - s4mcj5
-      - s4mckg
-private:
-  all:
-    name: ALL
-    link: s4mbhc
-  sold:
-    name: SOLD
-    link: s4mam3
-  new:
-    name: 'IN SALE'
-    links:
-      - s4mc5e
-      - s4mc9r
+scraper-config: config/mobile/scraper-config.yml
+downloaded-data-dir: resources/data
+log4rs-config-dir: config/loggers
+num-threads: 8
