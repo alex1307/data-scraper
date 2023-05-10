@@ -21,10 +21,15 @@ use tokio::task::block_in_place;
 
 fn main() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    configure_log4rs();
+    configure_log4rs("config/loggers/dev_log4rs.yml");
     let processor: file_processor::DataProcessor<MobileList> =
         file_processor::DataProcessor::from_file("resources/data/listing.csv");
-    let ids = processor.get_ids().iter().cloned().collect();
+    let ids: Vec<String> = processor.get_ids().iter().cloned().collect();
+    let chunk_size = ids.len() / 8;
+    let chunks = ids
+        .chunks(chunk_size)
+        .map(|c| c.to_vec())
+        .collect::<Vec<_>>();
     let mobile_config = Mobile::from_file("config/mobile_config.yml");
     config_files::<MobileDetails>(&mobile_config.config);
     let mut tasks = Vec::new();
@@ -48,9 +53,12 @@ fn main() {
             error!("No link found");
             return;
         };
-        let mut processor = DataStream::new(link.clone(), ids, tx.clone());
-        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        tasks.push(async move { processor.stream().await }.boxed());
+        for chunk in chunks {
+            let mut processor = DataStream::new(link.clone(), chunk, tx.clone());
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            tasks.push(async move { processor.stream().await }.boxed());
+        }
+
         tasks.push(
             async move {
                 let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();

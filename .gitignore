@@ -15,4 +15,5 @@ Cargo.lock
 /_log/*
 -/_log/
 .DS_Store
+.VSCodeCounter/*
 ```

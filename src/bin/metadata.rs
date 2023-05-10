@@ -7,7 +7,7 @@ use data_scraper::{
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    configure_log4rs();
+    configure_log4rs("config/loggers/meta_log4rs.yml");
     let mobile_config: Mobile = Mobile::from_file("config/mobile_config.yml");
     info!("Config {:?}", mobile_config);
     let dealer_meta_data = process(mobile_config.config[0].clone());
