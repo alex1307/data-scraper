@@ -1,0 +1,55 @@
+config:
+  - 
+    dealear_type: DEALER
+    file_name: resources/data/dealers_data.csv
+    links:
+      - name: ALL
+        link: s8s34t
+        scrape: false
+        filter: false
+        dealer: DEALER
+        link_type: list
+      - name: SOLD
+        link: s8s3gb
+        scrape: true
+        filter: false
+        dealer: DEALER
+        link_type: list
+      - name: IN SALE
+        link: s8s3nl
+        scrape: true
+        filter: true
+        dealer: DEALER
+        link_type: list
+  - 
+    dealear_type: PRIVATE
+    file_name: resources/data/private_data.csv
+    links:
+      - name: ALL
+        link: s8s3to
+        scrape: false
+        filter: false
+        dealer: PRIVATE
+        link_type: list
+      - name: SOLD
+        link: s8s40z
+        scrape: true
+        filter: false
+        dealer: PRIVATE
+        link_type: list
+      - name: IN SALE
+        link: s8s45t
+        scrape: true
+        filter: true
+        dealer: PRIVATE
+        link_type: list
+  - 
+    dealear_type: ALL
+    file_name: resources/data/details.csv
+    links:
+      - name: ALL
+        link: s9lr3v
+        scrape: false
+        filter: false
+        dealer: None
+        link_type: details

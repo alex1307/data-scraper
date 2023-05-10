@@ -3,18 +3,22 @@
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-   <key>Metadata</key>
-   <string>com.ayagasha.scraper</string>
+   <key>Label</key>
+   <string>com.ayagasha.scraper.metadata</string>
    <key>ProgramArguments</key>
    <array>
-      <string>/Users/matkat/Software/release/Rust/bin/release/metadata</string>
+      <string>./metadata</string>
    </array>
+   <key>WorkingDirectory</key>
+   <string>Users/ayagasha/Software/release/Rust/scraper</string>
    <key>StartCalendarInterval</key>
    <dict>
       <key>Hour</key>
       <integer>16</integer>
       <key>Minute</key>
-      <integer>30</integer>
+      <integer>20</integer>
    </dict>
+   <key>UserName</key>
+   <string>ayagasha</string>
 </dict>
 </plist>
