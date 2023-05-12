@@ -1,5 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
+use crate::DATE_FORMAT;
+
 use super::{
     enums::{Currency, Engine, Gearbox},
     traits::{Header, Identity},
@@ -13,7 +15,6 @@ pub struct MobileDetails {
     pub id: String,
     pub engine: Engine,
     pub gearbox: Gearbox,
-
     pub currency: Currency,
     pub price: u32,
     pub power: u16,
@@ -35,10 +36,10 @@ impl Header for MobileDetails {
     fn header() -> Vec<&'static str> {
         vec![
             "id",
-            "currency",
-            "price",
             "engine",
             "gearbox",
+            "currency",
+            "price",
             "power",
             "phone",
             "view_count",
@@ -53,7 +54,7 @@ impl MobileDetails {
         MobileDetails {
             id,
             phone,
-            created_on: Local::now().format("%Y-%m-%d").to_string(),
+            created_on: Local::now().format(DATE_FORMAT).to_string(),
             ..Default::default()
         }
     }
@@ -84,7 +85,7 @@ impl From<HashMap<String, String>> for MobileDetails {
             .unwrap_or(default_0)
             .parse::<u64>()
             .unwrap_or(0);
-        let created_on = Local::now().format("%Y-%m-%d").to_string();
+        let created_on = Local::now().format(DATE_FORMAT).to_string();
         let price = map
             .get("price")
             .unwrap_or(default_0)
@@ -94,15 +95,15 @@ impl From<HashMap<String, String>> for MobileDetails {
             .unwrap_or(Currency::BGN);
         MobileDetails {
             id,
-            phone,
             engine,
             gearbox,
+            currency,
+            price,
             power,
+            phone,
             view_count,
             equipment,
             created_on,
-            price,
-            currency,
             extras: vec![],
         }
     }

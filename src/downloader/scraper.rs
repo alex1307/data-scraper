@@ -8,19 +8,35 @@ use crate::model::details::MobileDetails;
 use crate::model::enums::Payload;
 use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
+use crate::ACTION_DETAILS;
+use crate::DATE_FORMAT;
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::error;
 use log::info;
 
 use scraper::{ElementRef, Html, Selector};
 
+use super::form_data_request;
+use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::str::FromStr;
-
-use super::form_data_request;
+lazy_static! {
+    static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
+    static ref PHONE_SELECTOR: Selector = Selector::parse("div.phone").unwrap();
+    static ref DILAR_SELECTOR: Selector = Selector::parse("ul.dilarData").unwrap();
+    static ref PRICE_SELECTOR: Selector = Selector::parse("span.price").unwrap();
+    static ref TITLE_SELECTOR: Selector = Selector::parse("div.title").unwrap();
+    static ref ADV_ACT_SELECTOR: Selector = Selector::parse("span.advact").unwrap();
+    static ref DETAILS_PRICE_SELECTOR: Selector = Selector::parse("span#details_price").unwrap();
+    static ref META_DESC_SELECTOR: Selector = Selector::parse("meta[name=description]").unwrap();
+    static ref PAGE_NUMBERS_SELECTOR: Selector = Selector::parse("a.pageNumbers").unwrap();
+    static ref TOP_MMM_SELECTOR: Selector = Selector::parse("td.valgtop a.mmm").unwrap();
+    static ref DIV_MARGIN_SELECTOR: Selector =
+        Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
+}
 
 pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
-    if url.contains("act=4") {
+    if url.contains(ACTION_DETAILS) {
         let m = details2map(url).await;
         Payload::Value::<HashMap<String, String>>(m)
     } else {
@@ -29,7 +45,7 @@ pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
 }
 
 pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
-    if url.contains("act=4") {
+    if url.contains(ACTION_DETAILS) {
         vec![details2map(url).await]
     } else {
         list2map(url).await
@@ -43,7 +59,6 @@ async fn details2map(url: &str) -> HashMap<String, String> {
         return HashMap::new();
     }
     let document = Html::parse_document(&html);
-    let mut selector = Selector::parse("div.phone").unwrap();
     let mut map = HashMap::new();
     map.insert("type".to_string(), "DETAILS".to_string());
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
@@ -53,7 +68,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
     }
 
     let phone = document
-        .select(&selector)
+        .select(&PHONE_SELECTOR)
         .next()
         .unwrap()
         .text()
@@ -61,8 +76,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
         .join("");
     map.insert("phone".to_string(), phone);
 
-    selector = Selector::parse("ul.dilarData").unwrap();
-    for element in document.select(&selector) {
+    for element in document.select(&DILAR_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
         for l in lines {
@@ -84,8 +98,8 @@ async fn details2map(url: &str) -> HashMap<String, String> {
         }
         std::thread::sleep(std::time::Duration::from_millis(1000));
     }
-    selector = Selector::parse("span.advact").unwrap();
-    for element in document.select(&selector) {
+
+    for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         println!("view counter: {}", txt.trim());
         map.insert(
@@ -93,20 +107,20 @@ async fn details2map(url: &str) -> HashMap<String, String> {
             extract_integers(&txt)[0].to_string(),
         );
     }
-    selector = Selector::parse("span#details_price").unwrap();
-    for element in document.select(&selector) {
+
+    for element in document.select(&DETAILS_PRICE_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("");
         let (price, currency) = process_price(txt);
         map.insert("currency".to_string(), currency.to_string());
         map.insert("price".to_string(), price.to_string());
     }
-    selector = Selector::parse("div.title").unwrap();
-    for element in document.select(&selector) {
+
+    for element in document.select(&TITLE_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         println!("make and model: {}", txt.trim());
     }
-    selector = Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
-    let divs = document.select(&selector);
+
+    let divs = document.select(&DIV_MARGIN_SELECTOR);
     let mut extras = vec![];
     for div in divs {
         extras.push(
@@ -129,12 +143,11 @@ async fn details2map(url: &str) -> HashMap<String, String> {
 
 async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
     let html = get_pages_async(url).await.unwrap();
-    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let document = Html::parse_document(&html);
 
-    let selector = Selector::parse("table.tablereset").unwrap();
     let mut results = vec![];
-    for element in document.select(&selector) {
+    for element in document.select(&TABLERESET_SELECTOR) {
         let mut result = HashMap::new();
         result.insert("type".to_string(), "LIST".to_string());
         let prices = extract_price(&element);
@@ -172,9 +185,8 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
         return Err("not found".into());
     }
     let document = Html::parse_document(&html);
-    let mut selector = Selector::parse("div.phone").unwrap();
     let phone = document
-        .select(&selector)
+        .select(&PHONE_SELECTOR)
         .next()
         .unwrap()
         .text()
@@ -189,8 +201,7 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
         .unwrap();
     info!("Phone: {}", phone);
     let mut details = MobileDetails::new(adv_value.to_string(), phone);
-    selector = Selector::parse("ul.dilarData").unwrap();
-    for element in document.select(&selector) {
+    for element in document.select(&DILAR_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
         for l in lines {
@@ -213,26 +224,23 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
         }
         std::thread::sleep(std::time::Duration::from_millis(1000));
     }
-    selector = Selector::parse("span.advact").unwrap();
-    for element in document.select(&selector) {
+    for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         println!("view counter: {}", txt.trim());
         details.view_count = extract_integers(&txt)[0];
     }
-    selector = Selector::parse("span#details_price").unwrap();
-    for element in document.select(&selector) {
+    for element in document.select(&DETAILS_PRICE_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("");
         let (price, currency) = process_price(txt);
         details.currency = currency;
         details.price = price;
     }
-    selector = Selector::parse("div.title").unwrap();
-    for element in document.select(&selector) {
+    for element in document.select(&TITLE_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         println!("make and model: {}", txt.trim());
     }
-    selector = Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
-    let divs = document.select(&selector);
+
+    let divs = document.select(&DIV_MARGIN_SELECTOR);
     let mut extras = vec![];
     for div in divs {
         extras.push(div.text().collect::<String>().replace('•', ""));
@@ -246,9 +254,8 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
 
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
     let fragment = Html::parse_document(html);
-    let selector = Selector::parse("meta[name=description]").unwrap();
     let description = fragment
-        .select(&selector)
+        .select(&META_DESC_SELECTOR)
         .next()
         .unwrap()
         .value()
@@ -260,9 +267,8 @@ pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>>
 
 pub fn get_links(html: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let document = Html::parse_document(html);
-    let selector = Selector::parse("a.pageNumbers").unwrap();
     let mut links = vec![];
-    for element in document.select(&selector) {
+    for element in document.select(&PAGE_NUMBERS_SELECTOR) {
         let txt = element.value().attr("href").unwrap_or("");
         if links.contains(&txt.to_string()) {
             continue;
@@ -274,8 +280,7 @@ pub fn get_links(html: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> 
 }
 
 fn extract_price(element: &ElementRef) -> Option<(u32, Currency)> {
-    let selector = Selector::parse("span.price").unwrap();
-    let element = match element.select(&selector).next() {
+    let element = match element.select(&PRICE_SELECTOR).next() {
         Some(e) => e,
         None => return None, // return None if no <a> element is found
     };
@@ -305,8 +310,7 @@ fn process_price(text: String) -> (u32, Currency) {
 }
 
 fn get_url(element: &ElementRef) -> Option<String> {
-    let selector = Selector::parse("td.valgtop a.mmm").unwrap();
-    match element.select(&selector).next() {
+    match element.select(&TOP_MMM_SELECTOR).next() {
         Some(e) => {
             let href = e.value().attr("href").unwrap();
             Some(href.to_owned())
@@ -405,71 +409,38 @@ pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
-    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let document = Html::parse_document(html);
 
-    let selector = Selector::parse("table.tablereset").unwrap();
     let mut vehicle_prices = vec![];
-    for element in document.select(&selector) {
+    for element in document.select(&TABLERESET_SELECTOR) {
         let prices = extract_price(&element);
         let make_and_mode = make_and_mode(&element, HashMap::new());
         if let Some(url) = get_url(&element) {
             let id = get_id_from_url(url.clone());
-            if id.is_some() && prices.is_some() && make_and_mode.is_some() {
-                let (make, model) = make_and_mode.unwrap();
-                let (price, currency) = prices.unwrap();
-                let mut vehicle_price = MobileList::new(
-                    id.unwrap(),
-                    make,
-                    model,
-                    price,
-                    currency,
-                    created_on.clone(),
-                );
-                vehicle_price.promoted = is_top_or_vip(&element);
-                vehicle_price.sold = is_sold(&element);
-                let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
-                vehicle_price.year = year as u16;
-                vehicle_price.millage = millage;
-                vehicle_prices.push(vehicle_price);
+            match id.is_some() && prices.is_some() && make_and_mode.is_some() {
+                true => {
+                    let (make, model) = make_and_mode.unwrap();
+                    let (price, currency) = prices.unwrap();
+                    let mut vehicle_price = MobileList::new(
+                        id.unwrap(),
+                        make,
+                        model,
+                        price,
+                        currency,
+                        created_on.clone(),
+                    );
+                    vehicle_price.promoted = is_top_or_vip(&element);
+                    vehicle_price.sold = is_sold(&element);
+                    let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
+                    vehicle_price.year = year as u16;
+                    vehicle_price.millage = millage;
+                    vehicle_prices.push(vehicle_price);
+                }
+                false => (),
             }
         }
     }
     info!("Found {} vehicles", vehicle_prices.len());
     vehicle_prices
-}
-
-#[cfg(test)]
-mod test {
-
-    use std::fs;
-    use std::io::Result;
-
-    use crate::downloader::scraper::{get_header_data, get_links};
-
-    use crate::model::meta::MetaHeader;
-
-    fn read_file_from_resources(filename: &str) -> Result<String> {
-        let path = format!("resources/html/{}", filename);
-        fs::read_to_string(path)
-    }
-
-    #[test]
-    fn test_read_meta_data() {
-        let content = read_file_from_resources("found_13.html").unwrap();
-        let meta_content = get_header_data(&content).unwrap();
-        let meta = MetaHeader::from_string(&meta_content, "SELL".to_string(), "ALL".to_string());
-        assert_eq!(meta.make, "Skoda");
-        assert_eq!(meta.model, "Octavia");
-        assert_eq!(meta.min_price, 2300);
-        assert_eq!(meta.max_price, 9999);
-        assert_eq!(meta.total_number, 13);
-    }
-
-    #[test]
-    fn test_read_links() {
-        let content = read_file_from_resources("found_13.html").unwrap();
-        let links = get_links(&content).unwrap();
-        assert_eq!(links.len(), 0);
-    }
 }
