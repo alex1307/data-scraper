@@ -7,18 +7,16 @@
    <string>com.ayagasha.scraper.listing</string>
    <key>ProgramArguments</key>
    <array>
-      <string>./listing</string>
+      <string>/bin/sh</string>
+      <string>-c</string>
+      <string>cd /Users/$(whoami)/Software/release/Rust/scraper && ./listing</string>
    </array>
-   <key>WorkingDirectory</key>
-   <string>Users/ayagasha/Software/release/Rust/scraper</string>
    <key>StartCalendarInterval</key>
    <dict>
       <key>Hour</key>
-      <integer>16</integer>
+      <integer>17</integer>
       <key>Minute</key>
-      <integer>20</integer>
+      <integer>15</integer>
    </dict>
-   <key>UserName</key>
-   <string>ayagasha</string>
 </dict>
 </plist>
