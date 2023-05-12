@@ -46,11 +46,6 @@ mod tests {
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
         let config: Mobile = serde_yaml::from_str(&contents).unwrap();
-        // for v in config.iter() {
-        //     println!("{:#?}", v);
-        //     let config_data: ConfigData = serde_yaml::from_value(v["config"].clone()).unwrap();
-        //     println!("{:#?}", config_data);
-        // }
         println!("{:#?}", config);
     }
 
