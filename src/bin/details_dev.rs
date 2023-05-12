@@ -58,12 +58,7 @@ fn main() {
             .config
             .iter()
             .find(|cfg| cfg.dealear_type == "ALL")
-            .and_then(|cfg| {
-                cfg.links
-                    .iter()
-                    .find(|link| link.name == "ALL")
-                    
-            });
+            .and_then(|cfg| cfg.links.iter().find(|link| link.name == "ALL"));
 
         let link = if let Some(link) = found {
             link
