@@ -8,6 +8,7 @@ use data_scraper::config::links::Mobile;
 use data_scraper::model::details::MobileDetails;
 use data_scraper::model::enums::Payload;
 use data_scraper::model::list::MobileList;
+use data_scraper::DATE_FORMAT;
 
 use data_scraper::services::file_processor;
 use data_scraper::services::stream_processor::process;
@@ -27,7 +28,7 @@ fn main() {
     let logger_file_name = format!("{}/details_log4rs.yml", app_config.get_log4rs_config());
     let source_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
     let scrpaer_config_file = app_config.get_scraper_config();
-    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
 
     configure_log4rs(&logger_file_name);
@@ -61,11 +62,11 @@ fn main() {
                 cfg.links
                     .iter()
                     .find(|link| link.name == "ALL")
-                    .map(|link| link.clone())
+                    
             });
 
-        let link = if found.is_some() {
-            found.unwrap()
+        let link = if let Some(link) = found {
+            link
         } else {
             error!("No link found");
             return;

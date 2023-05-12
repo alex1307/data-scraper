@@ -8,6 +8,7 @@ use data_scraper::config::links::Mobile;
 use data_scraper::model::details::MobileDetails;
 use data_scraper::model::enums::Payload;
 use data_scraper::model::list::MobileList;
+use data_scraper::DATE_FORMAT;
 
 use data_scraper::services::file_processor;
 use data_scraper::services::stream_processor::process;
@@ -28,7 +29,7 @@ async fn main() {
     let logger_file_name = format!("{}/details_log4rs.yml", app_config.get_log4rs_config());
     let source_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
     let scrpaer_config_file = app_config.get_scraper_config();
-    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
 
     configure_log4rs(&logger_file_name);
@@ -48,7 +49,7 @@ async fn main() {
         .chunks(chunk_size)
         .map(|c| c.to_vec())
         .collect::<Vec<_>>();
-    let mobile_config = Mobile::from_file(&scrpaer_config_file);
+    let mobile_config = Mobile::from_file(scrpaer_config_file);
     config_files::<MobileDetails>(&mobile_config.config);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
@@ -62,7 +63,7 @@ async fn main() {
                 cfg.links
                     .iter()
                     .find(|link| link.name == "ALL")
-                    .map(|link| link.clone())
+
             });
 
         let link = if found.is_some() {
@@ -84,7 +85,7 @@ async fn main() {
             }
             .boxed(),
         );
-        let task_futures = stream::iter(tasks).map(|t| spawn(t));
+        let task_futures = stream::iter(tasks).map(spawn);
         block_in_place(|| {
             block_on(async {
                 let handles = task_futures.collect::<Vec<_>>().await;

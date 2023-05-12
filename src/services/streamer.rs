@@ -86,11 +86,9 @@ impl DataStream {
                     dealer.insert("dealer".to_string(), self.config.dealer.clone());
                     values.push(dealer);
                 }
-                return Payload::Data(values);
+                Payload::Data(values)
             }
-            _ => {
-                return payload;
-            }
+            _ => payload,
         }
     }
 }

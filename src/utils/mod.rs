@@ -21,15 +21,11 @@ pub fn configure_log4rs(file: &str) {
 }
 
 pub fn listing_url(slink: &str, page_number: &str) -> String {
-    format!(
-        "{}{}",
-        LISTING_URL,
-        format!("&slink={}&f1={}", slink, page_number)
-    )
+    format!("{}&slink={}&f1={}", LISTING_URL, slink, page_number)
 }
 
 pub fn details_url(slink: &str, adv: &str) -> String {
-    format!("{}{}", DETAILS_URL, format!("&slink={}&adv={}", slink, adv))
+    format!("{}&slink={}&adv={}", DETAILS_URL, slink, adv)
 }
 
 pub fn wait(min: u64, max: u64) {
@@ -63,7 +59,7 @@ pub fn bool_from_string(s: &str) -> Option<bool> {
     }
 }
 
-pub fn config_files<T: Serialize + Header>(source: &Vec<ConfigData>) {
+pub fn config_files<T: Serialize + Header>(source: &[ConfigData]) {
     source
         .iter()
         .for_each(|config| match create_empty_csv::<T>(&config.file_name) {
@@ -81,11 +77,8 @@ pub mod crossbeam_utils {
 
     pub fn to_stream<T>(rx: &mut Receiver<T>) -> impl Stream<Item = T> + '_ {
         async_stream::stream! {
-            loop {
-                match rx.recv_timeout(Duration::seconds(12).to_std().unwrap()) {
-                    Ok(item) => yield item,
-                    _ => break,
-                }
+            while let Ok(item) = rx.recv_timeout(Duration::seconds(12).to_std().unwrap())  {
+                yield item;
             }
         }
     }

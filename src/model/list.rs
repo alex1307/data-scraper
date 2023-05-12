@@ -47,12 +47,9 @@ impl MobileList {
             model,
             price,
             currency,
-            sold: false,
             created_on,
-            promoted: false,
-            millage: 0,
-            year: 0,
             dealer: "ALL".to_string(),
+            ..Default::default()
         }
     }
 }
@@ -130,10 +127,11 @@ impl From<HashMap<String, String>> for MobileList {
             .unwrap_or(default_0)
             .parse::<u32>()
             .unwrap();
-        let year = match map.get("year").unwrap_or(default_0).parse::<u16>() {
-            Ok(year) => year,
-            Err(_) => 0,
-        };
+        let year = map
+            .get("year")
+            .unwrap_or(default_0)
+            .parse::<u16>()
+            .unwrap_or(0);
         let promoted = map
             .get("promoted")
             .unwrap_or(&"false".to_string())

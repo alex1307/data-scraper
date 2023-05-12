@@ -7,6 +7,7 @@ use data_scraper::{
     model::meta::MetaHeader,
     services::file_processor::{self, DataProcessor},
     utils::{config_files, configure_log4rs, listing_url},
+    DATE_FORMAT,
 };
 use log::info;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let logger_file_name = format!("{}/meta_log4rs.yml", app_config.get_log4rs_config());
     let metadata_data_file_name = format!("{}/mobile_meta_data.csv", app_config.get_data_dir());
     let scrpaer_config_file = app_config.get_scraper_config();
-    let created_on = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
 
     configure_log4rs(&logger_file_name);
     info!("----------------------------------------");
