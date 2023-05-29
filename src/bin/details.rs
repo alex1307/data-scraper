@@ -7,6 +7,7 @@ use data_scraper::config::app_config::AppConfig;
 use data_scraper::config::links::Mobile;
 use data_scraper::model::details::MobileDetails;
 use data_scraper::model::enums::Payload;
+use data_scraper::model::error::DataError;
 use data_scraper::model::list::MobileList;
 use data_scraper::DATE_FORMAT;
 
@@ -31,7 +32,7 @@ async fn main() {
     let scrpaer_config_file = app_config.get_scraper_config();
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
-
+    let errors_file_name = format!("{}/errors{}.csv", app_config.get_data_dir(), created_on);
     configure_log4rs(&logger_file_name);
     info!("----------------------------------------");
     info!("Starting DETAILS application on {}", created_on);
@@ -53,7 +54,9 @@ async fn main() {
     config_files::<MobileDetails>(&mobile_config.config);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
+    let (etx, mut erx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
     let mut counter = Arc::new(AtomicUsize::new(0));
+    let mut counter2 = Arc::new(AtomicUsize::new(0));
     {
         let found = mobile_config
             .config
@@ -69,6 +72,7 @@ async fn main() {
         };
         for chunk in chunks {
             let mut processor = DataStream::new(link.clone(), chunk, tx.clone());
+            processor = processor.with_error_handler(etx.clone());
             counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             tasks.push(async move { processor.stream().await }.boxed());
         }
@@ -80,6 +84,15 @@ async fn main() {
             }
             .boxed(),
         );
+
+        tasks.push(
+            async move {
+                let _ = create_empty_csv::<DataError>(&errors_file_name);
+                process::<DataError>(&mut erx, &errors_file_name, &mut counter2).await
+            }
+            .boxed(),
+        );
+
         let task_futures = stream::iter(tasks).map(spawn);
         block_in_place(|| {
             block_on(async {
