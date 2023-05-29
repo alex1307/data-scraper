@@ -63,7 +63,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
     let html = get_pages_async(url).await.unwrap();
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
-        map.insert("id".to_string(), adv_value.clone());
+        map.insert("id".to_string(), adv_value);
         if html.contains("обява е изтрита или не е активна") {
             map.insert("error".to_string(), "Not found".to_string());
             return map;
