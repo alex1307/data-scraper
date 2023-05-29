@@ -10,6 +10,7 @@ use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
 use crate::ACTION_DETAILS;
 use crate::DATE_FORMAT;
+
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::error;
 use log::info;
@@ -38,7 +39,11 @@ lazy_static! {
 pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
     if url.contains(ACTION_DETAILS) {
         let m = details2map(url).await;
-        Payload::Value::<HashMap<String, String>>(m)
+        if let Some(_v) = m.get("error") {
+            Payload::Error(m)
+        } else {
+            Payload::Value(m)
+        }
     } else {
         Payload::Data(list2map(url).await)
     }
@@ -54,18 +59,22 @@ pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
 
 async fn details2map(url: &str) -> HashMap<String, String> {
     info!("Processing details {}", url);
-    let html = get_pages_async(url).await.unwrap();
-    if html.contains("обява е изтрита или не е активна") {
-        return HashMap::new();
-    }
-    let document = Html::parse_document(&html);
+
     let mut map = HashMap::new();
-    map.insert("type".to_string(), "DETAILS".to_string());
+    let html = get_pages_async(url).await.unwrap();
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
-        map.insert("id".to_string(), adv_value);
+        map.insert("id".to_string(), adv_value.clone());
+        if html.contains("обява е изтрита или не е активна") {
+            map.insert("error".to_string(), "Not found".to_string());
+            return map;
+        }
     } else {
         return HashMap::new();
     }
+
+    let document = Html::parse_document(&html);
+
+    map.insert("type".to_string(), "DETAILS".to_string());
 
     let phone = document
         .select(&PHONE_SELECTOR)

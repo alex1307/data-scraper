@@ -49,6 +49,7 @@ pub enum Payload<T> {
     Empty,
     Data(Vec<T>),
     Value(T),
+    Error(T),
     Done,
 }
 

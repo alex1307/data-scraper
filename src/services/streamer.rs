@@ -15,6 +15,7 @@ pub struct DataStream {
     pub config: LinkData,
     pub source: Vec<String>,
     producer: Sender<Payload<HashMap<String, String>>>,
+    error_handler: Option<Sender<Payload<HashMap<String, String>>>>,
     running: bool,
 }
 
@@ -28,8 +29,17 @@ impl DataStream {
             config,
             source,
             producer,
+            error_handler: None,
             running: true,
         }
+    }
+
+    pub fn with_error_handler(
+        mut self,
+        error_handler: Sender<Payload<HashMap<String, String>>>,
+    ) -> Self {
+        self.error_handler = Some(error_handler);
+        self
     }
 
     pub async fn stream(&mut self) {
@@ -45,21 +55,38 @@ impl DataStream {
                 listing_url(&self.config.link, &value)
             };
             let mut payload = scrape(&url).await;
-            payload = self.process_payload(payload);
-            if let Err(e) = self.producer.send(payload) {
-                error!(
-                    "Error: config: {:#?}, value: {}, error: {}",
-                    self.config, value, e
-                );
+            if let Payload::Error(_) = payload {
+                if let Some(handler) = &self.error_handler {
+                    if let Err(e) = handler.send(payload) {
+                        error!("Error: config: {:#?}, error: {}", self.config, e);
+                    }
+                }
+                continue;
+            } else {
+                payload = self.process_payload(payload);
+                if let Err(e) = self.producer.send(payload) {
+                    error!(
+                        "Error: config: {:#?}, value: {}, error: {}",
+                        self.config, value, e
+                    );
+                }
+                if !&self.running {
+                    break;
+                }
             }
-            if !&self.running {
-                break;
-            }
+
             thread::sleep(Duration::from_millis(250));
         }
         if let Err(e) = self.producer.send(Payload::Done) {
             error!("Error: config: {:#?}, error: {}", self.config, e);
         }
+
+        if let Some(handler) = &self.error_handler {
+            if let Err(e) = handler.send(Payload::Done) {
+                error!("Error: config: {:#?}, error: {}", self.config, e);
+            }
+        }
+
         info!(
             "producer for config: {:#?} finished. Successfully processed: {} items",
             self.config,

@@ -46,6 +46,10 @@ pub async fn process<
                 values.push(value);
             }
             Payload::Empty => continue,
+            Payload::Error(data) => {
+                info!("Error processing: {:?}", data);
+                values.push(T::from(data));
+            }
             Payload::Done => {
                 info!("Done processing");
                 counter.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
