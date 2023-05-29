@@ -4,19 +4,19 @@ config:
     file_name: resources/data/dealers_data.csv
     links:
       - name: ALL
-        link: se50w3
+        link: sjuj7h
         scrape: false
         filter: false
         dealer: DEALER
         link_type: list
       - name: SOLD
-        link: se50oh
+        link: sjui8e
         scrape: true
         filter: false
         dealer: DEALER
         link_type: list
       - name: IN SALE
-        link: se50j2
+        link: sjujf2
         scrape: true
         filter: true
         dealer: DEALER
@@ -26,19 +26,19 @@ config:
     file_name: resources/data/private_data.csv
     links:
       - name: ALL
-        link: se5117
+        link: sjukqi
         scrape: false
         filter: false
         dealer: PRIVATE
         link_type: list
       - name: SOLD
-        link: se51bn
+        link: sjukyh
         scrape: true
         filter: false
         dealer: PRIVATE
         link_type: list
       - name: IN SALE
-        link: se5165
+        link: sjuktl
         scrape: true
         filter: true
         dealer: PRIVATE
@@ -48,7 +48,7 @@ config:
     file_name: resources/data/details.csv
     links:
       - name: ALL
-        link: s9lr3v
+        link: sjuhcw
         scrape: false
         filter: false
         dealer: None
