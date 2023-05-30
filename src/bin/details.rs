@@ -72,8 +72,9 @@ async fn main() {
         };
         for chunk in chunks {
             let mut processor = DataStream::new(link.clone(), chunk, tx.clone());
-            processor = processor.with_error_handler(etx.clone());
+            processor.with_error_handler(etx.clone());
             counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             tasks.push(async move { processor.stream().await }.boxed());
         }
 
