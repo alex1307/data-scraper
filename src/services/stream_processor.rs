@@ -6,7 +6,7 @@ use crossbeam_channel::Receiver;
 
 use crate::model::enums::Payload;
 use futures::stream::StreamExt;
-use log::info;
+use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -47,7 +47,7 @@ pub async fn process<
             }
             Payload::Empty => continue,
             Payload::Error(data) => {
-                info!("Error processing: {:?}", data);
+                error!("Error processing: {:?}", data);
                 values.push(T::from(data));
             }
             Payload::Done => {
