@@ -35,9 +35,9 @@ impl DataStream {
     }
 
     pub fn with_error_handler(
-        mut self,
+        &mut self,
         error_handler: Sender<Payload<HashMap<String, String>>>,
-    ) -> Self {
+    ) -> &Self {
         self.error_handler = Some(error_handler);
         self
     }

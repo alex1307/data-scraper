@@ -146,7 +146,6 @@ async fn details2map(url: &str) -> HashMap<String, String> {
             get_equipment_as_u64(extras).to_string(),
         );
     }
-    info!("Details: {:#?}", map);
     map
 }
 
