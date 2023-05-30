@@ -9,7 +9,12 @@ use crate::model::enums::Payload;
 use crate::model::enums::{Currency, Engine, Gearbox};
 use crate::model::list::MobileList;
 use crate::ACTION_DETAILS;
+use crate::BROWSER_USER_AGENT;
 use crate::DATE_FORMAT;
+use crate::ENGINE_TXT;
+use crate::GEARBOX_TXT;
+use crate::NOT_FOUND_MSG;
+use crate::POWER_TXT;
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::error;
@@ -64,7 +69,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
     let html = get_pages_async(url).await.unwrap();
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
         map.insert("id".to_string(), adv_value);
-        if html.contains("обява е изтрита или не е активна") {
+        if html.contains(NOT_FOUND_MSG) {
             map.insert("error".to_string(), "Not found".to_string());
             return map;
         }
@@ -92,14 +97,14 @@ async fn details2map(url: &str) -> HashMap<String, String> {
             if l.contains('_') {
                 let v = l.split('_').collect::<Vec<&str>>();
                 if v.len() >= 3 {
-                    if "Тип двигател" == v[1] {
+                    if ENGINE_TXT == v[1] {
                         map.insert("engine".to_string(), v[2].to_string());
                     }
-                    if "Скоростна кутия" == v[1] {
+                    if GEARBOX_TXT == v[1] {
                         map.insert("gearbox".to_string(), v[2].to_string());
                     }
 
-                    if v[1].contains("Мощност") {
+                    if v[1].contains(POWER_TXT) {
                         map.insert("power".to_string(), extract_integers(v[2])[0].to_string());
                     }
                 }
@@ -183,7 +188,7 @@ async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
 
 pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Error>> {
     let html = get_pages(url)?;
-    if html.contains("обява е изтрита или не е активна") {
+    if html.contains(NOT_FOUND_MSG) {
         return Err("not found".into());
     }
     let document = Html::parse_document(&html);
@@ -325,44 +330,11 @@ fn get_id_from_url(url: String) -> Option<String> {
     Some(id.to_owned())
 }
 
-pub fn search() -> Result<String, Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
-        .build()?;
-    let mut form_data = HashMap::new();
-    form_data.insert("rub_pub_save", 1.to_string());
-    form_data.insert("act", 3.to_string());
-    form_data.insert("rub", 1.to_string());
-    form_data.insert("f5", "Mercedes-Benz".to_owned());
-    form_data.insert("f6", "C".to_owned());
-    form_data.insert("f10", 2010.to_string());
-    form_data.insert("f11", 2011.to_string());
-    // form_data.insert("f12", "Бензин".to_owned());
-    // form_data.insert("f13", "Автоматична".to_owned());
-    // form_data.insert("f88", 1.to_string());
-    // form_data.insert("f92", 1.to_string());
-    // form_data.insert("f102", 1.to_string());
-    let response = client
-        .post("https://www.mobile.bg/pcgi/mobile.cgi")
-        .form(&form_data)
-        .send()?;
-
-    let body = response.bytes().unwrap().to_vec();
-
-    // Decode the byte array using the Windows-1251 encoding
-    let (html, _, _) = WINDOWS_1251.decode(&body);
-
-    // Convert the decoded text to UTF-8
-    let utf8_html = UTF_8.encode(&html).0;
-    let response = String::from_utf8_lossy(&utf8_html);
-    Ok(response.to_string())
-}
-
 pub fn search_form_data(
     input: &form_data_request::Request,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::builder()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
+        .user_agent(BROWSER_USER_AGENT)
         .build()?;
     let body: Vec<u8> = client
         .post("https://www.mobile.bg/pcgi/mobile.cgi")
@@ -379,7 +351,7 @@ pub fn search_form_data(
 
 pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
+        .user_agent(BROWSER_USER_AGENT)
         .build()?;
     let https_url = format!("https:{}", url);
     let body: Vec<u8> = client.get(&https_url).send().await?.bytes().await?.to_vec();
@@ -393,7 +365,7 @@ pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Er
 
 pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::builder()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15")
+        .user_agent(BROWSER_USER_AGENT)
         .build()?;
     let https_url = format!("https:{}", url);
     let body: Vec<u8> = client.get(https_url).send()?.bytes().unwrap().to_vec();
