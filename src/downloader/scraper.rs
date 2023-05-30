@@ -110,7 +110,6 @@ async fn details2map(url: &str) -> HashMap<String, String> {
 
     for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
-        println!("view counter: {}", txt.trim());
         map.insert(
             "view_count".to_string(),
             extract_integers(&txt)[0].to_string(),
@@ -122,11 +121,6 @@ async fn details2map(url: &str) -> HashMap<String, String> {
         let (price, currency) = process_price(txt);
         map.insert("currency".to_string(), currency.to_string());
         map.insert("price".to_string(), price.to_string());
-    }
-
-    for element in document.select(&TITLE_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("_");
-        println!("make and model: {}", txt.trim());
     }
 
     let divs = document.select(&DIV_MARGIN_SELECTOR);
@@ -234,7 +228,6 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
     }
     for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
-        println!("view counter: {}", txt.trim());
         details.view_count = extract_integers(&txt)[0];
     }
     for element in document.select(&DETAILS_PRICE_SELECTOR) {
@@ -242,10 +235,6 @@ pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Err
         let (price, currency) = process_price(txt);
         details.currency = currency;
         details.price = price;
-    }
-    for element in document.select(&TITLE_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("_");
-        println!("make and model: {}", txt.trim());
     }
 
     let divs = document.select(&DIV_MARGIN_SELECTOR);
