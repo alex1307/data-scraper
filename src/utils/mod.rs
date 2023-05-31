@@ -114,12 +114,12 @@ pub mod stream_utils {
     }
 }
 
-pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str) -> Vec<String> {
+pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str, ext: &str) -> Vec<String> {
     let start_date = match NaiveDate::parse_from_str(from_date, DATE_FORMAT) {
         Ok(date) => date,
         Err(e) => {
             error!("Invalid from/start date {}", e);
-            return vec![pattern.to_string()];
+            return vec![format!("{}.{}", pattern.to_string(), ext.to_string())];
         }
     };
 
@@ -134,7 +134,7 @@ pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str) -> Vec<Stri
     let mut current_date = start_date;
     let mut file_names = vec![];
     while current_date <= end_date {
-        file_names.push(format!("{}{}", pattern, current_date.format(DATE_FORMAT)));
+        file_names.push(format!("{}{}.{}", pattern, current_date.format(DATE_FORMAT), ext));
         current_date += chrono::Duration::days(1);
     }
     file_names
@@ -146,22 +146,22 @@ mod tests {
 
     #[test]
     fn test_get_file_names() {
-        let file_names = get_file_names("test_", "2020-01-01", "2020-01-03");
+        let file_names = get_file_names("test_", "2020-01-01", "2020-01-03", "csv");
         assert_eq!(file_names.len(), 3);
-        assert_eq!(file_names[0], "test_2020-01-01");
-        assert_eq!(file_names[1], "test_2020-01-02");
-        assert_eq!(file_names[2], "test_2020-01-03");
+        assert_eq!(file_names[0], "test_2020-01-01.csv");
+        assert_eq!(file_names[1], "test_2020-01-02.csv");
+        assert_eq!(file_names[2], "test_2020-01-03.csv");
 
-        let file_names = get_file_names("test_", "", "");
+        let file_names = get_file_names("test_", "", "", "csv");
         assert_eq!(file_names.len(), 1);
-        assert_eq!(file_names[0], "test_");
+        assert_eq!(file_names[0], "test_.csv");
         let today = Local::now().date_naive();
         let yesterday = today - chrono::Duration::days(1);
         let from_date = yesterday.format(DATE_FORMAT).to_string();
         let end_date = today.format(DATE_FORMAT).to_string();
-        let file_names = get_file_names("test_", &from_date, "");
+        let file_names = get_file_names("test_", &from_date, "", "csv");
         assert_eq!(file_names.len(), 2);
-        assert_eq!(file_names[0], "test_".to_string() + &from_date);
-        assert_eq!(file_names[1], "test_".to_string() + &end_date);
+        assert_eq!(file_names[0], "test_".to_string() + &from_date + ".csv");
+        assert_eq!(file_names[1], "test_".to_string() + &end_date+ ".csv");
     }
 }
