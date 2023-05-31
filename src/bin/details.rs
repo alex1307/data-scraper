@@ -42,7 +42,9 @@ async fn main() {
     info!("number of threads: {}", app_config.get_num_threads());
     info!("----------------------------------------");
     let processor: file_processor::DataProcessor<MobileList> =
-        file_processor::DataProcessor::from_file(&source_data_file_name);
+        file_processor::DataProcessor::from_files(vec![&source_data_file_name]);
+    let error_processor: file_processor::DataProcessor<DataError> =
+        file_processor::DataProcessor::from_files(vec![&errors_file_name]);
     let ids: Vec<String> = processor.get_ids().iter().cloned().collect();
 
     let chunk_size = ids.len() / app_config.get_num_threads();

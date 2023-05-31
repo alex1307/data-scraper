@@ -14,6 +14,16 @@ use std::fmt::Debug;
 use crate::model::traits::{Header, Identity};
 use crate::services::file_processor;
 use crate::utils::crossbeam_utils::to_stream;
+pub struct Executor {
+    pub file_name: String,
+    pub counter: Arc<AtomicUsize>,
+}
+
+impl Executor {
+    pub fn new(file_name: String, counter: Arc<AtomicUsize>) -> Self {
+        Executor { file_name, counter }
+    }
+}
 
 pub async fn process<
     T: Identity
@@ -30,7 +40,7 @@ pub async fn process<
 ) {
     let stream = Box::pin(to_stream(rx));
     let mut processor: file_processor::DataProcessor<T> =
-        file_processor::DataProcessor::from_file(file_name);
+        file_processor::DataProcessor::from_files(vec![file_name]);
     let mut values = vec![];
     futures::pin_mut!(stream);
     while let Some(payload) = stream.next().await {

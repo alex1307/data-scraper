@@ -6,11 +6,13 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use chrono::{Local, NaiveDate};
 use log::{error, info};
 use serde::Serialize;
 
 use crate::{
-    config::links::ConfigData, model::traits::Header, DETAILS_URL, INIT_LOGGER, LISTING_URL,
+    config::links::ConfigData, model::traits::Header, DATE_FORMAT, DETAILS_URL, INIT_LOGGER,
+    LISTING_URL,
 };
 
 pub fn configure_log4rs(file: &str) {
@@ -109,5 +111,57 @@ pub mod stream_utils {
             // Do something with the message
             println!("{:?}", msg);
         }
+    }
+}
+
+pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str) -> Vec<String> {
+    let start_date = match NaiveDate::parse_from_str(from_date, DATE_FORMAT) {
+        Ok(date) => date,
+        Err(e) => {
+            error!("Invalid from/start date {}", e);
+            return vec![pattern.to_string()];
+        }
+    };
+
+    let end_date = match NaiveDate::parse_from_str(to_date, DATE_FORMAT) {
+        Ok(date) => date,
+        Err(e) => {
+            error!("Invalid end/to date {}", e);
+            Local::now().date_naive()
+        }
+    };
+
+    let mut current_date = start_date;
+    let mut file_names = vec![];
+    while current_date <= end_date {
+        file_names.push(format!("{}{}", pattern, current_date.format(DATE_FORMAT)));
+        current_date += chrono::Duration::days(1);
+    }
+    file_names
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_file_names() {
+        let file_names = get_file_names("test_", "2020-01-01", "2020-01-03");
+        assert_eq!(file_names.len(), 3);
+        assert_eq!(file_names[0], "test_2020-01-01");
+        assert_eq!(file_names[1], "test_2020-01-02");
+        assert_eq!(file_names[2], "test_2020-01-03");
+
+        let file_names = get_file_names("test_", "", "");
+        assert_eq!(file_names.len(), 1);
+        assert_eq!(file_names[0], "test_");
+        let today = Local::now().date_naive();
+        let yesterday = today - chrono::Duration::days(1);
+        let from_date = yesterday.format(DATE_FORMAT).to_string();
+        let end_date = today.format(DATE_FORMAT).to_string();
+        let file_names = get_file_names("test_", &from_date, "");
+        assert_eq!(file_names.len(), 2);
+        assert_eq!(file_names[0], "test_".to_string() + &from_date);
+        assert_eq!(file_names[1], "test_".to_string() + &end_date);
     }
 }
