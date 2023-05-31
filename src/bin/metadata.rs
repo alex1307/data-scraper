@@ -49,7 +49,7 @@ fn process(config: ConfigData, file_name: &str) -> Vec<MetaHeader> {
     }
 
     let mut meta_data_processor: DataProcessor<MetaHeader> =
-        file_processor::DataProcessor::from_file(file_name);
+        file_processor::DataProcessor::from_files(vec![file_name]);
     meta_data_processor.process(&data, None);
     data
 }
