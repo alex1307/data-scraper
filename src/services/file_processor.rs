@@ -148,8 +148,9 @@ mod test {
 
     use crate::{
         downloader::{scraper::get_vehicles_prices, utils::read_file_from},
-        model::{list::MobileList, error::DataError, details::MobileDetails},
-        utils::{configure_log4rs, get_file_names}, services::file_processor,
+        model::{details::MobileDetails, error::DataError, list::MobileList},
+        services::file_processor,
+        utils::{configure_log4rs, get_file_names},
     };
 
     use super::*;
@@ -181,13 +182,12 @@ mod test {
         assert_eq!(files.len(), 2);
         let ff: Vec<&str> = files.iter().map(|f| f.as_str()).collect();
         let processor: file_processor::DataProcessor<DataError> =
-        file_processor::DataProcessor::from_files(ff);
+            file_processor::DataProcessor::from_files(ff);
         assert_eq!(processor.ids.len(), 2346);
         let mut details_processor: file_processor::DataProcessor<MobileDetails> =
-        file_processor::DataProcessor::from_files(vec!["resources/data/errors_2023-06-01.csv"]);
+            file_processor::DataProcessor::from_files(vec!["resources/data/errors_2023-06-01.csv"]);
         assert_eq!(details_processor.ids.len(), 0);
         details_processor.extend_ids(processor.ids.clone());
         assert_eq!(details_processor.ids.len(), 2346);
-        
     }
 }
