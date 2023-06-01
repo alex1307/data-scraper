@@ -140,8 +140,23 @@ pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str, ext: &str) 
     file_names
 }
 
+pub fn  subtract_vectors<T: PartialEq + Clone>(a: &[T], b: &[T]) -> Vec<T> {
+    assert_eq!(a.len(), b.len(), "Vectors must have the same length");
+
+    let result: Vec<T> = a
+        .iter()
+        .zip(b.iter())
+        .filter(|(x, y)| x != y)
+        .map(|(x, _)| x.clone())
+        .collect();
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     #[test]
@@ -163,5 +178,15 @@ mod tests {
         assert_eq!(file_names.len(), 2);
         assert_eq!(file_names[0], "test_".to_string() + &from_date + ".csv");
         assert_eq!(file_names[1], "test_".to_string() + &end_date+ ".csv");
+    }
+
+    #[test]
+    fn test_extract() {
+        let v1:Vec<String> = (0..100).map(|n| n.to_string()).collect();
+        let v2: Vec<String> = (0..50).map(|n| (n*2).to_string()).collect();
+        let h1: HashSet<String> = HashSet::from_iter(v1.iter().cloned());
+        let h2:HashSet<String> = HashSet::from_iter(v2.iter().cloned());
+        let diff = h1.difference(&h2).cloned().collect::<Vec<String>>();
+        assert_eq!(diff.len(), 50);
     }
 }

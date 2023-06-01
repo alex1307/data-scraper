@@ -15,7 +15,7 @@ use data_scraper::services::file_processor;
 use data_scraper::services::stream_processor::process;
 use data_scraper::services::streamer::DataStream;
 
-use data_scraper::utils::{config_files, configure_log4rs, create_empty_csv};
+use data_scraper::utils::{config_files, configure_log4rs, create_empty_csv, get_file_names};
 
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
@@ -32,7 +32,10 @@ async fn main() {
     let scrpaer_config_file = app_config.get_scraper_config();
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
-    let errors_file_name = format!("{}/errors{}.csv", app_config.get_data_dir(), created_on);
+    let errors_file_name = format!("{}/errors_{}.csv", app_config.get_data_dir(), created_on);
+    let pattern = format!("{}/errors_", app_config.get_data_dir());
+    let error_files_name = get_file_names(&pattern, "2023-05-30", "", "csv");
+    let files: Vec<&str> = error_files_name.iter().map(|f| f.as_str()).collect();
     configure_log4rs(&logger_file_name);
     info!("----------------------------------------");
     info!("Starting DETAILS application on {}", created_on);
@@ -44,9 +47,11 @@ async fn main() {
     let processor: file_processor::DataProcessor<MobileList> =
         file_processor::DataProcessor::from_files(vec![&source_data_file_name]);
     let error_processor: file_processor::DataProcessor<DataError> =
-        file_processor::DataProcessor::from_files(vec![&errors_file_name]);
-    let ids: Vec<String> = processor.get_ids().iter().cloned().collect();
-
+        file_processor::DataProcessor::from_files(files);
+    let source_ids = processor.get_ids();
+    let error_ids = error_processor.get_ids();
+    let ids = source_ids.difference(&error_ids).cloned().collect::<Vec<String>>();
+    info!("Number of ids to process: {}", ids.len());
     let chunk_size = ids.len() / app_config.get_num_threads();
     let chunks = ids
         .chunks(chunk_size)

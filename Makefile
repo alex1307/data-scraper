@@ -17,7 +17,7 @@ build:
 	strip $(DEST_RELEASE_DIR)/details
 	strip $(DEST_RELEASE_DIR)/metadata
 
-copy_config:
+copy-config:
 	mkdir -p $(DEST_CONFIG_DIR)
 	cp -r $(CONFIG_DIR)/* $(DEST_CONFIG_DIR)/
 
