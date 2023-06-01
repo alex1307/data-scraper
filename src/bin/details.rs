@@ -51,7 +51,7 @@ async fn main() {
     let source_ids = processor.get_ids();
     let error_ids = error_processor.get_ids();
     let ids = source_ids
-        .difference(&error_ids)
+        .difference(error_ids)
         .cloned()
         .collect::<Vec<String>>();
     info!("Number of ids to process: {}", ids.len());

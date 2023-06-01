@@ -119,7 +119,7 @@ pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str, ext: &str) 
         Ok(date) => date,
         Err(e) => {
             error!("Invalid from/start date {}", e);
-            return vec![format!("{}.{}", pattern.to_string(), ext.to_string())];
+            return vec![format!("{}.{}", pattern, ext)];
         }
     };
 
