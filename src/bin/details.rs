@@ -50,7 +50,10 @@ async fn main() {
         file_processor::DataProcessor::from_files(files);
     let source_ids = processor.get_ids();
     let error_ids = error_processor.get_ids();
-    let ids = source_ids.difference(&error_ids).cloned().collect::<Vec<String>>();
+    let ids = source_ids
+        .difference(&error_ids)
+        .cloned()
+        .collect::<Vec<String>>();
     info!("Number of ids to process: {}", ids.len());
     let chunk_size = ids.len() / app_config.get_num_threads();
     let chunks = ids
