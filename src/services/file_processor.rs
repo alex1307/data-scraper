@@ -142,14 +142,14 @@ impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataPr
 #[cfg(test)]
 mod test {
 
-    use std::fs::remove_file;
+    use std::{fs::remove_file, vec};
 
     use log::info;
 
     use crate::{
         downloader::{scraper::get_vehicles_prices, utils::read_file_from},
-        model::list::MobileList,
-        utils::configure_log4rs,
+        model::{list::MobileList, error::DataError, details::MobileDetails},
+        utils::{configure_log4rs, get_file_names}, services::file_processor,
     };
 
     use super::*;
@@ -169,5 +169,25 @@ mod test {
         mercedes_processor.process(&vehicle_prices, None);
         assert_eq!(mercedes_processor.values.len(), 11);
         remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_extends() {
+        let error_pattern = format!("{}/errors_", "resources/data");
+        let files = get_file_names(&error_pattern, "2023-05-30", "2023-05-31", "csv");
+        for f in &files {
+            println!("File: {}", f);
+        }
+        assert_eq!(files.len(), 2);
+        let ff: Vec<&str> = files.iter().map(|f| f.as_str()).collect();
+        let processor: file_processor::DataProcessor<DataError> =
+        file_processor::DataProcessor::from_files(ff);
+        assert_eq!(processor.ids.len(), 2346);
+        let mut details_processor: file_processor::DataProcessor<MobileDetails> =
+        file_processor::DataProcessor::from_files(vec!["resources/data/errors_2023-06-01.csv"]);
+        assert_eq!(details_processor.ids.len(), 0);
+        details_processor.extend_ids(processor.ids.clone());
+        assert_eq!(details_processor.ids.len(), 2346);
+        
     }
 }
