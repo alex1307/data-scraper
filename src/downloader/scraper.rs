@@ -81,13 +81,12 @@ async fn details2map(url: &str) -> HashMap<String, String> {
 
     map.insert("type".to_string(), "DETAILS".to_string());
 
-    let phone = document
-        .select(&PHONE_SELECTOR)
-        .next()
-        .unwrap()
-        .text()
-        .collect::<Vec<_>>()
-        .join("");
+    let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
+        txt.text().collect::<Vec<_>>().join("")
+    } else {
+        "0000000000".to_string()
+    };
+
     map.insert("phone".to_string(), phone);
 
     for element in document.select(&DILAR_SELECTOR) {
