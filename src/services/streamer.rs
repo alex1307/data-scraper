@@ -75,7 +75,7 @@ impl DataStream {
                 }
             }
 
-            thread::sleep(Duration::from_millis(250));
+            thread::sleep(Duration::from_millis(750));
         }
         if let Err(e) = self.producer.send(Payload::Done) {
             error!("Error: config: {:#?}, error: {}", self.config, e);

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
@@ -21,6 +21,7 @@ use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 use futures::stream::{self, StreamExt};
 use log::{error, info};
+
 use tokio::spawn;
 use tokio::task::block_in_place;
 
@@ -50,8 +51,15 @@ async fn main() {
         file_processor::DataProcessor::from_files(files);
     let source_ids = processor.get_ids();
     let error_ids = error_processor.get_ids();
+    let details_processor: file_processor::DataProcessor<MobileDetails> =
+        file_processor::DataProcessor::from_files(vec![&details_file_name]);
+    let details_ids = details_processor.get_ids();
+    let union_ids = details_ids
+        .union(&error_ids)
+        .cloned()
+        .collect::<HashSet<String>>();
     let ids = source_ids
-        .difference(error_ids)
+        .difference(&union_ids)
         .cloned()
         .collect::<Vec<String>>();
     info!("Number of ids to process: {}", ids.len());
