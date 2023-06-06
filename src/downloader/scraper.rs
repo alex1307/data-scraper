@@ -66,7 +66,13 @@ async fn details2map(url: &str) -> HashMap<String, String> {
     info!("Processing details {}", url);
 
     let mut map = HashMap::new();
-    let html = get_pages_async(url).await.unwrap();
+    let html = match get_pages_async(url).await {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Error getting details {}", e);
+            return map;
+        }
+    };
     if let Some(adv_value) = get_id_from_url(url.to_string()) {
         map.insert("id".to_string(), adv_value);
         if html.contains(NOT_FOUND_MSG) {
