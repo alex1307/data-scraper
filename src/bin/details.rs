@@ -55,7 +55,7 @@ async fn main() {
         file_processor::DataProcessor::from_files(vec![&details_file_name]);
     let details_ids = details_processor.get_ids();
     let union_ids = details_ids
-        .union(&error_ids)
+        .union(error_ids)
         .cloned()
         .collect::<HashSet<String>>();
     let ids = source_ids
