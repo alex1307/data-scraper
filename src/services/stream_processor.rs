@@ -38,6 +38,10 @@ pub async fn process<
     file_name: &str,
     counter: &mut Arc<AtomicUsize>,
 ) {
+    let thread_id = std::thread::current().id();
+    info!("start stream for file: {}, thread id: {:?} and counter: {}", 
+        file_name, thread_id, counter.load(std::sync::atomic::Ordering::SeqCst)
+    );
     let stream = Box::pin(to_stream(rx));
     let mut processor: file_processor::DataProcessor<T> =
         file_processor::DataProcessor::from_files(vec![file_name]);
@@ -79,4 +83,7 @@ pub async fn process<
     if !values.is_empty() {
         processor.process(&values, None);
     }
+    info!("Stream has finished for file: {}, thread id: {:?} and counter: {}", 
+        file_name, thread_id, counter.load(std::sync::atomic::Ordering::SeqCst)
+    );
 }
