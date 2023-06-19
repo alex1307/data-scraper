@@ -5,7 +5,7 @@ use log::{error, info};
 
 use crate::{
     config::links::LinkData,
-    downloader::scraper::scrape,
+    scraper::agent::scrape,
     model::enums::Payload,
     utils::{details_url, listing_url},
 };

@@ -3,7 +3,7 @@ use data_scraper::{
         app_config::AppConfig,
         links::{ConfigData, Mobile},
     },
-    downloader::scraper::{get_header_data, get_pages},
+    scraper::agent::{get_header_data, get_pages},
     model::meta::MetaHeader,
     services::file_processor::{self, DataProcessor},
     utils::{config_files, configure_log4rs, listing_url},

@@ -1,5 +1,5 @@
 pub mod config;
-pub mod downloader;
+pub mod scraper;
 pub mod model;
 pub mod services;
 pub mod utils;

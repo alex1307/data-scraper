@@ -147,7 +147,7 @@ mod test {
     use log::info;
 
     use crate::{
-        downloader::{scraper::get_vehicles_prices, utils::read_file_from},
+        scraper::{agent::get_vehicles_prices, utils::read_file_from},
         model::{details::MobileDetails, error::DataError, list::MobileList},
         services::file_processor,
         utils::{configure_log4rs, get_file_names},
