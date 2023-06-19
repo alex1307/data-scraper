@@ -6,11 +6,13 @@ appenders:
   stdout:
     kind: console
     encoder:
-      pattern: "{h(==> {d} == {l} == - [{T}:{M}]:{L} - {m} {n} )}"
+      pattern: "{h({d(%Y-%m-%d %H:%M:%S%.3f)} {l} - [{T}:{M}]:{L} - {m} {n} )}"
 
   rolling-file-appender:
     kind: rolling_file
     path: "_log/details.log"
+    encoder:
+      pattern: "{h({d(%Y-%m-%d %H:%M:%S%.3f)} {l} - [{T}:{M}]:{L} - {m} {n} )}"
     policy:
       # Identifies which policy is to be used. If no kind is specified, it will
       # default to "compound".
