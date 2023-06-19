@@ -2,8 +2,8 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    downloader::{
-        scraper::{get_header_data, get_pages},
+    scraper::{
+        agent::{get_header_data, get_pages},
         utils::extract_ascii_latin,
     },
     utils::listing_url,
@@ -155,7 +155,7 @@ mod test {
     use log::info;
 
     use crate::{
-        downloader::scraper::get_header_data, model::meta::MetaHeader, utils::configure_log4rs,
+        scraper::agent::get_header_data, model::meta::MetaHeader, utils::configure_log4rs,
     };
 
     const HEADER_SKODA: &str = r#"
