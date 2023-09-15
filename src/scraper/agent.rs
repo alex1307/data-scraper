@@ -1,13 +1,13 @@
 use crate::config::equipment::get_equipment_as_u64;
+use crate::model::details::MobileDetails;
+use crate::model::enums::Payload;
+use crate::model::enums::{Currency, Engine, Gearbox};
+use crate::model::list::MobileList;
 use crate::scraper::utils::extract_integers;
 use crate::scraper::utils::get_milllage_and_year;
 use crate::scraper::utils::is_sold;
 use crate::scraper::utils::is_top_or_vip;
 use crate::scraper::utils::make_and_mode;
-use crate::model::details::MobileDetails;
-use crate::model::enums::Payload;
-use crate::model::enums::{Currency, Engine, Gearbox};
-use crate::model::list::MobileList;
 use crate::ACTION_DETAILS;
 use crate::BROWSER_USER_AGENT;
 use crate::DATE_FORMAT;

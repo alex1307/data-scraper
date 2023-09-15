@@ -1,6 +1,7 @@
+pub mod cmd;
 pub mod config;
-pub mod scraper;
 pub mod model;
+pub mod scraper;
 pub mod services;
 pub mod utils;
 pub mod writer;

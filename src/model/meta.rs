@@ -155,7 +155,7 @@ mod test {
     use log::info;
 
     use crate::{
-        scraper::agent::get_header_data, model::meta::MetaHeader, utils::configure_log4rs,
+        model::meta::MetaHeader, scraper::agent::get_header_data, utils::configure_log4rs,
     };
 
     const HEADER_SKODA: &str = r#"

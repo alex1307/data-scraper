@@ -5,8 +5,8 @@ use log::{error, info};
 
 use crate::{
     config::links::LinkData,
-    scraper::agent::scrape,
     model::enums::Payload,
+    scraper::agent::scrape,
     utils::{details_url, listing_url},
 };
 
@@ -57,8 +57,13 @@ impl DataStream {
             let mut payload = scrape(&url).await;
             if let Payload::Error(_) = payload {
                 if let Some(handler) = &self.error_handler {
-                    if let Err(e) = handler.send(payload) {
+                    if let Err(e) = handler.send(payload.clone()) {
                         error!("Error: config: {:#?}, error: {}", self.config, e);
+                    } else {
+                        info!(
+                            "Sent not found error for url: {}. Payload: {:?}",
+                            url, payload
+                        );
                     }
                 }
                 continue;

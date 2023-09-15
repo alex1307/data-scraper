@@ -3,10 +3,10 @@ use data_scraper::{
         app_config::AppConfig,
         links::{ConfigData, Mobile},
     },
-    scraper::agent::{get_header_data, get_pages},
     model::meta::MetaHeader,
+    scraper::agent::{get_header_data, get_pages},
     services::file_processor::{self, DataProcessor},
-    utils::{config_files, configure_log4rs, listing_url},
+    utils::{configure_log4rs, listing_url},
     DATE_FORMAT,
 };
 use log::info;
@@ -26,7 +26,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("----------------------------------------");
     let mobile_config: Mobile = Mobile::from_file(scrpaer_config_file);
     info!("Config {:?}", mobile_config);
-    config_files::<MetaHeader>(&mobile_config.config);
     let dealer_meta_data = process(mobile_config.config[0].clone(), &metadata_data_file_name);
     let private_meta_data = process(mobile_config.config[1].clone(), &metadata_data_file_name);
     info!("Dealer Meta Data {:?}", dealer_meta_data);
