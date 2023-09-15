@@ -45,6 +45,7 @@ pub enum Gearbox {
     NotAvailable,
 }
 
+#[derive(Debug, Clone)]
 pub enum Payload<T> {
     Empty,
     Data(Vec<T>),

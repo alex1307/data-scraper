@@ -15,7 +15,6 @@ pub struct LinkData {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ConfigData {
     pub dealear_type: String,
-    pub file_name: String,
     pub links: Vec<LinkData>,
 }
 

@@ -39,8 +39,11 @@ pub async fn process<
     counter: &mut Arc<AtomicUsize>,
 ) {
     let thread_id = std::thread::current().id();
-    info!("start stream for file: {}, thread id: {:?} and counter: {}", 
-        file_name, thread_id, counter.load(std::sync::atomic::Ordering::SeqCst)
+    info!(
+        "start stream for file: {}, thread id: {:?} and counter: {}",
+        file_name,
+        thread_id,
+        counter.load(std::sync::atomic::Ordering::SeqCst)
     );
     let stream = Box::pin(to_stream(rx));
     let mut processor: file_processor::DataProcessor<T> =
@@ -48,6 +51,9 @@ pub async fn process<
     let mut values = vec![];
     futures::pin_mut!(stream);
     while let Some(payload) = stream.next().await {
+        if file_name.contains("errors_") {
+            info!("Error processing: {:?}", payload);
+        }
         match payload {
             Payload::Data(data) => {
                 for m in data {
@@ -71,8 +77,10 @@ pub async fn process<
         }
 
         if values.len() >= 20 {
+            info!("Before processing: {:?}", values.len());
             processor.process(&values, None);
             values.clear();
+            info!("After processing: {:?}", values.len());
         }
         if counter.load(std::sync::atomic::Ordering::SeqCst) == 0 {
             processor.process(&values, None);
@@ -83,7 +91,10 @@ pub async fn process<
     if !values.is_empty() {
         processor.process(&values, None);
     }
-    info!("Stream has finished for file: {}, thread id: {:?} and counter: {}", 
-        file_name, thread_id, counter.load(std::sync::atomic::Ordering::SeqCst)
+    info!(
+        "Stream has finished for file: {}, thread id: {:?} and counter: {}",
+        file_name,
+        thread_id,
+        counter.load(std::sync::atomic::Ordering::SeqCst)
     );
 }

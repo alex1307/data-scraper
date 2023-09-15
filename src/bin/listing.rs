@@ -11,7 +11,7 @@ use data_scraper::DATE_FORMAT;
 
 use data_scraper::services::stream_processor::process;
 use data_scraper::services::streamer::DataStream;
-use data_scraper::utils::{config_files, configure_log4rs};
+use data_scraper::utils::configure_log4rs;
 
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
@@ -36,7 +36,6 @@ async fn main() {
     info!("----------------------------------------");
     let mobile_config = Mobile::from_file(scrpaer_config_file);
     info!("Config {:#?}", mobile_config);
-    config_files::<MobileList>(&mobile_config.config);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
     let mut counter = Arc::new(AtomicUsize::new(0));

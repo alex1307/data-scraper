@@ -10,10 +10,7 @@ use chrono::{Local, NaiveDate};
 use log::{error, info};
 use serde::Serialize;
 
-use crate::{
-    config::links::ConfigData, model::traits::Header, DATE_FORMAT, DETAILS_URL, INIT_LOGGER,
-    LISTING_URL,
-};
+use crate::{model::traits::Header, DATE_FORMAT, DETAILS_URL, INIT_LOGGER, LISTING_URL};
 
 pub fn configure_log4rs(file: &str) {
     INIT_LOGGER.call_once(|| {
@@ -59,15 +56,6 @@ pub fn bool_from_string(s: &str) -> Option<bool> {
         Ok(value) => Some(value),
         Err(_) => None,
     }
-}
-
-pub fn config_files<T: Serialize + Header>(source: &[ConfigData]) {
-    source
-        .iter()
-        .for_each(|config| match create_empty_csv::<T>(&config.file_name) {
-            Ok(_) => info!("Created file {}", config.file_name),
-            Err(e) => error!("Error creating file {} {}", config.file_name, e),
-        });
 }
 
 pub mod crossbeam_utils {
