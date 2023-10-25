@@ -37,6 +37,7 @@ lazy_static! {
     static ref META_DESC_SELECTOR: Selector = Selector::parse("meta[name=description]").unwrap();
     static ref PAGE_NUMBERS_SELECTOR: Selector = Selector::parse("a.pageNumbers").unwrap();
     static ref TOP_MMM_SELECTOR: Selector = Selector::parse("td.valgtop a.mmm").unwrap();
+    static ref INPUT_TYPE_HIDDEN: Selector = Selector::parse("input[name=slink]").unwrap();
     static ref DIV_MARGIN_SELECTOR: Selector =
         Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
 }
@@ -417,4 +418,13 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
     }
     info!("Found {} vehicles", vehicle_prices.len());
     vehicle_prices
+}
+
+pub fn slink(html: &str) -> String {
+    let document = Html::parse_document(html);
+    for element in document.select(&INPUT_TYPE_HIDDEN) {
+        let txt = element.value().attr("value").unwrap_or("");
+        return txt.to_string();
+    }
+    return "".to_string();
 }

@@ -16,6 +16,30 @@ pub enum Currency {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum Dealer {
+    #[serde(rename = "Private")]
+    PRIVATE,
+    #[serde(rename = "Dealer")]
+    DEALER,
+
+    #[default]
+    #[serde(rename = "All")]
+    ALL,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum SaleType {
+    #[serde(rename = "SOLD")]
+    SOLD,
+    #[serde(rename = "INSALE")]
+    INSALE,
+
+    #[default]
+    #[serde(rename = "NONE")]
+    NONE,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Engine {
     #[serde(rename = "Petrol")]
     Petrol,
@@ -125,6 +149,26 @@ impl FromStr for Currency {
             "EUR" => Ok(Currency::EUR),
             "USD" => Ok(Currency::USD),
             _ => Err(format!("Invalid currency code: {}", s)),
+        }
+    }
+}
+
+impl ToString for Dealer {
+    fn to_string(&self) -> String {
+        match self {
+            Dealer::ALL => "ALL".to_string(),
+            Dealer::DEALER => "DEALER".to_string(),
+            Dealer::PRIVATE => "PRIVATE".to_string(),
+        }
+    }
+}
+
+impl ToString for SaleType {
+    fn to_string(&self) -> String {
+        match self {
+            SaleType::INSALE => "INSALE".to_string(),
+            SaleType::SOLD => "SOLD".to_string(),
+            SaleType::NONE => "NONE".to_string(),
         }
     }
 }
