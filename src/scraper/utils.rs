@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_extract_numbers() {
         let input = "1 - 5 от общо 5";
-        let expected_output = (5, 5);
+        let expected_output = (1, 5);
         assert_eq!(extract_numbers(input), expected_output);
     }
 }

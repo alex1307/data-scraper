@@ -3,16 +3,13 @@ use std::{collections::HashMap, thread, time::Duration};
 use crossbeam_channel::Sender;
 use log::{error, info};
 
-use crate::{
-    config::links::LinkData,
-    model::enums::Payload,
-    scraper::agent::scrape,
-    utils::{details_url, listing_url},
-};
+use crate::{model::enums::Payload, scraper::agent::scrape, utils::mobile_search_url};
 
 #[derive(Debug, Clone)]
 pub struct DataStream {
-    pub config: LinkData,
+    url: String,
+    slink: String,
+    dealer: String,
     pub source: Vec<String>,
     producer: Sender<Payload<HashMap<String, String>>>,
     error_handler: Option<Sender<Payload<HashMap<String, String>>>>,
@@ -21,12 +18,16 @@ pub struct DataStream {
 
 impl DataStream {
     pub fn new(
-        config: LinkData,
+        url: String,
+        slink: String,
+        dealer: String,
         source: Vec<String>,
         producer: Sender<Payload<HashMap<String, String>>>,
     ) -> Self {
         DataStream {
-            config,
+            url,
+            slink,
+            dealer,
             source,
             producer,
             error_handler: None,
@@ -43,22 +44,20 @@ impl DataStream {
     }
 
     pub async fn stream(&mut self) {
-        info!(
-            "start stream for config: {:#?} and \n source.len: {}",
-            self.config,
-            &self.source.len()
-        );
+        info!("Starting producer for config: {:#?}", self.slink);
         for value in self.source.clone() {
-            let url = if self.config.link_type == "details" {
-                details_url(&self.config.link, &value)
-            } else {
-                listing_url(&self.config.link, &value)
-            };
+            let url = mobile_search_url(
+                &self.url,
+                &value,
+                &self.slink,
+                crate::model::enums::Dealer::ALL,
+                crate::model::enums::SaleType::NONE,
+            );
             let mut payload = scrape(&url).await;
             if let Payload::Error(_) = payload {
                 if let Some(handler) = &self.error_handler {
                     if let Err(e) = handler.send(payload.clone()) {
-                        error!("Error: config: {:#?}, error: {}", self.config, e);
+                        error!("Error: config: {:#?}, error: {}", url, e);
                     } else {
                         info!(
                             "Sent not found error for url: {}. Payload: {:?}",
@@ -72,7 +71,7 @@ impl DataStream {
                 if let Err(e) = self.producer.send(payload) {
                     error!(
                         "Error: config: {:#?}, value: {}, error: {}",
-                        self.config, value, e
+                        self.url, value, e
                     );
                 }
                 if !&self.running {
@@ -83,18 +82,18 @@ impl DataStream {
             thread::sleep(Duration::from_millis(750));
         }
         if let Err(e) = self.producer.send(Payload::Done) {
-            error!("Error: config: {:#?}, error: {}", self.config, e);
+            error!("Error: config: {:#?}, error: {}", self.slink, e);
         }
 
         if let Some(handler) = &self.error_handler {
             if let Err(e) = handler.send(Payload::Done) {
-                error!("Error: config: {:#?}, error: {}", self.config, e);
+                error!("Error: config: {:#?}, error: {}", self.slink, e);
             }
         }
 
         info!(
             "producer for config: {:#?} finished. Successfully processed: {} items",
-            self.config,
+            self.slink,
             &self.source.len()
         );
     }
@@ -107,15 +106,14 @@ impl DataStream {
                 let mut values = vec![];
                 for m in data {
                     let mut dealer: HashMap<String, String> = m;
-                    if self.config.filter {
-                        if let Some(value) = dealer.get("promoted") {
-                            if "false" == value {
-                                self.running = false;
-                                break;
-                            }
+                    if let Some(value) = dealer.get("promoted") {
+                        if "false" == value {
+                            self.running = false;
+                            break;
                         }
                     }
-                    dealer.insert("dealer".to_string(), self.config.dealer.clone());
+
+                    dealer.insert("dealer".to_string(), self.dealer.clone());
                     values.push(dealer);
                 }
                 Payload::Data(values)

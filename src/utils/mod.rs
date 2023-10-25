@@ -10,7 +10,13 @@ use chrono::{Local, NaiveDate};
 use log::{error, info};
 use serde::Serialize;
 
-use crate::{model::traits::Header, DATE_FORMAT, DETAILS_URL, INIT_LOGGER, LISTING_URL};
+use crate::{
+    model::{
+        enums::{Dealer, SaleType},
+        traits::Header,
+    },
+    DATE_FORMAT, DETAILS_URL, INIT_LOGGER, LISTING_URL,
+};
 
 pub fn configure_log4rs(file: &str) {
     INIT_LOGGER.call_once(|| {
@@ -19,8 +25,56 @@ pub fn configure_log4rs(file: &str) {
     });
 }
 
-pub fn listing_url(slink: &str, page_number: &str) -> String {
-    format!("{}&slink={}&f1={}", LISTING_URL, slink, page_number)
+pub fn mobile_search_url(
+    url: &str,
+    source: &str,
+    slink: &str,
+    dealer_type: Dealer,
+    sale: SaleType,
+) -> String {
+    let mut params: Vec<&str> = vec![];
+    if DETAILS_URL == url {
+        let slink_param = format!("slink={}", slink);
+        let adv_param: String = format!("adv={}", source);
+        params.push(&slink_param);
+        params.push(&adv_param);
+        let url_encoded_params = params.join("&");
+        return format!("{}{}", url, url_encoded_params);
+    }
+    params.push("topmenu=1");
+    params.push("rub=1");
+
+    if slink.trim() != "" {
+        let slink_url = format!("slink={}", slink);
+        params.push(&slink_url);
+        let url_encoded_params = params.join("&");
+        return format!("{}{}", url, url_encoded_params);
+    }
+    let pg = format!("f1={}", source);
+    params.push(&pg);
+
+    if dealer_type == Dealer::PRIVATE {
+        params.push("f24=1");
+    } else if dealer_type == Dealer::DEALER {
+        params.push("f24=2");
+    }
+
+    if sale == SaleType::SOLD {
+        params.push("f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED");
+    } else if sale == SaleType::INSALE {
+        params.push("f20=7");
+    }
+
+    let url_encoded_params = params.join("&");
+    return format!("{}{}", url, url_encoded_params);
+}
+
+pub fn listing_all_url(page_number: &str) -> String {
+    format!("{}&act=3&f1={}&rub=1&topmenu=1", LISTING_URL, page_number)
+}
+
+pub fn listing_url(page_number: &str) -> String {
+    format!("{}&act=3&f1={}&rub=1&topmenu=1", LISTING_URL, page_number)
 }
 
 pub fn details_url(slink: &str, adv: &str) -> String {
@@ -150,6 +204,8 @@ pub fn subtract_vectors<T: PartialEq + Clone>(a: &[T], b: &[T]) -> Vec<T> {
 mod tests {
     use std::collections::HashSet;
 
+    use crate::scraper::agent::{get_pages, slink};
+
     use super::*;
 
     #[test]
@@ -181,5 +237,19 @@ mod tests {
         let h2: HashSet<String> = HashSet::from_iter(v2.iter().cloned());
         let diff = h1.difference(&h2).cloned().collect::<Vec<String>>();
         assert_eq!(diff.len(), 50);
+    }
+    #[test]
+    fn test_slink() {
+        configure_log4rs("config/loggers/dev_log4rs.yml");
+        info!("test_slink");
+        let url = mobile_search_url(LISTING_URL, "1", "", Dealer::DEALER, SaleType::SOLD);
+        assert_eq!(
+            url,
+            "//www.mobile.bg/pcgi/mobile.cgi?act=3&topmenu=1&rub=1&f1=1&f24=2&f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED"
+        );
+        let html = get_pages(&url).unwrap();
+        // info!("content: {}", html);
+        let slink = slink(&html);
+        info!("slink: {}", slink);
     }
 }

@@ -7,11 +7,14 @@ pub mod utils;
 pub mod writer;
 
 use lazy_static::lazy_static;
+use model::meta::MetaHeader;
 
 use std::sync::Once;
 
-pub const LISTING_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=3";
-pub const DETAILS_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=4";
+use crate::model::enums::{Dealer, SaleType};
+
+pub const LISTING_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=3&";
+pub const DETAILS_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=4&";
 pub const ACTION_DETAILS: &str = "act=4";
 pub const ACTION_LIST: &str = "act=3";
 pub const DATE_FORMAT: &str = "%Y-%m-%d";
@@ -24,4 +27,6 @@ pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_1
 
 lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
+    pub static ref SEARCH_ALL: MetaHeader = MetaHeader::search(Dealer::ALL, SaleType::NONE);
+    pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
 }
