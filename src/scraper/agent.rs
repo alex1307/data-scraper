@@ -8,13 +8,13 @@ use crate::scraper::utils::get_milllage_and_year;
 use crate::scraper::utils::is_sold;
 use crate::scraper::utils::is_top_or_vip;
 use crate::scraper::utils::make_and_mode;
-use crate::{ACTION_DETAILS, DETAILS_URL};
 use crate::BROWSER_USER_AGENT;
 use crate::DATE_FORMAT;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
 use crate::NOT_FOUND_MSG;
 use crate::POWER_TXT;
+use crate::{ACTION_DETAILS, DETAILS_URL};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::error;
@@ -168,25 +168,30 @@ async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
         let make_and_mode = make_and_mode(&element, HashMap::new());
         if let Some(url) = get_url(&element) {
             let id = get_id_from_url(url.clone());
-            if id.is_some() && prices.is_some() && make_and_mode.is_some() {
-                result.insert("id".to_string(), id.unwrap().to_string());
-                let (make, model) = make_and_mode.unwrap();
-                result.insert("make".to_string(), make);
-                result.insert("model".to_string(), model);
-                let (price, currency) = prices.unwrap();
-                result.insert("price".to_string(), price.to_string());
-                result.insert("currency".to_string(), currency.to_string());
-                result.insert("created_on".to_string(), created_on.clone());
+            if let (Some(id), Some(prices), Some(make_and_mode)) = (id, prices, make_and_mode) {
+                let (make, model) = make_and_mode;
+                let (price, currency) = prices;
                 let is_promoted = is_top_or_vip(&element);
-                result.insert("promoted".to_string(), is_promoted.to_string());
-                result.insert("sold".to_string(), is_sold(&element).to_string());
                 let (year, millage) = get_milllage_and_year(&element, is_promoted);
-                if (0, 0) == (year, millage) {
+            
+                if (year, millage) == (0, 0) {
                     error!("Failed to get year and millage for {}", url);
+                } else {
+                    results.push({
+                        let mut result = HashMap::new();
+                        result.insert("id".to_string(), id.to_string());
+                        result.insert("make".to_string(), make);
+                        result.insert("model".to_string(), model);
+                        result.insert("price".to_string(), price.to_string());
+                        result.insert("currency".to_string(), currency.to_string());
+                        result.insert("created_on".to_string(), created_on.clone());
+                        result.insert("promoted".to_string(), is_promoted.to_string());
+                        result.insert("sold".to_string(), is_sold(&element).to_string());
+                        result.insert("year".to_string(), year.to_string());
+                        result.insert("millage".to_string(), millage.to_string());
+                        result
+                    });
                 }
-                result.insert("year".to_string(), year.to_string());
-                result.insert("millage".to_string(), millage.to_string());
-                results.push(result);
             }
         }
     }
@@ -362,11 +367,13 @@ pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Er
         .build()?;
     let https_url = format!("https:{}", url);
     let body: Vec<u8> = client.get(&https_url).send().await?.bytes().await?.to_vec();
+    info!("body: {}", body.len());
     // Decode the byte array using the Windows-1251 encoding
     let (html, _, _) = WINDOWS_1251.decode(&body);
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
+    info!("response: {}", response.len());
     Ok(response.to_string())
 }
 
@@ -423,9 +430,14 @@ pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
 
 pub fn slink(html: &str) -> String {
     let document = Html::parse_document(html);
+    let mut result = "".to_string();
+
     for element in document.select(&INPUT_TYPE_HIDDEN) {
-        let txt = element.value().attr("value").unwrap_or("");
-        return txt.to_string();
+        if let Some(txt) = element.value().attr("value") {
+            result = txt.to_string();
+            break; // Exit the loop once a value is found
+        }
     }
-    return "".to_string();
+
+    result
 }

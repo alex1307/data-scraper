@@ -80,7 +80,7 @@ impl DataStream {
                     break;
                 }
 
-                if LISTING_URL == &self.url {
+                if self.url == LISTING_URL {
                     let page_number = from_str::<i32>(&value).unwrap();
                     if page_number > 99 {
                         self.running = false;

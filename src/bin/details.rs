@@ -1,6 +1,7 @@
-use data_scraper::{cmd::scrape_details, SEARCH_ALL};
+use data_scraper::{cmd::scrape_details, model::{search_metadata::asearch, enums::{Dealer, SaleType}}};
 
 #[tokio::main]
 async fn main() {
-    scrape_details(SEARCH_ALL.slink.as_str()).await;
+    let all = asearch(Dealer::ALL, SaleType::NONE).await;
+    scrape_details(all.slink.as_str()).await;
 }
