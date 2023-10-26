@@ -51,7 +51,7 @@ pub fn mobile_search_url(
         let url_encoded_params = params.join("&");
         return format!("{}{}", url, url_encoded_params);
     }
-    
+
     if dealer_type == Dealer::PRIVATE {
         params.push("f24=1");
     } else if dealer_type == Dealer::DEALER {
@@ -65,7 +65,7 @@ pub fn mobile_search_url(
     }
 
     let url_encoded_params = params.join("&");
-    return format!("{}{}", url, url_encoded_params);
+    format!("{}{}", url, url_encoded_params)
 }
 
 pub fn listing_all_url(page_number: &str) -> String {

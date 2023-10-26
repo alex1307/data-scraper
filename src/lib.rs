@@ -6,15 +6,14 @@ pub mod services;
 pub mod utils;
 pub mod writer;
 
-use futures::executor::block_on;
 use lazy_static::lazy_static;
-use model::meta::MetaHeader;
+use model::search_metadata::SearchMetadata;
 
 use std::sync::Once;
 
 use crate::model::{
     enums::{Dealer, SaleType},
-    meta::{search, asearch},
+    search_metadata::search,
 };
 
 pub const LISTING_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=3&";
@@ -31,6 +30,6 @@ pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_1
 
 lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
-    pub static ref SEARCH_ALL: MetaHeader = search(Dealer::ALL, SaleType::NONE);
+    
     pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
 }

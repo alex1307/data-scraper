@@ -6,7 +6,7 @@ use std::sync::Arc;
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 use futures::stream::{self, StreamExt};
-use log::{error, info};
+use log::info;
 
 use tokio::spawn;
 use tokio::task::block_in_place;
@@ -17,7 +17,7 @@ use crate::model::details::MobileDetails;
 use crate::model::enums::Payload;
 use crate::model::error::DataError;
 use crate::model::list::MobileList;
-use crate::model::meta::searches;
+use crate::model::search_metadata::searches;
 use crate::services::file_processor;
 use crate::services::stream_processor::process;
 use crate::services::streamer::DataStream;
@@ -66,25 +66,12 @@ pub async fn scrape_details(slink: &str) {
         .chunks(chunk_size)
         .map(|c| c.to_vec())
         .collect::<Vec<_>>();
-    let mobile_config = Mobile::from_file(scrpaer_config_file);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
     let (etx, mut erx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
     let mut counter = Arc::new(AtomicUsize::new(0));
     let mut counter2 = Arc::new(AtomicUsize::new(0));
     {
-        let found = mobile_config
-            .config
-            .iter()
-            .find(|cfg| cfg.dealear_type == "ALL")
-            .and_then(|cfg| cfg.links.iter().find(|link| link.name == "ALL"));
-
-        let _link = if found.is_some() {
-            found.unwrap()
-        } else {
-            error!("No link found");
-            return;
-        };
         for chunk in chunks {
             let mut processor = DataStream::new(
                 DETAILS_URL.to_owned(),
