@@ -1,9 +1,10 @@
+use futures::executor::block_on;
 use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     scraper::{
-        agent::{get_header_data, get_pages, slink},
+        agent::{get_header_data, get_pages, get_pages_async, slink},
         utils::extract_ascii_latin,
     },
     utils::mobile_search_url,
@@ -47,17 +48,51 @@ impl Header for MetaHeader {
 }
 
 pub fn statistic() -> Vec<MetaHeader> {
-    let dealers_all = MetaHeader::search(Dealer::DEALER, SaleType::NONE);
-    let private_all = MetaHeader::search(Dealer::PRIVATE, SaleType::NONE);
+    let dealers_all = search(Dealer::DEALER, SaleType::NONE);
+    let private_all = search(Dealer::PRIVATE, SaleType::NONE);
     return vec![SEARCH_ALL.clone(), dealers_all, private_all];
 }
 
 pub fn searches() -> Vec<MetaHeader> {
-    let dealer_sold = MetaHeader::search(Dealer::DEALER, SaleType::SOLD);
-    let dealer_insale = MetaHeader::search(Dealer::DEALER, SaleType::INSALE);
-    let private_sold = MetaHeader::search(Dealer::PRIVATE, SaleType::SOLD);
-    let private_insale = MetaHeader::search(Dealer::PRIVATE, SaleType::INSALE);
-    return vec![dealer_sold, dealer_insale, private_sold, private_insale];
+    let dealer_sold = search(Dealer::DEALER, SaleType::SOLD);
+    let dealer_insale = search(Dealer::DEALER, SaleType::INSALE);
+    let private_sold = search(Dealer::PRIVATE, SaleType::SOLD);
+    let private_insale = search(Dealer::PRIVATE, SaleType::INSALE);
+    return vec![dealer_sold, private_sold, dealer_insale, private_insale];
+}
+
+pub fn search(dealer_type: Dealer, sold: SaleType) -> MetaHeader {
+    let metadata = block_on({
+        let search_meta_data = asearch(dealer_type, sold);
+        search_meta_data
+    });
+    return metadata;
+}
+
+pub async fn asearch(dealer_type: Dealer, sold: SaleType) -> MetaHeader {
+    info!("Searching for: {:?} {:?}", dealer_type, sold);
+    let url = mobile_search_url(LISTING_URL, "1", "", dealer_type, sold);
+    info!("url: {}", url);
+    let html = get_pages_async(&url).await.unwrap();
+    // info!("content: {}", html);
+    let slink = slink(&html);
+    let content = get_header_data(&html).unwrap();
+    let meta = extract_ascii_latin(&content);
+    let re = regex::Regex::new(r" {2,}").unwrap();
+    let split: Vec<&str> = re.split(meta.trim()).collect();
+    info!("split: {:?}", split);
+    let min_price = split[0].replace(' ', "").parse::<u32>().unwrap_or(0);
+    let max_price = split[1].replace(' ', "").parse::<u32>().unwrap_or(0);
+    let total_number = split[2].replace(' ', "").parse::<u32>().unwrap_or(0);
+    return MetaHeader {
+        slink,
+        min_price,
+        max_price,
+        total_number,
+        timestamp: *TIMESTAMP,
+        dealer: dealer_type,
+        sale_type: sold,
+    };
 }
 
 impl MetaHeader {

@@ -125,7 +125,7 @@ pub async fn scrape_details(slink: &str) {
     }
 }
 
-pub async fn scrape() {
+pub async fn scrape_listing() {
     let app_config = AppConfig::from_file("config/config.yml");
     let logger_file_name = format!("{}/listing_log4rs.yml", app_config.get_log4rs_config());
     let listing_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
