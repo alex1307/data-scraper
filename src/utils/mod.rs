@@ -43,16 +43,15 @@ pub fn mobile_search_url(
     }
     params.push("topmenu=1");
     params.push("rub=1");
-
+    let pg = format!("f1={}", source);
+    params.push(&pg);
     if slink.trim() != "" {
         let slink_url = format!("slink={}", slink);
         params.push(&slink_url);
         let url_encoded_params = params.join("&");
         return format!("{}{}", url, url_encoded_params);
     }
-    let pg = format!("f1={}", source);
-    params.push(&pg);
-
+    
     if dealer_type == Dealer::PRIVATE {
         params.push("f24=1");
     } else if dealer_type == Dealer::DEALER {

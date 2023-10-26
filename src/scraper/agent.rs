@@ -8,7 +8,7 @@ use crate::scraper::utils::get_milllage_and_year;
 use crate::scraper::utils::is_sold;
 use crate::scraper::utils::is_top_or_vip;
 use crate::scraper::utils::make_and_mode;
-use crate::ACTION_DETAILS;
+use crate::{ACTION_DETAILS, DETAILS_URL};
 use crate::BROWSER_USER_AGENT;
 use crate::DATE_FORMAT;
 use crate::ENGINE_TXT;
@@ -43,7 +43,7 @@ lazy_static! {
 }
 
 pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
-    if url.contains(ACTION_DETAILS) {
+    if url.contains(DETAILS_URL) {
         let m = details2map(url).await;
         if let Some(_v) = m.get("error") {
             Payload::Error(m)
@@ -99,6 +99,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
     for element in document.select(&DILAR_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
+
         for l in lines {
             if l.contains('_') {
                 let v = l.split('_').collect::<Vec<&str>>();
@@ -116,9 +117,9 @@ async fn details2map(url: &str) -> HashMap<String, String> {
                 }
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        std::thread::sleep(std::time::Duration::from_millis(250));
     }
-
+    info!("--> map: {:?}", map);
     for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         map.insert(

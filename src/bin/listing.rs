@@ -1,6 +1,6 @@
-use data_scraper::cmd::scrape;
+use data_scraper::cmd::scrape_listing;
 
 #[tokio::main]
 async fn main() {
-    scrape().await;
+    scrape_listing().await;
 }

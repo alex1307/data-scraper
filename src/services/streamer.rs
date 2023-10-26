@@ -2,8 +2,9 @@ use std::{collections::HashMap, thread, time::Duration};
 
 use crossbeam_channel::Sender;
 use log::{error, info};
+use serde_json::from_str;
 
-use crate::{model::enums::Payload, scraper::agent::scrape, utils::mobile_search_url};
+use crate::{model::enums::Payload, scraper::agent::scrape, utils::mobile_search_url, LISTING_URL};
 
 #[derive(Debug, Clone)]
 pub struct DataStream {
@@ -53,6 +54,7 @@ impl DataStream {
                 crate::model::enums::Dealer::ALL,
                 crate::model::enums::SaleType::NONE,
             );
+            info!("--> Processing url: {}", url);
             let mut payload = scrape(&url).await;
             if let Payload::Error(_) = payload {
                 if let Some(handler) = &self.error_handler {
@@ -77,8 +79,14 @@ impl DataStream {
                 if !&self.running {
                     break;
                 }
-            }
 
+                if LISTING_URL == &self.url {
+                    let page_number = from_str::<i32>(&value).unwrap();
+                    if page_number > 99 {
+                        self.running = false;
+                    }
+                }
+            }
             thread::sleep(Duration::from_millis(750));
         }
         if let Err(e) = self.producer.send(Payload::Done) {
@@ -106,13 +114,6 @@ impl DataStream {
                 let mut values = vec![];
                 for m in data {
                     let mut dealer: HashMap<String, String> = m;
-                    if let Some(value) = dealer.get("promoted") {
-                        if "false" == value {
-                            self.running = false;
-                            break;
-                        }
-                    }
-
                     dealer.insert("dealer".to_string(), self.dealer.clone());
                     values.push(dealer);
                 }
