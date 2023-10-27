@@ -12,7 +12,6 @@ use tokio::spawn;
 use tokio::task::block_in_place;
 
 use crate::config::app_config::AppConfig;
-use crate::config::links::Mobile;
 use crate::model::details::MobileDetails;
 use crate::model::enums::Payload;
 use crate::model::error::DataError;
@@ -28,7 +27,6 @@ pub async fn scrape_details(slink: &str) {
     let app_config = AppConfig::from_file("config/config.yml");
     let logger_file_name = format!("{}/details_log4rs.yml", app_config.get_log4rs_config());
     let source_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
-    let scrpaer_config_file = app_config.get_scraper_config();
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
     let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
     let errors_file_name = format!("{}/errors_{}.csv", app_config.get_data_dir(), created_on);
@@ -38,7 +36,6 @@ pub async fn scrape_details(slink: &str) {
     configure_log4rs(&logger_file_name);
     info!("----------------------------------------");
     info!("Starting DETAILS application on {}", created_on);
-    info!("scraper config file: {}", scrpaer_config_file);
     info!("target file: {}", details_file_name);
     info!("source data file: {}", source_data_file_name);
     info!("number of threads: {}", app_config.get_num_threads());
@@ -116,18 +113,14 @@ pub async fn scrape_listing() {
     let app_config = AppConfig::from_file("config/config.yml");
     let logger_file_name = format!("{}/listing_log4rs.yml", app_config.get_log4rs_config());
     let listing_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
-    let scrpaer_config_file = app_config.get_scraper_config();
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
 
     configure_log4rs(&logger_file_name);
     info!("----------------------------------------");
     info!("Starting *LISTING* application on {}", created_on);
-    info!("scraper config file: {}", scrpaer_config_file);
     info!("listing data file: {}", listing_data_file_name);
     info!("number of threads: {}", app_config.get_num_threads());
     info!("----------------------------------------");
-    let mobile_config = Mobile::from_file(scrpaer_config_file);
-    info!("Config {:#?}", mobile_config);
     let mut tasks = Vec::new();
     let (tx, mut rx) = crossbeam::channel::unbounded::<Payload<HashMap<String, String>>>();
     let mut counter = Arc::new(AtomicUsize::new(0));

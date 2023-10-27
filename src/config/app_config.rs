@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct AppConfig {
-    #[serde(rename = "scraper-config")]
-    scraper_config: String,
     #[serde(rename = "downloaded-data-dir")]
     data_dir: String,
     #[serde(rename = "log4rs-config-dir")]
@@ -21,10 +19,6 @@ impl AppConfig {
         file.read_to_string(&mut contents).unwrap();
         let config: AppConfig = serde_yaml::from_str(&contents).unwrap();
         config
-    }
-
-    pub fn get_scraper_config(&self) -> &str {
-        &self.scraper_config
     }
 
     pub fn get_data_dir(&self) -> &str {
@@ -49,10 +43,6 @@ mod tests {
     fn test_url() {
         let config = AppConfig::from_file("config/config.yml");
         println!("{:#?}", config);
-        assert_eq!(
-            "config/mobile/scraper-config.yml",
-            config.get_scraper_config()
-        );
         assert_eq!("resources/data", config.get_data_dir());
         assert_eq!("config/loggers", config.get_log4rs_config());
         assert_eq!(8, config.get_num_threads());
