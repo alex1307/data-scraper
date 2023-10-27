@@ -1,3 +1,4 @@
+pub mod change_log;
 pub mod data;
 pub mod details;
 pub mod enums;

@@ -173,21 +173,24 @@ mod test {
     }
 
     #[test]
-    fn test_extends() {
-        let error_pattern = format!("{}/errors_", "resources/data");
-        let files = get_file_names(&error_pattern, "2023-05-30", "2023-05-31", "csv");
-        for f in &files {
-            println!("File: {}", f);
-        }
-        assert_eq!(files.len(), 2);
-        let ff: Vec<&str> = files.iter().map(|f| f.as_str()).collect();
-        let processor: file_processor::DataProcessor<DataError> =
-            file_processor::DataProcessor::from_files(ff);
-        assert_eq!(processor.ids.len(), 2346);
-        let mut details_processor: file_processor::DataProcessor<MobileDetails> =
-            file_processor::DataProcessor::from_files(vec!["resources/data/errors_2023-06-01.csv"]);
-        assert_eq!(details_processor.ids.len(), 0);
-        details_processor.extend_ids(processor.ids.clone());
-        assert_eq!(details_processor.ids.len(), 2346);
+    fn test_classify_records() {
+        let listing_file_name = "resources/test-data/csv/listing.csv";
+        let new_listing_file_name = "resources/test-data/csv/new_listing.csv";
+        let listing_processor =
+            file_processor::DataProcessor::<MobileList>::from_files(vec![listing_file_name]);
+
+        let new_listing_processor =
+            file_processor::DataProcessor::<MobileList>::from_files(vec![new_listing_file_name]);
+
+        let ids = listing_processor.get_ids();
+        let new_ids = new_listing_processor.get_ids();
+        assert_eq!(ids.len(), 95);
+        assert_eq!(new_ids.len(), 92);
+        let newones = new_ids.difference(&ids);
+        assert_eq!(newones.count(), 26);
+        let deleted = ids.difference(&new_ids);
+        assert_eq!(deleted.count(), 29);
+        let intersection = new_ids.intersection(&ids);
+        assert_eq!(intersection.clone().count() * 2, (92 + 95) - (26 + 29));
     }
 }

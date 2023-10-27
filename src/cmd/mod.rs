@@ -1,17 +1,21 @@
 use std::collections::{HashMap, HashSet};
 
+use std::env::var;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 use futures::stream::{self, StreamExt};
-use log::info;
+use log::{error, info};
 
+use serde::de;
 use tokio::spawn;
 use tokio::task::block_in_place;
 
 use crate::config::app_config::AppConfig;
+use crate::model::change_log::{self, ChangeLog};
+use crate::model::data;
 use crate::model::details::MobileDetails;
 use crate::model::enums::Payload;
 use crate::model::error::DataError;
@@ -21,7 +25,8 @@ use crate::services::file_processor;
 use crate::services::stream_processor::process;
 use crate::services::streamer::DataStream;
 use crate::utils::{configure_log4rs, create_empty_csv, get_file_names};
-use crate::{DATE_FORMAT, DETAILS_URL, LISTING_URL};
+use crate::writer::persistance::{MobileData, MobileDataWriter};
+use crate::{DATE_FORMAT, DETAILS_URL, LISTING_URL, TIMESTAMP};
 
 pub async fn scrape_details(slink: &str) {
     let app_config = AppConfig::from_file("config/config.yml");
@@ -112,7 +117,12 @@ pub async fn scrape_details(slink: &str) {
 pub async fn scrape_listing() {
     let app_config = AppConfig::from_file("config/config.yml");
     let logger_file_name = format!("{}/listing_log4rs.yml", app_config.get_log4rs_config());
-    let listing_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
+    let listing_data_file_name =
+        format!("{}/listing_{}.csv", app_config.get_data_dir(), created_on);
+    if let Err(_) = create_empty_csv::<MobileList>(&listing_data_file_name) {
+        error!("Failed to create file {}", listing_data_file_name);
+    }
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
 
     configure_log4rs(&logger_file_name);
@@ -155,4 +165,57 @@ pub async fn scrape_listing() {
             future::join_all(handles).await;
         });
     });
+}
+
+pub fn change_log(data_dir: &str) {
+    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
+    let latest = format!("{}/listing_{}.csv", data_dir, created_on);
+    let source = format!("{}/listing.csv", data_dir);
+    let details = format!("{}/details_{}.csv", data_dir, created_on);
+    let change_log = format!("{}/change_log.csv", data_dir);
+
+    if let Err(_) = create_empty_csv::<ChangeLog>(&change_log) {
+        error!("Failed to create file {}", change_log);
+    }
+
+    let mut listing_processor =
+        file_processor::DataProcessor::<MobileList>::from_files(vec![&source]);
+
+    let new_listing_processor =
+        file_processor::DataProcessor::<MobileList>::from_files(vec![&latest]);
+
+    let change_log_processor =
+        file_processor::DataProcessor::<ChangeLog>::from_files(vec![&change_log]);
+    let details_processor =
+        file_processor::DataProcessor::<MobileDetails>::from_files(vec![&details]);        
+    let change_log_ids = change_log_processor.get_ids();
+    listing_processor.extend_ids(change_log_ids.clone());
+    let ids = listing_processor.get_ids();
+    let latest_ids = new_listing_processor.get_ids();
+    let new_ids = latest_ids.difference(&ids);
+    let mut details_ids = details_processor.get_ids();
+    let deleted = ids.difference(details_ids);
+    let mut changes: Vec<ChangeLog> = vec![];
+    for id in new_ids {
+        let record = ChangeLog {
+            timestamp: *TIMESTAMP,
+            id: id.clone(),
+            status: "NEW".to_string(),
+            created_on: chrono::Utc::now().format(DATE_FORMAT).to_string(),
+        };
+        changes.push(record);
+    }
+
+    for id in deleted {
+        let record = ChangeLog {
+            timestamp: *TIMESTAMP,
+            id: id.clone(),
+            status: "DELETED".to_string(),
+            created_on: chrono::Utc::now().format(DATE_FORMAT).to_string(),
+        };
+        changes.push(record);
+    }
+
+    let data = MobileData::Payload(changes);
+    let _ = data.write_csv(&change_log, false);
 }
