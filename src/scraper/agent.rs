@@ -173,7 +173,7 @@ async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
                 let (price, currency) = prices;
                 let is_promoted = is_top_or_vip(&element);
                 let (year, millage) = get_milllage_and_year(&element, is_promoted);
-            
+
                 if (year, millage) == (0, 0) {
                     error!("Failed to get year and millage for {}", url);
                 } else {

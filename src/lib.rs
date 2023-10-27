@@ -30,6 +30,6 @@ pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_1
 
 lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
-    
     pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
+    pub static ref SEARCH_ALL_METADATA: SearchMetadata = search(Dealer::ALL, SaleType::NONE);
 }

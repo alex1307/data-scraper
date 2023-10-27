@@ -8,7 +8,7 @@ use crate::{
         utils::extract_ascii_latin,
     },
     utils::mobile_search_url,
-    LISTING_URL, TIMESTAMP,
+    LISTING_URL, SEARCH_ALL_METADATA, TIMESTAMP,
 };
 
 use super::{
@@ -54,6 +54,20 @@ pub fn statistic() -> Vec<SearchMetadata> {
     vec![all, dealers_all, private_all]
 }
 
+pub async fn astatistic() -> Vec<SearchMetadata> {
+    let dealers_all = asearch(Dealer::DEALER, SaleType::NONE).await;
+    let private_all = asearch(Dealer::PRIVATE, SaleType::NONE).await;
+    vec![SEARCH_ALL_METADATA.clone(), dealers_all, private_all]
+}
+
+pub async fn asearches() -> Vec<SearchMetadata> {
+    let dealer_sold = asearch(Dealer::DEALER, SaleType::SOLD).await;
+    let dealer_insale = asearch(Dealer::DEALER, SaleType::INSALE).await;
+    let private_sold = asearch(Dealer::PRIVATE, SaleType::SOLD).await;
+    let private_insale = asearch(Dealer::PRIVATE, SaleType::INSALE).await;
+    vec![dealer_sold, private_sold, dealer_insale, private_insale]
+}
+
 pub fn searches() -> Vec<SearchMetadata> {
     let dealer_sold = search(Dealer::DEALER, SaleType::SOLD);
     let dealer_insale = search(Dealer::DEALER, SaleType::INSALE);
@@ -63,9 +77,7 @@ pub fn searches() -> Vec<SearchMetadata> {
 }
 
 pub fn search(dealer_type: Dealer, sold: SaleType) -> SearchMetadata {
-    block_on({
-        asearch(dealer_type, sold)
-    })
+    block_on(asearch(dealer_type, sold))
 }
 
 pub async fn asearch(dealer_type: Dealer, sold: SaleType) -> SearchMetadata {
@@ -135,20 +147,17 @@ mod test {
     use log::info;
 
     use crate::{
-        model::{enums::Dealer, search_metadata::{search, asearch}},
+        model::search_metadata::{asearches, astatistic},
         utils::configure_log4rs,
     };
 
-   
     #[tokio::test]
     async fn test_search() {
         configure_log4rs("config/loggers/dev_log4rs.yml");
         info!("Test index meta");
-        let meta = asearch(Dealer::ALL, crate::model::enums::SaleType::NONE).await;
-        let dealer = asearch(Dealer::DEALER, crate::model::enums::SaleType::NONE).await;
-        let private = asearch(Dealer::PRIVATE, crate::model::enums::SaleType::NONE).await;
-        info!("meta: {:#?}", meta);
-        info!("dealer: {:#?}", dealer);
-        info!("private: {:#?}", private);
+        let stats = astatistic().await;
+        let searches = asearches().await;
+        assert_eq!(3, stats.len());
+        assert_eq!(4, searches.len());
     }
 }

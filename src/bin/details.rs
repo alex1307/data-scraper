@@ -1,4 +1,10 @@
-use data_scraper::{cmd::scrape_details, model::{search_metadata::asearch, enums::{Dealer, SaleType}}};
+use data_scraper::{
+    cmd::scrape_details,
+    model::{
+        enums::{Dealer, SaleType},
+        search_metadata::asearch,
+    },
+};
 
 #[tokio::main]
 async fn main() {

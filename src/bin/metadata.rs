@@ -1,8 +1,6 @@
-use std::{thread::sleep, time::Duration};
-
 use data_scraper::{
     config::app_config::AppConfig,
-    model::search_metadata::{searches, statistic, SearchMetadata},
+    model::search_metadata::{asearches, astatistic, SearchMetadata},
     services::file_processor::{self, DataProcessor},
     utils::configure_log4rs,
 };
@@ -18,18 +16,13 @@ async fn read_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let metadata_data_file_name = format!("{}/meta_data.csv", app_config.get_data_dir());
     configure_log4rs(&logger_file_name);
     let mut all = vec![];
-    let searches = searches();
-    //slee for 10 seconds
-    info!("searches len: {}", searches.len());
-    let statistics = statistic();
-    info!("statistics len: {}", statistics.len());
+    let searches = asearches().await;
+    let statistics = astatistic().await;
     all.extend(searches);
     all.extend(statistics);
-    info!("metadata len: {}", all.len());
     for meta in all.iter() {
         info!("{:?}", meta.clone());
     }
-    info!("Metadata file: {}", metadata_data_file_name);
     let mut meta_data_processor: DataProcessor<SearchMetadata> =
         file_processor::DataProcessor::from_files(vec![metadata_data_file_name.as_str()]);
     meta_data_processor.process(&all, None);
