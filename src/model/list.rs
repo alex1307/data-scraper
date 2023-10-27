@@ -159,3 +159,9 @@ impl From<HashMap<String, String>> for MobileList {
         }
     }
 }
+
+#[cfg(test)]
+mod test_list {
+    #[test]
+    fn test_new_records() {}
+}
