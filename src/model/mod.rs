@@ -6,3 +6,4 @@ pub mod error;
 pub mod list;
 pub mod search_metadata;
 pub mod traits;
+pub mod records;
