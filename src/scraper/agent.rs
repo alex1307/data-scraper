@@ -8,7 +8,7 @@ use crate::scraper::utils::get_milllage_and_year;
 use crate::scraper::utils::is_sold;
 use crate::scraper::utils::is_top_or_vip;
 use crate::scraper::utils::make_and_mode;
-use crate::BROWSER_USER_AGENT;
+use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 use crate::DATE_FORMAT;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
@@ -28,6 +28,10 @@ use std::collections::HashMap;
 use std::str::FromStr;
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
+    static ref DETAILS_HEADER_SELECTOR: Selector = Selector::parse("h1").unwrap();
+    static ref KAPARO_SELECTOR : Selector = Selector::parse("div.kaparo").unwrap();
+    static ref TOP_SELECTOR : Selector = Selector::parse("td.img.TOP").unwrap();
+    static ref VIP_SELECTOR : Selector = Selector::parse("td.img.VIP").unwrap();
     static ref PHONE_SELECTOR: Selector = Selector::parse("div.phone").unwrap();
     static ref DILAR_SELECTOR: Selector = Selector::parse("ul.dilarData").unwrap();
     static ref PRICE_SELECTOR: Selector = Selector::parse("span.price").unwrap();
@@ -96,6 +100,36 @@ async fn details2map(url: &str) -> HashMap<String, String> {
 
     map.insert("phone".to_string(), phone);
 
+    if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next(){
+        let text = h1_element.text().collect::<Vec<_>>().join(";");
+        let values = text.split_whitespace().collect::<Vec<&str>>();
+        
+        for v in values.clone() {
+            info!("v: {}", v);
+        }
+        if values.len() < 2 {
+            info!("Failed to get make and model for {}", url);
+            // return HashMap::new();
+        } else {
+            map.insert("make".to_string(), values[0].to_string());
+            map.insert("model".to_string(), values[1].to_string());
+        }
+    }
+
+    if document.select(&KAPARO_SELECTOR).count() > 0 {
+        map.insert("sold".to_string(), "true".to_string());
+    } else {
+        map.insert("sold".to_string(), "false".to_string());
+    }
+
+    if document.select(&TOP_SELECTOR).count() > 0 {
+        map.insert("promoted".to_string(), "true".to_string());
+    } else if document.select(&VIP_SELECTOR).count() > 0 {
+        map.insert("promoted".to_string(), "true".to_string());
+    } else {
+        map.insert("promoted".to_string(), "false".to_string());
+    }
+
     for element in document.select(&DILAR_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("_");
         let lines = txt.lines();
@@ -113,6 +147,32 @@ async fn details2map(url: &str) -> HashMap<String, String> {
 
                     if v[1].contains(POWER_TXT) {
                         map.insert("power".to_string(), extract_integers(v[2])[0].to_string());
+                    }
+
+                    if v[1].contains(MILLAGE_TXT) {
+                        if let Some(numeric_part) = v[2].split_whitespace().next() {
+                            // Remove any non-numeric characters and convert to an integer
+                            if let Ok(numeric_value) = numeric_part.chars().filter(|&c| c.is_numeric()).collect::<String>().parse::<i32>() {
+                                map.insert("millage".to_string(), numeric_value.to_string());
+                            } else {
+                                map.insert("millage".to_string(), "0".to_string());
+                            }
+                        } else {
+                            error!("Millage not found for {}", url);
+                        }
+                    }
+
+                    if v[1].contains(YEAR_TXT) {
+                        info!("v[2]: {}", v[2]);
+                        
+                            // Remove any non-numeric characters and convert to an integer
+                            if let Ok(numeric_value) = v[2].chars().filter(|&c| c.is_numeric()).collect::<String>().parse::<i32>() {
+
+                                map.insert("year".to_string(), numeric_value.to_string());
+                            } else {
+                                map.insert("year".to_string(), "0".to_string());
+                            }
+                        
                     }
                 }
             }
@@ -440,4 +500,26 @@ pub fn slink(html: &str) -> String {
     }
 
     result
+}
+
+#[cfg(test)]
+mod scrape_tests{
+    use log::info;
+
+    use crate::utils::configure_log4rs;
+
+    use super::details2map;
+
+
+    #[tokio::test]
+    async fn test_get_details() {
+        let id = "11695819071264345";
+        let url = format!("//www.mobile.bg/pcgi/mobile.cgi?act=4&adv={}&slink=u976ho", id);
+        configure_log4rs("config/loggers/dev_log4rs.yml");
+        let details = details2map(&url).await;
+        assert_eq!(details.get("id").unwrap(), id);
+        info!("details: {:?}", details);
+
+    }
+
 }
