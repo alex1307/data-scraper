@@ -187,7 +187,7 @@ pub fn change_log(data_dir: &str) {
     let change_log_processor =
         file_processor::DataProcessor::<ChangeLog>::from_files(vec![&change_log]);
     let details_processor =
-        file_processor::DataProcessor::<MobileDetails>::from_files(vec![&details]);        
+        file_processor::DataProcessor::<MobileDetails>::from_files(vec![&details]);
     let change_log_ids = change_log_processor.get_ids();
     listing_processor.extend_ids(change_log_ids.clone());
     let ids = listing_processor.get_ids();
@@ -218,4 +218,30 @@ pub fn change_log(data_dir: &str) {
 
     let data = MobileData::Payload(changes);
     let _ = data.write_csv(&change_log, false);
+}
+
+#[cfg(test)]
+mod testingcommand {
+    #[tokio::test]
+    async fn test_cascade_tasks() {
+        let (tx1, mut rx1) = crossbeam::channel::unbounded::<String>();
+        let (tx2, mut rx2) = crossbeam::channel::unbounded::<Vec<String>>();
+        let (tx3, mut rx3) = crossbeam::channel::unbounded::<Vec<String>>();
+
+        let mut tasks = Vec::new();
+        let mut counter = 0;
+        let mut counter2 = 0;
+        let mut counter3 = 0;
+
+        for i in 0..10 {
+            let tx = tx1.clone();
+            let tx2 = tx2.clone();
+            let tx3 = tx3.clone();
+            tasks.push(async move {
+                tx.send(format!("{}-{}", "A", i)).unwrap();
+                tx2.send(vec![format!("{}-{}", "B", i)]).unwrap();
+                tx3.send(vec![format!("{}-{}", "C", i)]).unwrap();
+            });
+        }
+    }
 }

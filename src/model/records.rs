@@ -1,7 +1,9 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use super::{enums::{Engine, Gearbox, Currency}, traits::{Header, Identity}};
-
+use super::{
+    enums::{Currency, Engine, Gearbox},
+    traits::{Header, Identity},
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct MobileRecord {
@@ -24,7 +26,6 @@ pub struct MobileRecord {
     pub equipment: u64,
     pub created_on: String,
 }
-
 
 impl Header for MobileRecord {
     fn header() -> Vec<&'static str> {
