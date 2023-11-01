@@ -2,8 +2,6 @@ use std::{
     error::Error,
     fs::File,
     io::{BufWriter, Write},
-    thread,
-    time::{Duration, SystemTime},
 };
 
 use chrono::{Local, NaiveDate};
@@ -11,11 +9,8 @@ use log::{error, info};
 use serde::Serialize;
 
 use crate::{
-    model::{
-        enums::{Dealer, SaleType},
-        traits::Header,
-    },
-    DATE_FORMAT, DETAILS_URL, INIT_LOGGER, LISTING_URL,
+    model::{enums::SaleType, traits::Header},
+    DATE_FORMAT, DETAILS_URL, INIT_LOGGER,
 };
 
 pub fn configure_log4rs(file: &str) {
@@ -29,65 +24,48 @@ pub fn mobile_search_url(
     url: &str,
     source: &str,
     slink: &str,
-    dealer_type: Dealer,
     sale: SaleType,
+    min: i32,
+    max: i32,
 ) -> String {
-    let mut params: Vec<&str> = vec![];
+    let mut params: Vec<String> = vec![];
     if DETAILS_URL == url {
         let slink_param = format!("slink={}", slink);
         let adv_param: String = format!("adv={}", source);
-        params.push(&slink_param);
-        params.push(&adv_param);
+        params.push(slink_param);
+        params.push(adv_param);
         let url_encoded_params = params.join("&");
         return format!("{}{}", url, url_encoded_params);
     }
-    params.push("topmenu=1");
-    params.push("rub=1");
+    params.push("topmenu=1".to_string());
+    params.push("rub=1".to_string());
     let pg = format!("f1={}", source);
-    params.push(&pg);
+    params.push(pg);
     if slink.trim() != "" {
         let slink_url = format!("slink={}", slink);
-        params.push(&slink_url);
+        params.push(slink_url);
         let url_encoded_params = params.join("&");
         return format!("{}{}", url, url_encoded_params);
-    }
-
-    if dealer_type == Dealer::PRIVATE {
-        params.push("f24=1");
-    } else if dealer_type == Dealer::DEALER {
-        params.push("f24=2");
     }
 
     if sale == SaleType::SOLD {
-        params.push("f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED");
+        params.push("f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string());
     } else if sale == SaleType::INSALE {
-        params.push("f20=7");
+        params.push("f20=7".to_string());
+    }
+
+    if min > 0 {
+        let min_price = format!("f7={}", min);
+        params.push(min_price);
+    }
+
+    if max > 0 {
+        let max_price = format!("f8={}", max);
+        params.push(max_price);
     }
 
     let url_encoded_params = params.join("&");
     format!("{}{}", url, url_encoded_params)
-}
-
-pub fn listing_all_url(page_number: &str) -> String {
-    format!("{}&act=3&f1={}&rub=1&topmenu=1", LISTING_URL, page_number)
-}
-
-pub fn listing_url(page_number: &str) -> String {
-    format!("{}&act=3&f1={}&rub=1&topmenu=1", LISTING_URL, page_number)
-}
-
-pub fn details_url(slink: &str, adv: &str) -> String {
-    format!("{}&slink={}&adv={}", DETAILS_URL, slink, adv)
-}
-
-pub fn wait(min: u64, max: u64) {
-    let wait_time = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        % max
-        + min; // min 3 sec, max 10 sec
-    thread::sleep(Duration::from_secs(wait_time));
 }
 
 pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Box<dyn Error>> {
@@ -102,13 +80,6 @@ pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Bo
     writer.write_all(b"\r\n")?;
     writer.flush()?;
     Ok(())
-}
-
-pub fn bool_from_string(s: &str) -> Option<bool> {
-    match s.trim().parse() {
-        Ok(value) => Some(value),
-        Err(_) => None,
-    }
 }
 
 pub mod crossbeam_utils {
@@ -241,10 +212,10 @@ mod tests {
     fn test_slink() {
         configure_log4rs("config/loggers/dev_log4rs.yml");
         info!("test_slink");
-        let url = mobile_search_url(LISTING_URL, "1", "", Dealer::DEALER, SaleType::SOLD);
+        let url = mobile_search_url(crate::LISTING_URL, "1", "", SaleType::SOLD, 0, 5000);
         assert_eq!(
             url,
-            "//www.mobile.bg/pcgi/mobile.cgi?act=3&topmenu=1&rub=1&f1=1&f24=2&f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED"
+            "https://www.mobile.bg/pcgi/mobile.cgi?act=3&topmenu=1&rub=1&f1=1&f94=1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED&f7=0&f8=5000"
         );
         let html = get_pages(&url).unwrap();
         // info!("content: {}", html);

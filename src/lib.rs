@@ -1,4 +1,3 @@
-pub mod cmd;
 pub mod config;
 pub mod model;
 pub mod scraper;
@@ -7,17 +6,10 @@ pub mod utils;
 pub mod writer;
 
 use lazy_static::lazy_static;
-use model::search_metadata::SearchMetadata;
 
 use std::sync::Once;
 
-use crate::{
-    config::app_config::AppConfig,
-    model::{
-        enums::{Dealer, SaleType},
-        search_metadata::search,
-    },
-};
+use crate::config::app_config::AppConfig;
 
 pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&";
 pub const DETAILS_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=4&";
@@ -37,7 +29,15 @@ pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_1
 lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
     pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
-    pub static ref SEARCH_ALL_METADATA: SearchMetadata = search(Dealer::ALL, SaleType::NONE);
     pub static ref CONFIG: AppConfig = AppConfig::from_file("config/config.yml");
+    pub static ref LOG_CONFIG: String = format!("{}/meta_log4rs.yml", CONFIG.get_log4rs_config());
     pub static ref CREATED_ON: String = chrono::Utc::now().format(DATE_FORMAT).to_string();
-    }
+    pub static ref ARCHIVE_FILE_NAME: String =
+        format!("{}/vehicle.archive.csv", CONFIG.get_data_dir());
+    pub static ref INSALE_FILE_NAME: String = format!(
+        "{}/vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.to_string()
+    );
+    pub static ref METADATA_FILE_NAME: String = format!("{}/meta_data.csv", CONFIG.get_data_dir());
+}
