@@ -10,12 +10,8 @@ all: build copy-config clean
 
 build:
 	cargo build --release --target-dir $(DEST_RELEASE_DIR)
-	cp $(DEST_RELEASE_DIR)/release/listing $(DEST_RELEASE_DIR)/
-	cp $(DEST_RELEASE_DIR)/release/details $(DEST_RELEASE_DIR)/
-	cp $(DEST_RELEASE_DIR)/release/metadata $(DEST_RELEASE_DIR)/
-	strip $(DEST_RELEASE_DIR)/listing
-	strip $(DEST_RELEASE_DIR)/details
-	strip $(DEST_RELEASE_DIR)/metadata
+	cp $(DEST_RELEASE_DIR)/release/scraper $(DEST_RELEASE_DIR)/
+	strip $(DEST_RELEASE_DIR)/scraper
 
 copy-config:
 	mkdir -p $(DEST_CONFIG_DIR)

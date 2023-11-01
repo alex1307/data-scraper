@@ -1,8 +1,6 @@
 use crate::config::equipment::get_equipment_as_u64;
-use crate::model::details::MobileDetails;
+use crate::model::enums::Currency;
 use crate::model::enums::Payload;
-use crate::model::enums::{Currency, Engine, Gearbox};
-use crate::model::list::MobileList;
 use crate::scraper::utils::extract_integers;
 use crate::scraper::utils::get_milllage_and_year;
 use crate::scraper::utils::is_sold;
@@ -17,15 +15,13 @@ use crate::{ACTION_DETAILS, DETAILS_URL};
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
-use log::{error, debug};
-use log::info;
+use log::{debug, error};
 
 use scraper::{ElementRef, Html, Selector};
 
-use super::form_data_request;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::str::FromStr;
+
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
     static ref DETAILS_HEADER_SELECTOR: Selector = Selector::parse("h1").unwrap();
@@ -106,14 +102,10 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
     } else {
         "Unknown".to_string()
     };
-    let is_dealer =  !document.select(&DEALER_SELECTOR).next().is_some();
-    info!("+++ LOCATION: {}", address);
-    info!("+++ DEALER: {}", is_dealer);
+    let is_dealer = !document.select(&DEALER_SELECTOR).next().is_some();
     map.insert("phone".to_string(), phone);
     map.insert("dealer".to_string(), is_dealer.to_string());
     map.insert("location".to_string(), address);
-
-    
 
     if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next() {
         let text = h1_element.text().collect::<Vec<_>>().join(";");
@@ -292,74 +284,6 @@ async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
     results
 }
 
-pub fn parse_details(url: &str) -> Result<MobileDetails, Box<dyn std::error::Error>> {
-    let html = get_pages(url)?;
-    if html.contains(NOT_FOUND_MSG) {
-        return Err("not found".into());
-    }
-    let document = Html::parse_document(&html);
-    let phone = document
-        .select(&PHONE_SELECTOR)
-        .next()
-        .unwrap()
-        .text()
-        .collect::<Vec<_>>()
-        .join("");
-    let adv_value = url
-        .split('&')
-        .find(|s| s.starts_with("adv="))
-        .unwrap()
-        .split('=')
-        .last()
-        .unwrap();
-    info!("Phone: {}", phone);
-    let mut details = MobileDetails::new(adv_value.to_string(), phone);
-    for element in document.select(&DILAR_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("_");
-        let lines = txt.lines();
-        for l in lines {
-            if l.contains('_') {
-                let v = l.split('_').collect::<Vec<&str>>();
-                if v.len() >= 3 {
-                    if "Тип двигател" == v[1] {
-                        details.engine = Engine::from_str(v[2])?;
-                    }
-                    if "Скоростна кутия" == v[1] {
-                        details.gearbox = Gearbox::from_str(v[2])?;
-                    }
-
-                    if v[1].contains("Мощност") {
-                        let power = extract_integers(v[2]);
-                        details.power = power[0] as u16;
-                    }
-                }
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-    }
-    for element in document.select(&ADV_ACT_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join(" ");
-        details.view_count = extract_integers(&txt)[0];
-    }
-    for element in document.select(&DETAILS_PRICE_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("");
-        let (price, currency) = process_price(txt);
-        details.currency = currency;
-        details.price = price;
-    }
-
-    let divs = document.select(&DIV_MARGIN_SELECTOR);
-    let mut extras = vec![];
-    for div in divs {
-        extras.push(div.text().collect::<String>().replace('•', ""));
-    }
-    details.extras = extras.clone();
-    if !&extras.is_empty() {
-        details.equipment = get_equipment_as_u64(extras);
-    }
-    Ok(details)
-}
-
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
     let fragment = Html::parse_document(html);
     let description = fragment
@@ -436,25 +360,6 @@ fn get_id_from_url(url: String) -> Option<String> {
     Some(id.to_owned())
 }
 
-pub fn search_form_data(
-    input: &form_data_request::Request,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent(BROWSER_USER_AGENT)
-        .build()?;
-    let body: Vec<u8> = client
-        .post("https://www.mobile.bg/pcgi/mobile.cgi")
-        .form(&input.to_form_data())
-        .send()?
-        .bytes()
-        .unwrap()
-        .to_vec();
-    let (html, _, _) = WINDOWS_1251.decode(&body);
-    let utf8_html = UTF_8.encode(&html).0;
-    let response = String::from_utf8_lossy(&utf8_html);
-    Ok(response.to_string())
-}
-
 pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .user_agent(BROWSER_USER_AGENT)
@@ -482,43 +387,6 @@ pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
     Ok(response.to_string())
-}
-
-pub fn get_vehicles_prices(html: &str) -> Vec<MobileList> {
-    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
-    let document = Html::parse_document(html);
-
-    let mut vehicle_prices = vec![];
-    for element in document.select(&TABLERESET_SELECTOR) {
-        let prices = extract_price(&element);
-        let make_and_mode = make_and_mode(&element, HashMap::new());
-        if let Some(url) = get_url(&element) {
-            let id = get_id_from_url(url.clone());
-            match id.is_some() && prices.is_some() && make_and_mode.is_some() {
-                true => {
-                    let (make, model) = make_and_mode.unwrap();
-                    let (price, currency) = prices.unwrap();
-                    let mut vehicle_price = MobileList::new(
-                        id.unwrap(),
-                        make,
-                        model,
-                        price,
-                        currency,
-                        created_on.clone(),
-                    );
-                    vehicle_price.promoted = is_top_or_vip(&element);
-                    vehicle_price.sold = is_sold(&element);
-                    let (year, millage) = get_milllage_and_year(&element, vehicle_price.promoted);
-                    vehicle_price.year = year as u16;
-                    vehicle_price.millage = millage;
-                    vehicle_prices.push(vehicle_price);
-                }
-                false => (),
-            }
-        }
-    }
-    info!("Found {} vehicles", vehicle_prices.len());
-    vehicle_prices
 }
 
 pub fn slink(html: &str) -> String {

@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -8,11 +7,11 @@ use crate::{
         utils::extract_ascii_latin,
     },
     utils::mobile_search_url,
-    LISTING_URL, SEARCH_ALL_METADATA, TIMESTAMP,
+    LISTING_URL, TIMESTAMP,
 };
 
 use super::{
-    enums::{Dealer, SaleType},
+    enums::SaleType,
     traits::{Header, Identity},
 };
 
@@ -23,7 +22,6 @@ pub struct SearchMetadata {
     pub total_number: u32,
     pub min_price: u32,
     pub max_price: u32,
-    pub dealer: Dealer,
     pub sale_type: SaleType,
 }
 
@@ -38,51 +36,46 @@ impl Header for SearchMetadata {
         vec![
             "slink",
             "timestamp",
-            "dealer",
             "sale_type",
-            "total_number",
             "min_price",
             "max_price",
+            "total_number",
         ]
     }
 }
 
-pub fn statistic() -> Vec<SearchMetadata> {
-    let dealers_all = search(Dealer::DEALER, SaleType::NONE);
-    let private_all = search(Dealer::PRIVATE, SaleType::NONE);
-    let all = search(Dealer::ALL, SaleType::NONE);
-    vec![all, dealers_all, private_all]
-}
-
 pub async fn astatistic() -> Vec<SearchMetadata> {
-    let dealers_all = asearch(Dealer::DEALER, SaleType::NONE).await;
-    let private_all = asearch(Dealer::PRIVATE, SaleType::NONE).await;
-    vec![SEARCH_ALL_METADATA.clone(), dealers_all, private_all]
+    let insale = asearch(SaleType::INSALE, 0, 0).await;
+    let sold = asearch(SaleType::SOLD, 0, 0).await;
+    let all = asearch(SaleType::NONE, 0, 0).await;
+    vec![all, insale, sold]
 }
 
 pub async fn asearches() -> Vec<SearchMetadata> {
-    let dealer_sold = asearch(Dealer::DEALER, SaleType::SOLD).await;
-    let dealer_insale = asearch(Dealer::DEALER, SaleType::INSALE).await;
-    let private_sold = asearch(Dealer::PRIVATE, SaleType::SOLD).await;
-    let private_insale = asearch(Dealer::PRIVATE, SaleType::INSALE).await;
-    vec![dealer_sold, private_sold, dealer_insale, private_insale]
+    let sold = asearch(SaleType::SOLD, 0, 0).await;
+    let insale_5000 = asearch(SaleType::INSALE, 1_001, 5000).await;
+    let insale_10_000 = asearch(SaleType::INSALE, 5001, 10_000).await;
+    let insale_15_000 = asearch(SaleType::INSALE, 10_001, 15_000).await;
+    let insale_20_000 = asearch(SaleType::INSALE, 15_001, 20_000).await;
+    let insale_30_000 = asearch(SaleType::INSALE, 20_001, 30_000).await;
+    let insale_30_000_up = asearch(SaleType::INSALE, 30_001, 0).await;
+    vec![
+        sold,
+        insale_5000,
+        insale_10_000,
+        insale_15_000,
+        insale_20_000,
+        insale_30_000,
+        insale_30_000_up,
+    ]
 }
 
-pub fn searches() -> Vec<SearchMetadata> {
-    let dealer_sold = search(Dealer::DEALER, SaleType::SOLD);
-    let dealer_insale = search(Dealer::DEALER, SaleType::INSALE);
-    let private_sold = search(Dealer::PRIVATE, SaleType::SOLD);
-    let private_insale = search(Dealer::PRIVATE, SaleType::INSALE);
-    vec![dealer_sold, private_sold, dealer_insale, private_insale]
-}
-
-pub fn search(dealer_type: Dealer, sold: SaleType) -> SearchMetadata {
-    block_on(asearch(dealer_type, sold))
-}
-
-pub async fn asearch(dealer_type: Dealer, sold: SaleType) -> SearchMetadata {
-    info!("Searching for: {:?} {:?}", dealer_type, sold);
-    let url = mobile_search_url(LISTING_URL, "1", "", dealer_type, sold);
+pub async fn asearch(sold: SaleType, min: i32, max: i32) -> SearchMetadata {
+    info!(
+        "Searching for sale type: {:?}, min price {} max price{}",
+        sold, min, max
+    );
+    let url = mobile_search_url(LISTING_URL, "1", "", sold, min, max);
     info!("url: {}", url);
     let html = get_pages_async(&url).await.unwrap();
     // info!("content: {}", html);
@@ -101,15 +94,17 @@ pub async fn asearch(dealer_type: Dealer, sold: SaleType) -> SearchMetadata {
         max_price,
         total_number,
         timestamp: *TIMESTAMP,
-        dealer: dealer_type,
         sale_type: sold,
     }
 }
 
 impl SearchMetadata {
-    pub fn search(dealer_type: Dealer, sold: SaleType) -> Self {
-        info!("Searching for: {:?} {:?}", dealer_type, sold);
-        let url = mobile_search_url(LISTING_URL, "1", "", dealer_type, sold);
+    pub fn search(sold: SaleType, min_price: i32, max_price: i32) -> Self {
+        info!(
+            "Searching for sale type: {:?}, min price {}, max price {}",
+            sold, min_price, max_price
+        );
+        let url = mobile_search_url(LISTING_URL, "1", "", sold, min_price, max_price);
         info!("url: {}", url);
         let html = get_pages(&url).unwrap();
         // info!("content: {}", html);
@@ -128,7 +123,6 @@ impl SearchMetadata {
             max_price,
             total_number,
             timestamp: *TIMESTAMP,
-            dealer: dealer_type,
             sale_type: sold,
         }
     }

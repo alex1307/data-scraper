@@ -10,7 +10,6 @@ use crate::{model::enums::Payload, scraper::agent::scrape, utils::mobile_search_
 pub struct DataStream {
     url: String,
     slink: String,
-    dealer: String,
     pub source: Vec<String>,
     producer: Sender<Payload<HashMap<String, String>>>,
     error_handler: Option<Sender<Payload<HashMap<String, String>>>>,
@@ -21,14 +20,13 @@ impl DataStream {
     pub fn new(
         url: String,
         slink: String,
-        dealer: String,
+
         source: Vec<String>,
         producer: Sender<Payload<HashMap<String, String>>>,
     ) -> Self {
         DataStream {
             url,
             slink,
-            dealer,
             source,
             producer,
             error_handler: None,
@@ -51,8 +49,9 @@ impl DataStream {
                 &self.url,
                 &value,
                 &self.slink,
-                crate::model::enums::Dealer::ALL,
                 crate::model::enums::SaleType::NONE,
+                0,
+                0,
             );
             info!("--> Processing url: {}", url);
             let mut payload = scrape(&url).await;
@@ -110,15 +109,7 @@ impl DataStream {
         payload: Payload<HashMap<String, String>>,
     ) -> Payload<HashMap<String, String>> {
         match payload {
-            Payload::Data(data) => {
-                let mut values = vec![];
-                for m in data {
-                    let mut dealer: HashMap<String, String> = m;
-                    dealer.insert("dealer".to_string(), self.dealer.clone());
-                    values.push(dealer);
-                }
-                Payload::Data(values)
-            }
+            Payload::Data(data) => Payload::Data(data),
             _ => payload,
         }
     }
