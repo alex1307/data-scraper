@@ -11,13 +11,16 @@ use model::search_metadata::SearchMetadata;
 
 use std::sync::Once;
 
-use crate::model::{
-    enums::{Dealer, SaleType},
-    search_metadata::search,
+use crate::{
+    config::app_config::AppConfig,
+    model::{
+        enums::{Dealer, SaleType},
+        search_metadata::search,
+    },
 };
 
-pub const LISTING_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=3&";
-pub const DETAILS_URL: &str = "//www.mobile.bg/pcgi/mobile.cgi?act=4&";
+pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&";
+pub const DETAILS_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=4&";
 pub const ACTION_DETAILS: &str = "act=4";
 pub const ACTION_LIST: &str = "act=3";
 pub const DATE_FORMAT: &str = "%Y-%m-%d";
@@ -35,4 +38,6 @@ lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
     pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
     pub static ref SEARCH_ALL_METADATA: SearchMetadata = search(Dealer::ALL, SaleType::NONE);
-}
+    pub static ref CONFIG: AppConfig = AppConfig::from_file("config/config.yml");
+    pub static ref CREATED_ON: String = chrono::Utc::now().format(DATE_FORMAT).to_string();
+    }

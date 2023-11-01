@@ -129,8 +129,8 @@ impl<T: Identity + Clone + Header + Debug + DeserializeOwned + Serialize> DataPr
         &self.ids
     }
 
-    pub fn get_values(&self) -> &Vec<T> {
-        &self.values
+    pub fn get_values(&self) -> Vec<T> {
+        self.values.clone()
     }
 
     pub fn extend_ids(&mut self, ids: HashSet<String>) -> &Self {
@@ -147,10 +147,10 @@ mod test {
     use log::info;
 
     use crate::{
-        model::{details::MobileDetails, error::DataError, list::MobileList},
+        model::list::MobileList,
         scraper::{agent::get_vehicles_prices, utils::read_file_from},
         services::file_processor,
-        utils::{configure_log4rs, get_file_names},
+        utils::configure_log4rs,
     };
 
     use super::*;
