@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use std::env::var;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
@@ -9,13 +8,11 @@ use futures::future::{self, FutureExt};
 use futures::stream::{self, StreamExt};
 use log::{error, info};
 
-use serde::de;
 use tokio::spawn;
 use tokio::task::block_in_place;
 
 use crate::config::app_config::AppConfig;
-use crate::model::change_log::{self, ChangeLog};
-use crate::model::data;
+use crate::model::change_log::ChangeLog;
 use crate::model::details::MobileDetails;
 use crate::model::enums::Payload;
 use crate::model::error::DataError;
@@ -26,16 +23,15 @@ use crate::services::stream_processor::process;
 use crate::services::streamer::DataStream;
 use crate::utils::{configure_log4rs, create_empty_csv, get_file_names};
 use crate::writer::persistance::{MobileData, MobileDataWriter};
-use crate::{DATE_FORMAT, DETAILS_URL, LISTING_URL, TIMESTAMP};
+use crate::{CONFIG, DATE_FORMAT, DETAILS_URL, LISTING_URL, TIMESTAMP};
 
 pub async fn scrape_details(slink: &str) {
-    let app_config = AppConfig::from_file("config/config.yml");
-    let logger_file_name = format!("{}/details_log4rs.yml", app_config.get_log4rs_config());
-    let source_data_file_name = format!("{}/listing.csv", app_config.get_data_dir());
+    let logger_file_name = format!("{}/details_log4rs.yml", CONFIG.get_log4rs_config());
+    let source_data_file_name = format!("{}/listing.csv", CONFIG.get_data_dir());
     let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
-    let details_file_name = format!("{}/details_{}.csv", app_config.get_data_dir(), created_on);
-    let errors_file_name = format!("{}/errors_{}.csv", app_config.get_data_dir(), created_on);
-    let pattern = format!("{}/errors_", app_config.get_data_dir());
+    let details_file_name = format!("{}/details_{}.csv", CONFIG.get_data_dir(), created_on);
+    let errors_file_name = format!("{}/errors_{}.csv", CONFIG.get_data_dir(), created_on);
+    let pattern = format!("{}/errors_", CONFIG.get_data_dir());
     let error_files_name = get_file_names(&pattern, "2023-05-30", "", "csv");
     let files: Vec<&str> = error_files_name.iter().map(|f| f.as_str()).collect();
     configure_log4rs(&logger_file_name);
@@ -43,7 +39,7 @@ pub async fn scrape_details(slink: &str) {
     info!("Starting DETAILS application on {}", created_on);
     info!("target file: {}", details_file_name);
     info!("source data file: {}", source_data_file_name);
-    info!("number of threads: {}", app_config.get_num_threads());
+    info!("number of threads: {}", CONFIG.get_num_threads());
     info!("----------------------------------------");
     let processor: file_processor::DataProcessor<MobileList> =
         file_processor::DataProcessor::from_files(vec![&source_data_file_name]);
@@ -63,7 +59,7 @@ pub async fn scrape_details(slink: &str) {
         .cloned()
         .collect::<Vec<String>>();
     info!("Number of ids to process: {}", ids.len());
-    let chunk_size = ids.len() / app_config.get_num_threads();
+    let chunk_size = ids.len() / CONFIG.get_num_threads();
     let chunks = ids
         .chunks(chunk_size)
         .map(|c| c.to_vec())
@@ -193,7 +189,7 @@ pub fn change_log(data_dir: &str) {
     let ids = listing_processor.get_ids();
     let latest_ids = new_listing_processor.get_ids();
     let new_ids = latest_ids.difference(&ids);
-    let mut details_ids = details_processor.get_ids();
+    let details_ids = details_processor.get_ids();
     let deleted = ids.difference(details_ids);
     let mut changes: Vec<ChangeLog> = vec![];
     for id in new_ids {
@@ -224,15 +220,12 @@ pub fn change_log(data_dir: &str) {
 mod testingcommand {
     #[tokio::test]
     async fn test_cascade_tasks() {
-        let (tx1, mut rx1) = crossbeam::channel::unbounded::<String>();
-        let (tx2, mut rx2) = crossbeam::channel::unbounded::<Vec<String>>();
-        let (tx3, mut rx3) = crossbeam::channel::unbounded::<Vec<String>>();
+        let (tx1, rx1) = crossbeam::channel::unbounded::<String>();
+        let (tx2, rx2) = crossbeam::channel::unbounded::<Vec<String>>();
+        let (tx3, rx3) = crossbeam::channel::unbounded::<Vec<String>>();
 
         let mut tasks = Vec::new();
-        let mut counter = 0;
-        let mut counter2 = 0;
-        let mut counter3 = 0;
-
+        
         for i in 0..10 {
             let tx = tx1.clone();
             let tx2 = tx2.clone();

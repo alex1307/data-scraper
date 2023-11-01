@@ -17,7 +17,7 @@ use crate::{ACTION_DETAILS, DETAILS_URL};
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
-use log::error;
+use log::{error, debug};
 use log::info;
 
 use scraper::{ElementRef, Html, Selector};
@@ -33,6 +33,8 @@ lazy_static! {
     static ref TOP_SELECTOR: Selector = Selector::parse("td.img.TOP").unwrap();
     static ref VIP_SELECTOR: Selector = Selector::parse("td.img.VIP").unwrap();
     static ref PHONE_SELECTOR: Selector = Selector::parse("div.phone").unwrap();
+    static ref DEALER_SELECTOR: Selector = Selector::parse("div.AG > strong").unwrap();
+    static ref ADDRESS_SELECTOR: Selector = Selector::parse("div.adress").unwrap();
     static ref DILAR_SELECTOR: Selector = Selector::parse("ul.dilarData").unwrap();
     static ref PRICE_SELECTOR: Selector = Selector::parse("span.price").unwrap();
     static ref TITLE_SELECTOR: Selector = Selector::parse("div.title").unwrap();
@@ -67,8 +69,8 @@ pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
     }
 }
 
-async fn details2map(url: &str) -> HashMap<String, String> {
-    info!("Processing details {}", url);
+pub async fn details2map(url: &str) -> HashMap<String, String> {
+    debug!("Processing details {}", url);
 
     let mut map = HashMap::new();
     let html = match get_pages_async(url).await {
@@ -98,17 +100,30 @@ async fn details2map(url: &str) -> HashMap<String, String> {
         "0000000000".to_string()
     };
 
+    let address = if let Some(txt) = document.select(&ADDRESS_SELECTOR).next() {
+        let location = txt.text().collect::<Vec<_>>().join("");
+        location.split(",").collect::<Vec<_>>()[0].to_string()
+    } else {
+        "Unknown".to_string()
+    };
+    let is_dealer =  !document.select(&DEALER_SELECTOR).next().is_some();
+    info!("+++ LOCATION: {}", address);
+    info!("+++ DEALER: {}", is_dealer);
     map.insert("phone".to_string(), phone);
+    map.insert("dealer".to_string(), is_dealer.to_string());
+    map.insert("location".to_string(), address);
+
+    
 
     if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next() {
         let text = h1_element.text().collect::<Vec<_>>().join(";");
         let values = text.split_whitespace().collect::<Vec<&str>>();
 
         for v in values.clone() {
-            info!("v: {}", v);
+            debug!("v: {}", v);
         }
         if values.len() < 2 {
-            info!("Failed to get make and model for {}", url);
+            debug!("Failed to get make and model for {}", url);
             // return HashMap::new();
         } else {
             map.insert("make".to_string(), values[0].to_string());
@@ -168,7 +183,7 @@ async fn details2map(url: &str) -> HashMap<String, String> {
                     }
 
                     if v[1].contains(YEAR_TXT) {
-                        info!("v[2]: {}", v[2]);
+                        debug!("v[2]: {}", v[2]);
 
                         // Remove any non-numeric characters and convert to an integer
                         if let Ok(numeric_value) = v[2]
@@ -185,9 +200,8 @@ async fn details2map(url: &str) -> HashMap<String, String> {
                 }
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(250));
     }
-    info!("--> map: {:?}", map);
+    debug!("--> map: {:?}", map);
     for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         map.insert(
@@ -445,15 +459,14 @@ pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Er
     let client = reqwest::Client::builder()
         .user_agent(BROWSER_USER_AGENT)
         .build()?;
-    let https_url = format!("https:{}", url);
-    let body: Vec<u8> = client.get(&https_url).send().await?.bytes().await?.to_vec();
-    info!("body: {}", body.len());
+    let body: Vec<u8> = client.get(url).send().await?.bytes().await?.to_vec();
+    debug!("body: {}", body.len());
     // Decode the byte array using the Windows-1251 encoding
     let (html, _, _) = WINDOWS_1251.decode(&body);
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
     let response = String::from_utf8_lossy(&utf8_html);
-    info!("response: {}", response.len());
+    debug!("response: {}", response.len());
     Ok(response.to_string())
 }
 
