@@ -37,7 +37,7 @@ lazy_static! {
     pub static ref INSALE_FILE_NAME: String = format!(
         "{}/vehicle-{}.csv",
         CONFIG.get_data_dir(),
-        CREATED_ON.to_string()
+        CREATED_ON.clone()
     );
     pub static ref METADATA_FILE_NAME: String = format!("{}/meta_data.csv", CONFIG.get_data_dir());
 }

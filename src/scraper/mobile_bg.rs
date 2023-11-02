@@ -1,11 +1,11 @@
 use crate::config::equipment::get_equipment_as_u64;
 use crate::model::enums::Currency;
+use crate::utils::helpers::extract_ascii_latin;
+use crate::utils::helpers::extract_integers;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
 use crate::NOT_FOUND_MSG;
 use crate::POWER_TXT;
-use crate::utils::helpers::extract_ascii_latin;
-use crate::utils::helpers::extract_integers;
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
@@ -16,7 +16,6 @@ use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-
 
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
@@ -39,7 +38,6 @@ lazy_static! {
     static ref DIV_MARGIN_SELECTOR: Selector =
         Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
 }
-
 
 pub async fn details2map(url: &str) -> HashMap<String, String> {
     debug!("Processing details {}", url);
@@ -74,13 +72,13 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
 
     let address = if let Some(txt) = document.select(&ADDRESS_SELECTOR).next() {
         let location = txt.text().collect::<Vec<_>>().join("");
-        location.split(",").collect::<Vec<_>>()[0].to_string()
+        location.split(',').collect::<Vec<_>>()[0].to_string()
     } else {
         "Unknown".to_string()
     };
-    let is_dealer = !document.select(&DEALER_SELECTOR).next().is_some();
+    let is_dealer = document.select(&DEALER_SELECTOR).next().is_some();
     map.insert("phone".to_string(), phone);
-    map.insert("dealer".to_string(), is_dealer.to_string());
+    map.insert("dealer".to_string(), (!is_dealer).to_string());
     map.insert("location".to_string(), address);
 
     if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next() {
@@ -106,11 +104,12 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
     }
 
     if document.select(&TOP_SELECTOR).count() > 0 {
-        map.insert("promoted".to_string(), "true".to_string());
+        map.insert("top".to_string(), "true".to_string());
     } else if document.select(&VIP_SELECTOR).count() > 0 {
-        map.insert("promoted".to_string(), "true".to_string());
+        map.insert("vip".to_string(), "true".to_string());
     } else {
-        map.insert("promoted".to_string(), "false".to_string());
+        map.insert("top".to_string(), "false".to_string());
+        map.insert("vip".to_string(), "false".to_string());
     }
 
     for element in document.select(&DILAR_SELECTOR) {
@@ -217,7 +216,6 @@ pub async fn get_links(url: &str) -> Vec<String> {
     links
 }
 
-
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
     let fragment = Html::parse_document(html);
     let description = fragment
@@ -244,7 +242,6 @@ pub fn get_metadata_links(html: &str) -> Result<Vec<String>, Box<dyn std::error:
     }
     Ok(links)
 }
-
 
 fn process_price(text: String) -> (u32, Currency) {
     let contains_numeric = text.chars().any(|c| c.is_numeric());

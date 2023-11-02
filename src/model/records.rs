@@ -1,8 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-
 use serde::{Deserialize, Serialize};
-
 
 use crate::CREATED_ON;
 
@@ -27,7 +25,8 @@ pub struct MobileRecord {
     pub location: String,
     pub view_count: u32,
     pub equipment: u64,
-    pub promoted: bool,
+    pub top: bool,
+    pub vip: bool,
     pub sold: bool,
     pub dealer: bool,
     pub created_on: String,
@@ -52,7 +51,8 @@ impl Header for MobileRecord {
             "location",
             "view_count",
             "equipment",
-            "promoted",
+            "top",
+            "vip",
             "sold",
             "dealer",
             "created_on",
@@ -110,8 +110,13 @@ impl From<HashMap<String, String>> for MobileRecord {
             .unwrap_or(default_0)
             .parse::<u16>()
             .unwrap_or(0);
-        let promoted = map
-            .get("promoted")
+        let top = map
+            .get("top")
+            .unwrap_or(&"false".to_string())
+            .parse::<bool>()
+            .unwrap();
+        let vip = map
+            .get("vip")
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
@@ -142,7 +147,8 @@ impl From<HashMap<String, String>> for MobileRecord {
             equipment,
             millage,
             year,
-            promoted,
+            top,
+            vip,
             sold,
             dealer,
             make,

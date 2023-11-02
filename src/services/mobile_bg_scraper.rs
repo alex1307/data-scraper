@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashSet};
+use std::{collections::HashSet, error::Error};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::StreamExt;
@@ -12,34 +12,35 @@ use crate::{
         search_metadata::{asearches, SearchMetadata},
     },
     scraper::mobile_bg::{details2map, get_links},
+    utils::helpers::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
-    LISTING_URL, utils::helpers::{create_empty_csv, mobile_search_url, crossbeam_utils::to_stream}, INSALE_FILE_NAME, ARCHIVE_FILE_NAME, METADATA_FILE_NAME,
+    ARCHIVE_FILE_NAME, INSALE_FILE_NAME, LISTING_URL, METADATA_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
 use super::file_processor::{self, DataProcessor};
+pub const FLUSH_SIZE: usize = 50;
 lazy_static! {
     static ref LISTING_MUTEX: Mutex<()> = Mutex::new(());
     static ref DETAILS_MUTEX: Mutex<()> = Mutex::new(());
-    static ref IDs: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+    static ref UNIQUE_IDS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
 pub async fn scrape() -> Result<(), Box<dyn Error>> {
-    if let Err(_) = create_empty_csv::<MobileRecord>(&INSALE_FILE_NAME) {
+    if create_empty_csv::<MobileRecord>(&INSALE_FILE_NAME).is_err() {
         error!("Failed to create file {}", INSALE_FILE_NAME.clone());
     }
 
-    if let Err(_) = create_empty_csv::<MobileRecord>(&ARCHIVE_FILE_NAME) {
+    if create_empty_csv::<MobileRecord>(&ARCHIVE_FILE_NAME).is_err() {
         error!("Failed to create file {:?}", ARCHIVE_FILE_NAME.clone());
     }
 
-    if let Err(_) = create_empty_csv::<SearchMetadata>(&METADATA_FILE_NAME) {
+    if create_empty_csv::<SearchMetadata>(&METADATA_FILE_NAME).is_err() {
         error!("Failed to create file {:?}", METADATA_FILE_NAME.clone());
     }
 
     let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
-    let (details_producer, mut details_consumer) =
-        crossbeam::channel::unbounded::<MobileRecord>();
+    let (details_producer, mut details_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
     let task = tokio::spawn(async move {
         start_searches(link_producer).await;
     });
@@ -65,11 +66,11 @@ pub async fn spawn_sequentially(url: String, sender: Sender<String>) -> JoinHand
     info!("spawn_sequentially");
     tokio::spawn(async move {
         let links = get_links(url.as_str()).await;
-        let mut ids = IDs.lock().await;
+        let mut ids = UNIQUE_IDS.lock().await;
         for link in links {
             let url = Url::parse(&link).expect("Failed to parse URL");
             if let Some(adv_value) = url.query_pairs().find(|(key, _)| key == "adv") {
-                if ids.contains(&adv_value.1.to_string()){
+                if ids.contains(&adv_value.1.to_string()) {
                     continue;
                 } else {
                     ids.insert(adv_value.1.to_string());
@@ -99,7 +100,7 @@ async fn start_searches(link_producer: Sender<String>) {
         //let pages = vec![1.to_string()];
         for page in pages {
             let url = mobile_search_url(
-                &LISTING_URL.to_string(),
+                LISTING_URL,
                 &page,
                 &search.slink,
                 crate::model::enums::SaleType::NONE,
@@ -114,7 +115,7 @@ async fn start_searches(link_producer: Sender<String>) {
     for task in tasks {
         task.await;
     }
-    IDs.lock().await.clear();
+    UNIQUE_IDS.lock().await.clear();
 }
 
 async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord>) {
@@ -136,16 +137,15 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord
     info!("Processed urls: {}", counter);
 }
 
-
-fn save2file(file_name: &str, data: &Vec<MobileRecord>) {
+fn save2file(file_name: &str, data: &[MobileRecord]) {
     // if let Err(_) = std::fs::remove_file(&file_name) {
     //     error!("Failed to remove file {}", file_name);
     // }
     // if let Err(_) = create_empty_csv::<MobileRecord>(&file_name) {
     //     error!("Failed to create file {}", file_name);
     // }
-    let new_data: MobileData<MobileRecord> = MobileData::Payload(data.clone());
-    new_data.write_csv(&file_name, false).unwrap();
+    let new_data: MobileData<MobileRecord> = MobileData::Payload(data.to_vec());
+    new_data.write_csv(file_name, false).unwrap();
 }
 
 pub async fn save_active_adverts(input: &mut Receiver<MobileRecord>) {
@@ -155,9 +155,14 @@ pub async fn save_active_adverts(input: &mut Receiver<MobileRecord>) {
     let mut new_values = vec![];
     while let Some(data) = stream.next().await {
         new_values.push(data.clone());
-        debug!("data: {:?}. Total: {}, counter: {}", data, new_values.len(), counter);
+        debug!(
+            "data: {:?}. Total: {}, counter: {}",
+            data,
+            new_values.len(),
+            counter
+        );
         counter += 1;
-        if counter % 250 == 0 {
+        if counter % FLUSH_SIZE == 0 {
             save2file(&INSALE_FILE_NAME, &new_values);
             new_values.clear();
             info!("Processed records: {}", counter);
@@ -188,11 +193,14 @@ pub async fn print_stream(rx: &mut Receiver<String>) {
 #[cfg(test)]
 mod node_tests {
 
+    use crate::{
+        services::mobile_bg_scraper::start_searches,
+        utils::helpers::{configure_log4rs, crossbeam_utils::to_stream},
+    };
     use crossbeam_channel::Receiver;
     use futures::StreamExt;
     use log::info;
-    use crate::{services::mobile_bg_scraper::start_searches, utils::helpers::{configure_log4rs, crossbeam_utils::to_stream}};
-    
+
     #[tokio::test]
     async fn ping_pong_test() {}
 

@@ -29,13 +29,9 @@ pub enum Dealer {
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum SaleType {
-    #[serde(rename = "SOLD")]
     SOLD,
-    #[serde(rename = "INSALE")]
-    INSALE,
-
+   INSALE,
     #[default]
-    #[serde(rename = "NONE")]
     NONE,
 }
 
@@ -153,22 +149,25 @@ impl FromStr for Currency {
     }
 }
 
-impl ToString for Dealer {
-    fn to_string(&self) -> String {
-        match self {
-            Dealer::ALL => "ALL".to_string(),
-            Dealer::DEALER => "DEALER".to_string(),
-            Dealer::PRIVATE => "PRIVATE".to_string(),
-        }
-    }
-}
-
 impl ToString for SaleType {
     fn to_string(&self) -> String {
         match self {
             SaleType::INSALE => "INSALE".to_string(),
             SaleType::SOLD => "SOLD".to_string(),
             SaleType::NONE => "NONE".to_string(),
+        }
+    }
+}
+
+
+impl FromStr for SaleType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "INSALE" => Ok(SaleType::INSALE),
+            "SOLD" => Ok(SaleType::SOLD),
+            _ => Ok(SaleType::NONE)
         }
     }
 }

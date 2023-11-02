@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    fs::{File, self},
+    fs::{self, File},
     io::{BufWriter, Write},
 };
 
@@ -180,8 +180,6 @@ pub fn extract_integers(s: &str) -> Vec<u32> {
         .filter_map(|s| s.parse::<u32>().ok())
         .collect()
 }
-
-
 
 pub fn extract_ascii_latin(text: &str) -> String {
     text.chars()
