@@ -1,9 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
-use chrono::Local;
+
 use serde::{Deserialize, Serialize};
 
-use crate::DATE_FORMAT;
+
+use crate::CREATED_ON;
 
 use super::{
     enums::{Currency, Engine, Gearbox},
@@ -92,7 +93,6 @@ impl From<HashMap<String, String>> for MobileRecord {
             .unwrap_or(default_0)
             .parse::<u64>()
             .unwrap_or(0);
-        let created_on = Local::now().format(DATE_FORMAT).to_string();
         let price = map
             .get("price")
             .unwrap_or(default_0)
@@ -147,7 +147,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             dealer,
             make,
             model,
-            created_on,
+            created_on: CREATED_ON.to_string(),
             ..Default::default()
         }
     }

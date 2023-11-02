@@ -1,11 +1,9 @@
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-};
+use std::{error::Error, collections::HashSet, process::id, sync::RwLock, hash::Hash};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::StreamExt;
 use log::{debug, error, info};
+use reqwest::Url;
 use tokio::{sync::Mutex, task::JoinHandle};
 
 use crate::{
@@ -16,7 +14,7 @@ use crate::{
     scraper::agent::{details2map, get_links},
     utils::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
-    ARCHIVE_FILE_NAME, CREATED_ON, INSALE_FILE_NAME, LISTING_URL, METADATA_FILE_NAME,
+    ARCHIVE_FILE_NAME, INSALE_FILE_NAME, LISTING_URL, METADATA_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -24,6 +22,7 @@ use super::file_processor::{self, DataProcessor};
 lazy_static! {
     static ref LISTING_MUTEX: Mutex<()> = Mutex::new(());
     static ref DETAILS_MUTEX: Mutex<()> = Mutex::new(());
+    static ref IDs: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
 pub async fn scrape() -> Result<(), Box<dyn Error>> {
@@ -41,7 +40,7 @@ pub async fn scrape() -> Result<(), Box<dyn Error>> {
 
     let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
     let (details_producer, mut details_consumer) =
-        crossbeam::channel::unbounded::<HashMap<String, String>>();
+        crossbeam::channel::unbounded::<MobileRecord>();
     let task = tokio::spawn(async move {
         start_searches(link_producer).await;
     });
@@ -67,8 +66,17 @@ pub async fn spawn_sequentially(url: String, sender: Sender<String>) -> JoinHand
     info!("spawn_sequentially");
     tokio::spawn(async move {
         let links = get_links(url.as_str()).await;
+        let mut ids = IDs.lock().await;
         for link in links {
-            sender.send(link).unwrap();
+            let url = Url::parse(&link).expect("Failed to parse URL");
+            if let Some(adv_value) = url.query_pairs().find(|(key, _)| key == "adv") {
+                if ids.contains(&adv_value.1.to_string()){
+                    continue;
+                } else {
+                    ids.insert(adv_value.1.to_string());
+                    sender.send(link).unwrap();
+                }
+            }
         }
     })
 }
@@ -107,9 +115,10 @@ async fn start_searches(link_producer: Sender<String>) {
     for task in tasks {
         task.await;
     }
+    IDs.lock().await.clear();
 }
 
-async fn process_links(input: &mut Receiver<String>, output: Sender<HashMap<String, String>>) {
+async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord>) {
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     let mut counter = 0;
@@ -119,7 +128,8 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<HashMap<Stri
         if data.is_empty() {
             continue;
         }
-        output.send(data).unwrap();
+        let record = MobileRecord::from(data);
+        output.send(record).unwrap();
         //sleep for 100 millis
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         counter += 1;
@@ -127,87 +137,35 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<HashMap<Stri
     info!("Processed urls: {}", counter);
 }
 
-fn create_record(
-    record: &mut MobileRecord,
-    created_on_map: &HashMap<String, String>,
-    new_ids: &mut HashSet<String>,
-    new_records: &mut Vec<MobileRecord>,
-    archived_records: &mut Vec<MobileRecord>,
-) {
-    if let Some(created_on) = created_on_map.get(&record.id) {
-        record.created_on = created_on.to_string();
-        record.updated_on = CREATED_ON.to_string();
-    } else {
-        record.created_on = CREATED_ON.to_string();
-        archived_records.push(record.clone());
-    }
-    new_records.push(record.clone());
-    new_ids.insert(record.id.clone());
-}
-
-fn update_archive_records(
-    new_ids: &HashSet<String>,
-    archived_ids: &HashSet<String>,
-    target: &mut Vec<MobileRecord>,
-) {
-    let new_recoords_ids: Vec<&String> =
-        new_ids.difference(&archived_ids).collect::<Vec<&String>>();
-    let deleted: Vec<&String> = archived_ids.difference(&new_ids).collect::<Vec<&String>>();
-    for record in target.iter_mut() {
-        if deleted.contains(&&record.id) && record.deleted_on.is_empty() {
-            record.deleted_on = CREATED_ON.to_string();
-        } else if !new_recoords_ids.contains(&&record.id) {
-            record.updated_on = CREATED_ON.to_string();
-        }
-    }
-}
 
 fn save2file(file_name: &str, data: &Vec<MobileRecord>) {
-    if let Err(_) = std::fs::remove_file(&file_name) {
-        error!("Failed to remove file {}", file_name);
-    }
-    if let Err(_) = create_empty_csv::<MobileRecord>(&file_name) {
-        error!("Failed to create file {}", file_name);
-    }
+    // if let Err(_) = std::fs::remove_file(&file_name) {
+    //     error!("Failed to remove file {}", file_name);
+    // }
+    // if let Err(_) = create_empty_csv::<MobileRecord>(&file_name) {
+    //     error!("Failed to create file {}", file_name);
+    // }
     let new_data: MobileData<MobileRecord> = MobileData::Payload(data.clone());
     new_data.write_csv(&file_name, false).unwrap();
 }
 
-pub async fn save_active_adverts(input: &mut Receiver<HashMap<String, String>>) {
+pub async fn save_active_adverts(input: &mut Receiver<MobileRecord>) {
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
-    let existing_records: DataProcessor<MobileRecord> =
-        file_processor::DataProcessor::from_files(vec![&ARCHIVE_FILE_NAME]);
-    let ids = existing_records.get_ids().clone();
-    let mut values = existing_records.get_values().clone();
-    let created_on_map: HashMap<String, String> = values
-        .iter()
-        .map(|mobile| (mobile.id.clone(), mobile.created_on.clone()))
-        .collect();
     let mut counter = 0;
     let mut new_values = vec![];
-    let mut new_ids = HashSet::new();
     while let Some(data) = stream.next().await {
-        let mut record = MobileRecord::from(data);
-        create_record(
-            &mut record,
-            &created_on_map,
-            &mut new_ids,
-            &mut new_values,
-            &mut values,
-        );
+        new_values.push(data.clone());
+        debug!("data: {:?}. Total: {}, counter: {}", data, new_values.len(), counter);
         counter += 1;
         if counter % 250 == 0 {
+            save2file(&INSALE_FILE_NAME, &new_values);
+            new_values.clear();
             info!("Processed records: {}", counter);
         }
     }
     info!("Processed records: {}", counter);
     info!("new records: {}", new_values.len());
-    info!("archived records: {}", values.len());
-    info!("active: {}", new_ids.len());
-    info!("not active: {}", ids.difference(&new_ids).count());
-    update_archive_records(&new_ids, &ids, &mut values);
-    save2file(&ARCHIVE_FILE_NAME, &values);
     save2file(&INSALE_FILE_NAME, &new_values);
 }
 
