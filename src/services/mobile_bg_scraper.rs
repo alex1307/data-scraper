@@ -1,4 +1,4 @@
-use std::{error::Error, collections::HashSet, process::id, sync::RwLock, hash::Hash};
+use std::{error::Error, collections::HashSet};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::StreamExt;
@@ -11,10 +11,9 @@ use crate::{
         records::MobileRecord,
         search_metadata::{asearches, SearchMetadata},
     },
-    scraper::agent::{details2map, get_links},
-    utils::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
+    scraper::mobile_bg::{details2map, get_links},
     writer::persistance::{MobileData, MobileDataWriter},
-    ARCHIVE_FILE_NAME, INSALE_FILE_NAME, LISTING_URL, METADATA_FILE_NAME,
+    LISTING_URL, utils::helpers::{create_empty_csv, mobile_search_url, crossbeam_utils::to_stream}, INSALE_FILE_NAME, ARCHIVE_FILE_NAME, METADATA_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -192,11 +191,8 @@ mod node_tests {
     use crossbeam_channel::Receiver;
     use futures::StreamExt;
     use log::info;
-
-    use crate::services::node::start_searches;
-    use crate::utils::configure_log4rs;
-    use crate::utils::crossbeam_utils::to_stream;
-
+    use crate::{services::mobile_bg_scraper::start_searches, utils::helpers::{configure_log4rs, crossbeam_utils::to_stream}};
+    
     #[tokio::test]
     async fn ping_pong_test() {}
 

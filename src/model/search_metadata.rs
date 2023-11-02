@@ -2,12 +2,9 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    scraper::{
-        agent::{get_header_data, get_pages, get_pages_async, slink},
-        utils::extract_ascii_latin,
-    },
-    utils::mobile_search_url,
-    LISTING_URL, TIMESTAMP,
+    scraper::mobile_bg::{get_header_data, get_pages, get_pages_async, slink},
+    
+    LISTING_URL, TIMESTAMP, utils::helpers::{mobile_search_url, extract_ascii_latin},
 };
 
 use super::{
@@ -140,10 +137,7 @@ impl SearchMetadata {
 mod test {
     use log::info;
 
-    use crate::{
-        model::search_metadata::{asearches, astatistic},
-        utils::configure_log4rs,
-    };
+    use crate::{model::search_metadata::{asearches, astatistic}, utils::helpers::configure_log4rs};
 
     #[tokio::test]
     async fn test_search() {

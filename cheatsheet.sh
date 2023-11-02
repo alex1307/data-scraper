@@ -9,6 +9,8 @@ launchctl load ~/Library/LaunchAgents/details.plist
 launchctl load ~/Library/LaunchAgents/listing.plist
 launchctl load ~/Library/LaunchAgents/details.plist
 
+launchctl remove com.ayagasha.scraper.details
+
 id -u
 
 launchctl kickstart -k gui/501/com.ayagasha.scraper.metadata

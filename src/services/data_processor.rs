@@ -5,8 +5,7 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::{
     model::traits::Header,
-    utils::create_empty_csv,
-    writer::persistance::{MobileData, MobileDataWriter},
+    writer::persistance::{MobileData, MobileDataWriter}, utils::helpers::create_empty_csv,
 };
 
 pub enum Message<T: Debug + Serialize + DeserializeOwned + Clone + Header> {
