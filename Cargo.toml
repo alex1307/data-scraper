@@ -28,16 +28,9 @@ async-stream = "0.3.5"
 mockito = "1.0.2"
 
 [[bin]]
-name="metadata"
-path="src/bin/metadata.rs"
+name="scraper"
+path="src/bin/scraper.rs"
 
-[[bin]]
-name="listing"
-path="src/bin/listing.rs"
-
-[[bin]]
-name="details"
-path="src/bin/details.rs"
 
 
 [profile.release]
