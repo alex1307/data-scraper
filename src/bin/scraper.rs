@@ -1,5 +1,6 @@
-use data_scraper::services::node::scrape;
-use data_scraper::{utils::configure_log4rs, LOG_CONFIG};
+use data_scraper::services::mobile_bg_scraper::scrape;
+use data_scraper::utils::helpers::configure_log4rs;
+use data_scraper::LOG_CONFIG;
 use log::{error, info};
 
 #[tokio::main]

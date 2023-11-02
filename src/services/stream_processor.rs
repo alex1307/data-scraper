@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crossbeam_channel::Receiver;
 
 use crate::model::enums::Payload;
+use crate::utils::helpers::crossbeam_utils::to_stream;
 use futures::stream::StreamExt;
 use log::{error, info};
 use serde::de::DeserializeOwned;
@@ -13,7 +14,7 @@ use std::fmt::Debug;
 
 use crate::model::traits::{Header, Identity};
 use crate::services::file_processor;
-use crate::utils::crossbeam_utils::to_stream;
+
 pub struct Executor {
     pub file_name: String,
     pub counter: Arc<AtomicUsize>,

@@ -1,26 +1,22 @@
 use crate::config::equipment::get_equipment_as_u64;
 use crate::model::enums::Currency;
-use crate::model::enums::Payload;
-use crate::scraper::utils::extract_integers;
-use crate::scraper::utils::get_milllage_and_year;
-use crate::scraper::utils::is_sold;
-use crate::scraper::utils::is_top_or_vip;
-use crate::scraper::utils::make_and_mode;
-use crate::DATE_FORMAT;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
 use crate::NOT_FOUND_MSG;
 use crate::POWER_TXT;
-use crate::{ACTION_DETAILS, DETAILS_URL};
+use crate::utils::helpers::extract_ascii_latin;
+use crate::utils::helpers::extract_integers;
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 use log::{debug, error};
 
+use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+
 
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
@@ -44,26 +40,6 @@ lazy_static! {
         Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
 }
 
-pub async fn scrape(url: &str) -> Payload<HashMap<String, String>> {
-    if url.contains(DETAILS_URL) {
-        let m = details2map(url).await;
-        if let Some(_v) = m.get("error") {
-            Payload::Error(m)
-        } else {
-            Payload::Value(m)
-        }
-    } else {
-        Payload::Data(list2map(url).await)
-    }
-}
-
-pub async fn process_link(url: &str) -> Vec<HashMap<String, String>> {
-    if url.contains(ACTION_DETAILS) {
-        vec![details2map(url).await]
-    } else {
-        list2map(url).await
-    }
-}
 
 pub async fn details2map(url: &str) -> HashMap<String, String> {
     debug!("Processing details {}", url);
@@ -241,48 +217,6 @@ pub async fn get_links(url: &str) -> Vec<String> {
     links
 }
 
-async fn list2map(url: &str) -> Vec<HashMap<String, String>> {
-    let html = get_pages_async(url).await.unwrap();
-    let created_on = chrono::Utc::now().format(DATE_FORMAT).to_string();
-    let document = Html::parse_document(&html);
-
-    let mut results = vec![];
-    for element in document.select(&TABLERESET_SELECTOR) {
-        let mut result = HashMap::new();
-        result.insert("type".to_string(), "LIST".to_string());
-        let prices = extract_price(&element);
-        let make_and_mode = make_and_mode(&element, HashMap::new());
-        if let Some(url) = get_url(&element) {
-            let id = get_id_from_url(url.clone());
-            if let (Some(id), Some(prices), Some(make_and_mode)) = (id, prices, make_and_mode) {
-                let (make, model) = make_and_mode;
-                let (price, currency) = prices;
-                let is_promoted = is_top_or_vip(&element);
-                let (year, millage) = get_milllage_and_year(&element, is_promoted);
-
-                if (year, millage) == (0, 0) {
-                    error!("Failed to get year and millage for {}", url);
-                } else {
-                    results.push({
-                        let mut result = HashMap::new();
-                        result.insert("id".to_string(), id.to_string());
-                        result.insert("make".to_string(), make);
-                        result.insert("model".to_string(), model);
-                        result.insert("price".to_string(), price.to_string());
-                        result.insert("currency".to_string(), currency.to_string());
-                        result.insert("created_on".to_string(), created_on.clone());
-                        result.insert("promoted".to_string(), is_promoted.to_string());
-                        result.insert("sold".to_string(), is_sold(&element).to_string());
-                        result.insert("year".to_string(), year.to_string());
-                        result.insert("millage".to_string(), millage.to_string());
-                        result
-                    });
-                }
-            }
-        }
-    }
-    results
-}
 
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
     let fragment = Html::parse_document(html);
@@ -311,14 +245,6 @@ pub fn get_metadata_links(html: &str) -> Result<Vec<String>, Box<dyn std::error:
     Ok(links)
 }
 
-fn extract_price(element: &ElementRef) -> Option<(u32, Currency)> {
-    let element = match element.select(&PRICE_SELECTOR).next() {
-        Some(e) => e,
-        None => return None, // return None if no <a> element is found
-    };
-    let price_element = element.text().collect::<Vec<_>>().join("");
-    Some(process_price(price_element))
-}
 
 fn process_price(text: String) -> (u32, Currency) {
     let contains_numeric = text.chars().any(|c| c.is_numeric());
@@ -403,11 +329,104 @@ pub fn slink(html: &str) -> String {
     result
 }
 
+pub fn make_and_mode(
+    element: &ElementRef,
+    models: HashMap<&str, Vec<&str>>,
+) -> Option<(String, String)> {
+    let selector = Selector::parse("td.valgtop a.mmm").unwrap();
+    for e in element.select(&selector) {
+        let inner_html = e.inner_html();
+        let strings = inner_html.split_ascii_whitespace().collect::<Vec<&str>>();
+        if strings.is_empty() || strings.len() < 2 {
+            continue;
+        }
+        if models.is_empty() {
+            return Some((strings[0].to_string(), strings[1].to_string()));
+        }
+    }
+
+    None
+}
+
+pub fn is_top_or_vip(element: &ElementRef) -> bool {
+    let top = vec!["top", "vip"];
+    for value in top {
+        let filter = format!(r#"img[alt="{}"][class="noborder"]"#, value);
+        let selector = Selector::parse(&filter).unwrap();
+        let img_element_exists = element.select(&selector).next().is_some();
+        if img_element_exists {
+            return true;
+        }
+    }
+
+    false
+}
+
+pub fn is_sold(element: &ElementRef) -> bool {
+    let filter = r#"img"#;
+    let selector = Selector::parse(filter).unwrap();
+    let images = element.select(&selector);
+
+    for img_element in images {
+        if let Some(src) = img_element.value().attr("src") {
+            if src.contains("kaparirano.svg") {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+pub fn get_milllage_and_year(element: &ElementRef, is_promoted: bool) -> (u32, u32) {
+    let filter = match is_promoted {
+        true => r#"td[colspan="3"]"#,
+        false => r#"td[colspan="4"]"#,
+    };
+
+    let selector = Selector::parse(filter).unwrap();
+    let mut txt = element.select(&selector).next().unwrap().inner_html();
+    txt = extract_ascii_latin(&txt);
+
+    extract_numbers(&txt)
+}
+
+pub fn extract_numbers(input: &str) -> (u32, u32) {
+    if input.is_empty() {
+        return (0, 0);
+    }
+
+    let contains_numeric = input.chars().any(|c| c.is_numeric());
+    if !contains_numeric {
+        return (0, 0);
+    }
+    let re = Regex::new(r"\d+").unwrap();
+    let mut numbers: Vec<u32> = Vec::new();
+    for mat in re.find_iter(input) {
+        match mat.as_str().parse() {
+            Ok(n) => numbers.push(n),
+            Err(_) => {
+                // Handle invalid number here.
+                println!("Invalid number: {}", mat.as_str());
+                return (0, 0);
+            }
+        }
+    }
+
+    if numbers.len() < 2 {
+        return (0, 0);
+    }
+    let n = numbers[0];
+    let k = numbers[1];
+
+    (n, k)
+}
+
 #[cfg(test)]
 mod scrape_tests {
     use log::info;
 
-    use crate::utils::configure_log4rs;
+    use crate::utils::helpers::configure_log4rs;
 
     use super::details2map;
 
