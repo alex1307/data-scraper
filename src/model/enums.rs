@@ -30,7 +30,7 @@ pub enum Dealer {
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum SaleType {
     SOLD,
-   INSALE,
+    INSALE,
     #[default]
     NONE,
 }
@@ -159,7 +159,6 @@ impl ToString for SaleType {
     }
 }
 
-
 impl FromStr for SaleType {
     type Err = String;
 
@@ -167,7 +166,7 @@ impl FromStr for SaleType {
         match s {
             "INSALE" => Ok(SaleType::INSALE),
             "SOLD" => Ok(SaleType::SOLD),
-            _ => Ok(SaleType::NONE)
+            _ => Ok(SaleType::NONE),
         }
     }
 }

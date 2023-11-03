@@ -1,4 +1,4 @@
-use std::{collections::HashSet, error::Error, vec, fmt::Debug};
+use std::{collections::HashSet, error::Error, fmt::Debug, vec};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::StreamExt;
@@ -8,13 +8,16 @@ use tokio::{sync::Mutex, task::JoinHandle};
 
 use crate::{
     model::{
+        id_list::IDList,
         records::MobileRecord,
-        search_metadata::{asearches, SearchMetadata}, id_list::IDList, traits::Identity,
+        search_metadata::{asearches, SearchMetadata},
+        traits::Identity,
     },
     scraper::mobile_bg::{details2map, get_links},
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
-    ARCHIVE_FILE_NAME, INSALE_FILE_NAME, LISTING_URL, METADATA_FILE_NAME, FOR_UPDATE_FILE_NAME, DETAILS_URL, UPDATED_FILE_NAME, DELETED_FILE_NAME,
+    ARCHIVE_FILE_NAME, DELETED_FILE_NAME, DETAILS_URL, FOR_UPDATE_FILE_NAME, INSALE_FILE_NAME,
+    LISTING_URL, METADATA_FILE_NAME, UPDATED_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -26,27 +29,32 @@ lazy_static! {
     static ref UNIQUE_IDS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
-pub async fn update() ->Result<(), Box<dyn Error>> {
-    
+pub async fn update() -> Result<(), Box<dyn Error>> {
     let update_processor = DataProcessor::<IDList>::from_files(vec![&FOR_UPDATE_FILE_NAME]);
     let update_data = update_processor.get_ids().clone();
     let cloned_data = update_data.clone();
     let search_all = SearchMetadata::search(crate::model::enums::SaleType::NONE, 1, 9_999_999);
     let mut urls = HashSet::new();
-    
+
     let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
-    let (validate_producer, mut validate_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
+    let (validate_producer, mut validate_consumer) =
+        crossbeam::channel::unbounded::<MobileRecord>();
     let (record_producer, mut record_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
     let (confirming_producer, mut confirming_consumer) = crossbeam::channel::unbounded::<String>();
-    
+
     let producer_task = tokio::spawn(async move {
         for id in update_data {
-            let url= format!("{}&adv={}&slink={}", DETAILS_URL, id, search_all.slink.clone());
+            let url = format!(
+                "{}&adv={}&slink={}",
+                DETAILS_URL,
+                id,
+                search_all.slink.clone()
+            );
             link_producer.send(url.clone()).unwrap();
             urls.insert(url);
         }
     });
-    
+
     let process_links_task = tokio::spawn(async move {
         process_links(&mut link_consumer, validate_producer).await;
     });
@@ -70,7 +78,10 @@ pub async fn update() ->Result<(), Box<dyn Error>> {
             counter += 1;
         }
         save2file(&UPDATED_FILE_NAME, updated.clone());
-        let ids = updated.iter().map(|l| l.get_id()).collect::<HashSet<String>>();
+        let ids = updated
+            .iter()
+            .map(|l| l.get_id())
+            .collect::<HashSet<String>>();
         let deleted = cloned_data.difference(&ids);
         let mut deleted_vec = vec![];
         for id in deleted {
@@ -78,17 +89,16 @@ pub async fn update() ->Result<(), Box<dyn Error>> {
         }
         save2file(&DELETED_FILE_NAME, deleted_vec);
         info!("Processed records: {}", counter);
-
     });
 
-    if let (Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
+    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
         producer_task,
-        process_links_task, 
-        confirm_task, 
-        save_to_file_task) {
+        process_links_task,
+        confirm_task,
+        save_to_file_task,
+        update_task,
+    ) {
         info!("All tasks completed successfully");
-        
-        
 
         Ok(())
     } else {
@@ -208,7 +218,11 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord
     info!("Processed urls: {}", counter);
 }
 
-async fn confirm(input: &mut Receiver<MobileRecord>, confirmed: Sender<String>, forward: Sender<MobileRecord>) {
+async fn confirm(
+    input: &mut Receiver<MobileRecord>,
+    confirmed: Sender<String>,
+    forward: Sender<MobileRecord>,
+) {
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -217,7 +231,7 @@ async fn confirm(input: &mut Receiver<MobileRecord>, confirmed: Sender<String>, 
     }
 }
 
-fn save2file<T:Clone + Debug + serde::Serialize>(file_name: &str, data: Vec<T>) {
+fn save2file<T: Clone + Debug + serde::Serialize>(file_name: &str, data: Vec<T>) {
     // if let Err(_) = std::fs::remove_file(&file_name) {
     //     error!("Failed to remove file {}", file_name);
     // }
@@ -253,7 +267,7 @@ pub async fn save_active_adverts(file_name: &str, input: &mut Receiver<MobileRec
     save2file(file_name, new_values);
 }
 
-pub async fn save<T:Clone + Debug + serde::Serialize>(file_name: &str ,input: &mut Receiver<T>) {
+pub async fn save<T: Clone + Debug + serde::Serialize>(file_name: &str, input: &mut Receiver<T>) {
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     let mut counter = 0;
