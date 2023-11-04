@@ -22,11 +22,10 @@ use crate::{
 use lazy_static::lazy_static;
 
 use super::file_processor::{self, DataProcessor};
-pub const FLUSH_SIZE: usize = 50;
+pub const FLUSH_SIZE: usize = 250;
 lazy_static! {
     static ref LISTING_MUTEX: Mutex<()> = Mutex::new(());
     static ref DETAILS_MUTEX: Mutex<()> = Mutex::new(());
-    static ref UNIQUE_IDS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
 pub async fn update() -> Result<(), Box<dyn Error>> {
@@ -121,18 +120,22 @@ pub async fn scrape() -> Result<(), Box<dyn Error>> {
     }
 
     let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
+    let (filter_producer, mut filter_consumer) = crossbeam::channel::unbounded::<String>();
     let (details_producer, mut details_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
-    let task = tokio::spawn(async move {
+    let start = tokio::spawn(async move {
         start_searches(link_producer).await;
     });
-    let task2 = tokio::spawn(async move {
-        process_links(&mut link_consumer, details_producer).await;
+    let filter_task = tokio::spawn(async move {
+        filter_links(&mut link_consumer, filter_producer).await;
     });
-    let task3 = tokio::spawn(async move {
+    let scrape_task = tokio::spawn(async move {
+        process_links(&mut filter_consumer, details_producer).await;
+    });
+    let save_task = tokio::spawn(async move {
         save(&INSALE_FILE_NAME, &mut details_consumer).await;
     });
 
-    if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(task, task2, task3) {
+    if let (Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(save_task, scrape_task, filter_task, start) {
         info!("All tasks completed successfully");
         Ok(())
     } else {
@@ -146,20 +149,38 @@ pub async fn spawn_sequentially(url: String, sender: Sender<String>) -> JoinHand
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     info!("spawn_sequentially");
     tokio::spawn(async move {
-        let links = get_links(url.as_str()).await;
-        let mut ids = UNIQUE_IDS.lock().await;
-        for link in links {
-            let url = Url::parse(&link).expect("Failed to parse URL");
+        links(&url, sender).await;
+    })
+}
+
+async fn filter_links(consumer: &mut Receiver<String>, producer: Sender<String>) {
+    let stream = Box::pin(to_stream(consumer));
+    futures::pin_mut!(stream);
+    let mut counter = 0;
+    let mut ids = HashSet::new();
+    info!("Records loaded today: {}", ids.len());
+    while let Some(url) = stream.next().await {
+        if let Ok(url) = Url::parse(&url) {
             if let Some(adv_value) = url.query_pairs().find(|(key, _)| key == "adv") {
                 if ids.contains(&adv_value.1.to_string()) {
                     continue;
-                } else {
-                    ids.insert(adv_value.1.to_string());
-                    sender.send(link).unwrap();
                 }
+                ids.insert(adv_value.1.to_string());
+                producer.send(url.to_string()).unwrap();
+                counter += 1;
             }
+        } else {
+            error!("Failed to parse url: {}", url);
         }
-    })
+    }
+    info!("Processed urls: {}", counter);
+}
+
+async fn links(url: &str, sender: Sender<String>) {
+    let links = get_links(url).await;
+    for link in links {
+        sender.send(link).unwrap();
+    }
 }
 
 async fn start_searches(link_producer: Sender<String>) {
@@ -193,10 +214,10 @@ async fn start_searches(link_producer: Sender<String>) {
         }
     }
     info!("Total number of links: {}", counter);
+
     for task in tasks {
         task.await;
     }
-    UNIQUE_IDS.lock().await.clear();
 }
 
 async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord>) {
