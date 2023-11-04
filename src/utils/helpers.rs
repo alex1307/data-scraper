@@ -84,14 +84,26 @@ pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Bo
 
 pub mod crossbeam_utils {
 
-    use chrono::Duration;
+    use std::time::Duration;
+
     use crossbeam::channel::Receiver;
 
     use futures::Stream;
 
     pub fn to_stream<T>(rx: &mut Receiver<T>) -> impl Stream<Item = T> + '_ {
         async_stream::stream! {
-            while let Ok(item) = rx.recv_timeout(Duration::seconds(12).to_std().unwrap())  {
+            while let Ok(item) = rx.recv()  {
+                yield item;
+            }
+        }
+    }
+
+    pub fn to_stream_with_timeout<T>(
+        rx: &mut Receiver<T>,
+        seconds: u64,
+    ) -> impl Stream<Item = T> + '_ {
+        async_stream::stream! {
+            while let Ok(item) = rx.recv_timeout(Duration::from_secs(seconds))  {
                 yield item;
             }
         }
