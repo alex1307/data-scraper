@@ -226,7 +226,7 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord
         {
             urls.insert(url);
             if urls.len() % 100 == 0 {
-                for u in &urls{
+                for u in &urls {
                     info!("{}", u);
                 }
                 urls.clear();
