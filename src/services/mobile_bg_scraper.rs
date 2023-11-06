@@ -8,38 +8,50 @@ use tokio::{sync::Mutex, task::JoinHandle};
 
 use crate::{
     model::{
+        enums::SaleType,
         id_list::IDList,
         records::MobileRecord,
-        search_metadata::{asearches, SearchMetadata},
-        traits::Identity,
+        search_metadata::{asearch, asearches, SearchMetadata},
     },
     scraper::mobile_bg::{details2map, get_links},
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
     ARCHIVE_FILE_NAME, DELETED_FILE_NAME, DETAILS_URL, FOR_UPDATE_FILE_NAME, INSALE_FILE_NAME,
-    LISTING_URL, METADATA_FILE_NAME, UPDATED_FILE_NAME,
+    LISTING_URL, METADATA_FILE_NAME, UPDATED_FILE_NAME, UPDATED_VEHICLES_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
 use super::file_processor::{self, DataProcessor};
-pub const FLUSH_SIZE: usize = 250;
+pub const FLUSH_SIZE: usize = 400;
 lazy_static! {
     static ref LISTING_MUTEX: Mutex<()> = Mutex::new(());
     static ref DETAILS_MUTEX: Mutex<()> = Mutex::new(());
 }
 
 pub async fn update() -> Result<(), Box<dyn Error>> {
+    if create_empty_csv::<MobileRecord>(&UPDATED_VEHICLES_FILE_NAME).is_err() {
+        error!(
+            "Failed to create file {}",
+            UPDATED_VEHICLES_FILE_NAME.clone()
+        );
+    }
+
+    if create_empty_csv::<IDList>(&UPDATED_FILE_NAME).is_err() {
+        error!("Failed to create file {:?}", UPDATED_FILE_NAME.clone());
+    }
+
+    if create_empty_csv::<IDList>(&DELETED_FILE_NAME).is_err() {
+        error!("Failed to create file {:?}", DELETED_FILE_NAME.clone());
+    }
+
     let update_processor = DataProcessor::<IDList>::from_files(vec![&FOR_UPDATE_FILE_NAME]);
     let update_data = update_processor.get_ids().clone();
-    let cloned_data = update_data.clone();
-    let search_all = SearchMetadata::search(crate::model::enums::SaleType::NONE, 1, 9_999_999);
+    let cloned_ids = update_data.clone();
+    let search_all = asearch(SaleType::INSALE, 1, 9_999_999).await;
     let mut urls = HashSet::new();
 
     let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
-    let (validate_producer, mut validate_consumer) =
-        crossbeam::channel::unbounded::<MobileRecord>();
     let (record_producer, mut record_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
-    let (confirming_producer, mut confirming_consumer) = crossbeam::channel::unbounded::<String>();
 
     let producer_task = tokio::spawn(async move {
         for id in update_data {
@@ -52,58 +64,35 @@ pub async fn update() -> Result<(), Box<dyn Error>> {
             link_producer.send(url.clone()).unwrap();
             urls.insert(url);
         }
+        info!("Total number of urls: {}", urls.len());
     });
 
     let process_links_task = tokio::spawn(async move {
-        process_links(&mut link_consumer, validate_producer).await;
-    });
-
-    let confirm_task = tokio::spawn(async move {
-        confirm(&mut validate_consumer, confirming_producer, record_producer).await;
+        process_links(&mut link_consumer, record_producer).await;
     });
 
     let save_to_file_task = tokio::spawn(async move {
-        save(&INSALE_FILE_NAME, &mut record_consumer).await;
+        save(&UPDATED_VEHICLES_FILE_NAME, &mut record_consumer).await;
     });
 
-    let update_task = tokio::spawn(async move {
-        let stream = Box::pin(to_stream(&mut confirming_consumer));
-        futures::pin_mut!(stream);
-        let mut updated = vec![];
-        let mut counter = 0;
-        while let Some(record) = stream.next().await {
-            let id = IDList::new(record.clone());
-            updated.push(id);
-            counter += 1;
-        }
-        save2file(&UPDATED_FILE_NAME, updated.clone());
-        let ids = updated
-            .iter()
-            .map(|l| l.get_id())
-            .collect::<HashSet<String>>();
-        let deleted = cloned_data.difference(&ids);
-        let mut deleted_vec = vec![];
-        for id in deleted {
-            deleted_vec.push(IDList::new(id.clone()));
-        }
-        save2file(&DELETED_FILE_NAME, deleted_vec);
-        info!("Processed records: {}", counter);
-    });
-
-    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
-        producer_task,
-        process_links_task,
-        confirm_task,
-        save_to_file_task,
-        update_task,
-    ) {
+    if let (Ok(_), Ok(_), Ok(_)) =
+        tokio::join!(producer_task, process_links_task, save_to_file_task)
+    {
         info!("All tasks completed successfully");
-
-        Ok(())
     } else {
         error!("One or more tasks failed");
-        Err("One or more tasks failed".into())
+        return Err("One or more tasks failed".into());
     }
+
+    let updated_processor =
+        DataProcessor::<MobileRecord>::from_files(vec![&UPDATED_VEHICLES_FILE_NAME]);
+    let updated_data = updated_processor.get_ids().clone();
+    let deleted_ids = cloned_ids
+        .difference(&updated_data)
+        .cloned()
+        .collect::<Vec<String>>();
+    save2file(&DELETED_FILE_NAME, deleted_ids);
+    Ok(())
 }
 
 pub async fn scrape() -> Result<(), Box<dyn Error>> {
@@ -224,42 +213,41 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     let mut counter = 0;
+    let mut urls = HashSet::new();
     while let Some(url) = stream.next().await {
         debug!("url: {}", url.clone());
+        let mut not_found = 0;
         let data = details2map(url.as_str()).await;
-        if data.is_empty() {
+        if data.is_empty()
+            || !data.contains_key("id")
+            || !data.contains_key("make")
+            || !data.contains_key("engine")
+            || !data.contains_key("gearbox")
+        {
+            urls.insert(url);
+            if urls.len() % 100 == 0 {
+                for u in &urls{
+                    info!("{}", u);
+                }
+                urls.clear();
+            }
+            not_found += 1;
+            info!("Total not found urls: {}", not_found);
             continue;
         }
         let record = MobileRecord::from(data);
         output.send(record).unwrap();
         //sleep for 100 millis
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        info!("Processed urls: {}", counter);
         counter += 1;
     }
     info!("Processed urls: {}", counter);
 }
 
-async fn confirm(
-    input: &mut Receiver<MobileRecord>,
-    confirmed: Sender<String>,
-    forward: Sender<MobileRecord>,
-) {
-    let stream = Box::pin(to_stream(input));
-    futures::pin_mut!(stream);
-    while let Some(record) = stream.next().await {
-        confirmed.send(record.id.clone()).unwrap();
-        forward.send(record).unwrap();
-    }
-}
-
 fn save2file<T: Clone + Debug + serde::Serialize>(file_name: &str, data: Vec<T>) {
-    // if let Err(_) = std::fs::remove_file(&file_name) {
-    //     error!("Failed to remove file {}", file_name);
-    // }
-    // if let Err(_) = create_empty_csv::<MobileRecord>(&file_name) {
-    //     error!("Failed to create file {}", file_name);
-    // }
     let new_data = MobileData::Payload(data);
+    info!("Saving data to file: {}", file_name);
     new_data.write_csv(file_name, false).unwrap();
 }
 
@@ -303,7 +291,7 @@ pub async fn save<T: Clone + Debug + serde::Serialize>(file_name: &str, input: &
         );
         counter += 1;
         if counter % FLUSH_SIZE == 0 {
-            save2file(&INSALE_FILE_NAME, new_values.clone());
+            save2file(file_name, new_values.clone());
             new_values.clear();
             info!("Processed records: {}", counter);
         }
