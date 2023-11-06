@@ -39,6 +39,11 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
+    pub static ref UPDATED_VEHICLES_FILE_NAME: String = format!(
+        "{}/updated_vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
     pub static ref METADATA_FILE_NAME: String = format!("{}/meta_data.csv", CONFIG.get_data_dir());
     pub static ref FOR_UPDATE_FILE_NAME: String =
         format!("{}/for_update.csv", CONFIG.get_data_dir());
