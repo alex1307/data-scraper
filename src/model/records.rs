@@ -133,7 +133,7 @@ impl From<HashMap<String, String>> for MobileRecord {
         let location = map.get("location").unwrap_or(default_str).to_string();
         let make = map.get("make").unwrap_or(default_str).to_string();
         let model = map.get("model").unwrap_or(default_str).to_string();
-
+        let updated_on = map.get("updated_on").unwrap_or(default_str).to_string();
         MobileRecord {
             id,
             engine,
@@ -154,6 +154,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             make,
             model,
             created_on: CREATED_ON.to_string(),
+            updated_on,
             ..Default::default()
         }
     }
