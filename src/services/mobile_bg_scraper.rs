@@ -136,7 +136,6 @@ pub async fn scrape() -> Result<(), Box<dyn Error>> {
 pub async fn spawn_sequentially(url: String, sender: Sender<String>) -> JoinHandle<()> {
     let _guard = LISTING_MUTEX.lock().await;
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    info!("spawn_sequentially");
     tokio::spawn(async move {
         links(&url, sender).await;
     })

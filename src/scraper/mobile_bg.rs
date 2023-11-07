@@ -1,6 +1,7 @@
 use crate::config::equipment::get_equipment_as_u64;
 use crate::model::enums::Currency;
 use crate::utils::helpers::extract_ascii_latin;
+use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
@@ -30,6 +31,8 @@ lazy_static! {
     static ref PRICE_SELECTOR: Selector = Selector::parse("span.price").unwrap();
     static ref TITLE_SELECTOR: Selector = Selector::parse("div.title").unwrap();
     static ref ADV_ACT_SELECTOR: Selector = Selector::parse("span.advact").unwrap();
+    static ref UPDATED_ON_SELECTOR: Selector =
+        Selector::parse("span[style=\"color:#999999\"]").unwrap();
     static ref DETAILS_PRICE_SELECTOR: Selector = Selector::parse("span#details_price").unwrap();
     static ref META_DESC_SELECTOR: Selector = Selector::parse("meta[name=description]").unwrap();
     static ref PAGE_NUMBERS_SELECTOR: Selector = Selector::parse("a.pageNumbers").unwrap();
@@ -101,6 +104,15 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
         map.insert("sold".to_string(), "true".to_string());
     } else {
         map.insert("sold".to_string(), "false".to_string());
+    }
+
+    if let Some(element) = document.select(&UPDATED_ON_SELECTOR).next() {
+        let txt = element.text().collect::<Vec<_>>().join(" ");
+        if let Some(updated_on) = extract_date(&txt) {
+            map.insert("updated_on".to_string(), updated_on);
+        } else {
+            map.insert("updated_on".to_string(), "".to_string());
+        }
     }
 
     if document.select(&TOP_SELECTOR).count() > 0 {

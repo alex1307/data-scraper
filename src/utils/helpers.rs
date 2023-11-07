@@ -20,6 +20,30 @@ pub fn configure_log4rs(file: &str) {
     });
 }
 
+pub fn extract_date(text: &str) -> Option<String> {
+    let values = text.split_whitespace().collect::<Vec<&str>>();
+    if values.len() < 8 {
+        return None;
+    }
+
+    let month = match values[6].to_lowercase().as_str() {
+        "януари" => "01",
+        "февруари" => "02",
+        "март" => "03",
+        "април" => "04",
+        "май" => "05",
+        "юни" => "06",
+        "юли" => "07",
+        "август" => "08",
+        "септември" => "09",
+        "октомври" => "10",
+        "ноември" => "11",
+        "декември" => "12",
+        _ => return None,
+    };
+    Some(format!("{}-{}-{}", values[7], month, values[5]))
+}
+
 pub fn mobile_search_url(
     url: &str,
     source: &str,
