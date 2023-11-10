@@ -11,7 +11,7 @@ use std::sync::Once;
 
 use crate::config::app_config::AppConfig;
 
-pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&";
+pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&f10=2004&";
 pub const DETAILS_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=4&";
 pub const ACTION_DETAILS: &str = "act=4";
 pub const ACTION_LIST: &str = "act=3";
@@ -40,13 +40,16 @@ lazy_static! {
         CREATED_ON.clone()
     );
     pub static ref UPDATED_VEHICLES_FILE_NAME: String = format!(
-        "{}/updated_vehicle-{}.csv",
+        "{}/updated-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref METADATA_FILE_NAME: String = format!("{}/meta_data.csv", CONFIG.get_data_dir());
+    pub static ref METADATA_FILE_NAME: String = format!("{}/meta-data.csv", CONFIG.get_data_dir());
     pub static ref FOR_UPDATE_FILE_NAME: String =
-        format!("{}/for_update.csv", CONFIG.get_data_dir());
-    pub static ref UPDATED_FILE_NAME: String = format!("{}/updated.csv", CONFIG.get_data_dir());
-    pub static ref DELETED_FILE_NAME: String = format!("{}/deleted.csv", CONFIG.get_data_dir());
+        format!("{}/ids-for-update.csv", CONFIG.get_data_dir());
+    pub static ref DELETED_FILE_NAME: String = format!(
+        "{}/not-found-ids-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
 }

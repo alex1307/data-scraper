@@ -17,7 +17,7 @@ use crate::{
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
     ARCHIVE_FILE_NAME, DELETED_FILE_NAME, DETAILS_URL, FOR_UPDATE_FILE_NAME, INSALE_FILE_NAME,
-    LISTING_URL, METADATA_FILE_NAME, UPDATED_FILE_NAME, UPDATED_VEHICLES_FILE_NAME,
+    LISTING_URL, METADATA_FILE_NAME, UPDATED_VEHICLES_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -35,15 +35,9 @@ pub async fn update() -> Result<(), Box<dyn Error>> {
             UPDATED_VEHICLES_FILE_NAME.clone()
         );
     }
-
-    if create_empty_csv::<IDList>(&UPDATED_FILE_NAME).is_err() {
-        error!("Failed to create file {:?}", UPDATED_FILE_NAME.clone());
-    }
-
     if create_empty_csv::<IDList>(&DELETED_FILE_NAME).is_err() {
         error!("Failed to create file {:?}", DELETED_FILE_NAME.clone());
     }
-
     let update_processor = DataProcessor::<IDList>::from_files(vec![&FOR_UPDATE_FILE_NAME]);
     let update_data = update_processor.get_ids().clone();
     let cloned_ids = update_data.clone();
