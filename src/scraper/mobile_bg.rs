@@ -305,7 +305,7 @@ pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Er
     let (html, _, _) = WINDOWS_1251.decode(&body);
     // Convert the decoded text to UTF-8
     let utf8_html = UTF_8.encode(&html).0;
-    let response = String::from_utf8_lossy(&utf8_html);
+    let response = String::from_utf8_lossy(&body);
     debug!("response: {}", response.len());
     Ok(response.to_string())
 }
