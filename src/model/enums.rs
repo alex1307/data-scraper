@@ -104,7 +104,9 @@ impl FromStr for Gearbox {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Автоматична" => Ok(Gearbox::Automatic),
+            "Автоматични скорости" => Ok(Gearbox::Automatic),
             "Ръчна" => Ok(Gearbox::Manual),
+            "Ръчни скорости" => Ok(Gearbox::Manual),
             "Полуавтоматична" => Ok(Gearbox::Semiautomatic),
             _ => Ok(Gearbox::NotAvailable),
         }
@@ -117,10 +119,16 @@ impl FromStr for Engine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Бензинов" => Ok(Engine::Petrol),
+            "Бензин" => Ok(Engine::Petrol),
+            "Газ/Бензин" => Ok(Engine::Petrol),
+            "Метан/Бензин" => Ok(Engine::Petrol),
             "Дизелов" => Ok(Engine::Diesel),
+            "Дизел" => Ok(Engine::Diesel),
             "Plug-in хибрид" => Ok(Engine::PluginHybrid),
             "Електрически" => Ok(Engine::Electric),
+            "Електричество" => Ok(Engine::Electric),
             "Хибриден" => Ok(Engine::Hybrid),
+            "Хибрид" => Ok(Engine::Hybrid),
             _ => Ok(Engine::NotAvailable),
         }
     }
