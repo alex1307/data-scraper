@@ -74,7 +74,7 @@ pub async fn asearch(sold: SaleType, min: i32, max: i32) -> SearchMetadata {
     );
     let url = mobile_search_url(LISTING_URL, "1", "", sold, min, max);
     info!("url: {}", url);
-    let html = get_pages_async(&url).await.unwrap();
+    let html = get_pages_async(&url, true).await.unwrap();
     // info!("content: {}", html);
     let slink = slink(&html);
     let content = get_header_data(&html).unwrap();

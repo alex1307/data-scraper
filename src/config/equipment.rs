@@ -49,9 +49,9 @@ pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {
     keys
 }
 
-pub fn get_equipment_as_u64(values: Vec<String>) -> u64 {
+pub fn get_equipment_as_u64(values: Vec<String>, equipment_map: &HashMap<u64, String>) -> u64 {
     let mut sum = 0;
-    for (key, value) in MOBILE_BG_EQUIPMENT.iter() {
+    for (key, value) in equipment_map.iter() {
         if values.contains(value) {
             sum += 2_u64.pow(*key as u32);
         }
@@ -59,17 +59,12 @@ pub fn get_equipment_as_u64(values: Vec<String>) -> u64 {
     sum
 }
 
-pub fn get_values_by_equipment_id(keymask: u64) -> Vec<String> {
+pub fn get_values_by_equipment_id(equipment_id: u64, map: &HashMap<u64, String>) -> Vec<String> {
     let mut values = Vec::new();
-    for i in 0..MOBILE_BG_EQUIPMENT.len() + 1 {
-        let mask = 2_u64.pow(i as u32);
-        if keymask & mask == mask {
-            if let Some(value) = MOBILE_BG_EQUIPMENT.get(&(i as u64)) {
-                values.push(value.clone());
-            }
-        }
-        if mask >= keymask {
-            break;
+    for (key, value) in map.iter() {
+        let mask = 2_u64.pow(*key as u32);
+        if equipment_id & mask == mask {
+            values.push(value.to_string());
         }
     }
     values
@@ -79,7 +74,9 @@ pub fn get_values_by_equipment_id(keymask: u64) -> Vec<String> {
 mod test {
     use std::vec;
 
-    use crate::config::equipment::{get_equipment_as_u64, get_values_by_equipment_id};
+    use crate::config::equipment::{
+        get_equipment_as_u64, get_values_by_equipment_id, MOBILE_BG_EQUIPMENT,
+    };
 
     #[test]
     fn get_petrol_automatic() {
@@ -90,10 +87,10 @@ mod test {
             "Система за контрол на скоростта (автопилот)".to_string(),
         ];
 
-        let equipment_id = get_equipment_as_u64(values);
+        let equipment_id = get_equipment_as_u64(values, &MOBILE_BG_EQUIPMENT);
         println!("{}", equipment_id); // Output: 7
         assert_eq!(equipment_id, 20971586);
-        let values = get_values_by_equipment_id(equipment_id);
+        let values = get_values_by_equipment_id(equipment_id, &MOBILE_BG_EQUIPMENT);
         assert_eq!(
             values,
             vec![
