@@ -1,4 +1,5 @@
 use crate::config::equipment::get_equipment_as_u64;
+use crate::config::equipment::MOBILE_BG_EQUIPMENT;
 use crate::model::enums::Currency;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
@@ -46,7 +47,7 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
     debug!("Processing details {}", url);
 
     let mut map = HashMap::new();
-    let html = match get_pages_async(url).await {
+    let html = match get_pages_async(url, true).await {
         Ok(v) => v,
         Err(e) => {
             error!("Error getting details {}", e);
@@ -210,14 +211,14 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
     if !&extras.is_empty() {
         map.insert(
             "equipment".to_string(),
-            get_equipment_as_u64(extras).to_string(),
+            get_equipment_as_u64(extras, &MOBILE_BG_EQUIPMENT).to_string(),
         );
     }
     map
 }
 
 pub async fn get_links(url: &str) -> Vec<String> {
-    let html = get_pages_async(url).await.unwrap();
+    let html = get_pages_async(url, true).await.unwrap();
     let document = Html::parse_document(&html);
     let mut links = vec![];
     for element in document.select(&TABLERESET_SELECTOR) {
@@ -295,19 +296,26 @@ fn get_id_from_url(url: String) -> Option<String> {
     Some(id.to_owned())
 }
 
-pub async fn get_pages_async(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn get_pages_async(
+    url: &str,
+    encoding: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .user_agent(BROWSER_USER_AGENT)
         .build()?;
     let body: Vec<u8> = client.get(url).send().await?.bytes().await?.to_vec();
     debug!("body: {}", body.len());
-    // Decode the byte array using the Windows-1251 encoding
-    let (html, _, _) = WINDOWS_1251.decode(&body);
-    // Convert the decoded text to UTF-8
-    let utf8_html = UTF_8.encode(&html).0;
-    let response = String::from_utf8_lossy(&body);
-    debug!("response: {}", response.len());
-    Ok(response.to_string())
+    if encoding {
+        let (html, _, _) = WINDOWS_1251.decode(&body);
+        // Convert the decoded text to UTF-8
+        let utf8_html = UTF_8.encode(&html).0;
+        let response = String::from_utf8_lossy(&utf8_html);
+        Ok(response.to_string())
+    } else {
+        let response = String::from_utf8_lossy(&body);
+        debug!("response: {}", response.len());
+        Ok(response.to_string())
+    }
 }
 
 pub fn get_pages(url: &str) -> Result<String, Box<dyn std::error::Error>> {
