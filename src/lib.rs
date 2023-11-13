@@ -11,8 +11,12 @@ use std::sync::Once;
 
 use crate::config::app_config::AppConfig;
 
+pub const CARS_BG_LISTING_URL: &str = r#"https://www.cars.bg/carslist.php?"#;
+pub const CARS_BG_DETAILS_URL: &str = r#"https://www.cars.bg/offer"#;
+
 pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&f10=2004&";
 pub const DETAILS_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=4&";
+
 pub const ACTION_DETAILS: &str = "act=4";
 pub const ACTION_LIST: &str = "act=3";
 pub const DATE_FORMAT: &str = "%Y-%m-%d";
