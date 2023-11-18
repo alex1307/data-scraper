@@ -5,7 +5,10 @@ use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::{config::equipment, model::enums::Engine, CARS_BG_DETAILS_URL, CARS_BG_LISTING_URL, BROWSER_USER_AGENT};
+use crate::{
+    config::equipment, model::enums::Engine, BROWSER_USER_AGENT, CARS_BG_DETAILS_URL,
+    CARS_BG_LISTING_URL,
+};
 
 use super::mobile_bg::get_pages_async;
 use lazy_static::lazy_static;
@@ -17,10 +20,9 @@ lazy_static! {
     static ref PHONE_SELECTOR: Selector = Selector::parse("a.a_call_link > div").unwrap();
 }
 #[derive(Debug, Deserialize)]
-struct ViewCounts{
+struct ViewCounts {
     status: String,
     value_resettable: u32,
-
 }
 
 fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
@@ -87,7 +89,7 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
             map.insert("id".to_owned(), id.to_owned());
         }
 
-        if !parse{
+        if !parse {
             result.push(map);
             continue;
         }
@@ -171,30 +173,24 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
 pub async fn get_view_counts(id: String) -> Result<u32, String> {
     let client = match reqwest::Client::builder()
         .user_agent(BROWSER_USER_AGENT)
-        .build(){
-            Ok(client) => client,
-            Err(e) => return Err(e.to_string())
-        };
+        .build()
+    {
+        Ok(client) => client,
+        Err(e) => return Err(e.to_string()),
+    };
     let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    client
-        .get(url)
-        .send()
-        .await.unwrap();
+    client.get(url).send().await.unwrap();
     let url = format!("https://stats.cars.bg/get/?object_id={}", id);
-    let response = client
-        .get(url)
-        .send().await;
-    
+    let response = client.get(url).send().await;
+
     match response {
-        Ok(response) => {
-            match response.json::<ViewCounts>().await {
-                Ok(views) => {
-                    return Ok(views.value_resettable);
-                },
-                Err(e) => return Err(e.to_string())
+        Ok(response) => match response.json::<ViewCounts>().await {
+            Ok(views) => {
+                return Ok(views.value_resettable);
             }
+            Err(e) => return Err(e.to_string()),
         },
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -258,7 +254,7 @@ pub async fn read_details(id: String) -> HashMap<String, String> {
         result.clear();
         return result;
     }
-    
+
     let selector = Selector::parse("div.text-copy > strong").unwrap();
     let mut strong = vec![];
 
@@ -333,8 +329,13 @@ mod test_cars_bg {
     use regex::Regex;
 
     use crate::{
-        config::{equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT}, self},
-        model::enums::{Engine, Gearbox}, utils::helpers::configure_log4rs, LOG_CONFIG,
+        config::{
+            self,
+            equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT},
+        },
+        model::enums::{Engine, Gearbox},
+        utils::helpers::configure_log4rs,
+        LOG_CONFIG,
     };
 
     use super::*;
