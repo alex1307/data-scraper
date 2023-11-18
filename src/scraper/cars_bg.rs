@@ -1,9 +1,11 @@
 use std::{collections::HashMap, thread::sleep, time::Duration, vec};
 
 use chrono::{naive, Local};
+use log::info;
 use scraper::{Html, Selector};
+use serde::Deserialize;
 
-use crate::{config::equipment, model::enums::Engine, CARS_BG_DETAILS_URL, CARS_BG_LISTING_URL};
+use crate::{config::equipment, model::enums::Engine, CARS_BG_DETAILS_URL, CARS_BG_LISTING_URL, BROWSER_USER_AGENT};
 
 use super::mobile_bg::get_pages_async;
 use lazy_static::lazy_static;
@@ -13,6 +15,12 @@ lazy_static! {
     static ref VIEW_COUNT_SELECTOR: Selector = Selector::parse("div#offer_view_count").unwrap();
     static ref MAKE_MODEL_SELECTOR: Selector = Selector::parse("div.text-copy h2").unwrap();
     static ref PHONE_SELECTOR: Selector = Selector::parse("a.a_call_link > div").unwrap();
+}
+#[derive(Debug, Deserialize)]
+struct ViewCounts{
+    status: String,
+    value_resettable: u32,
+
 }
 
 fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
@@ -28,7 +36,7 @@ fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
     url
 }
 
-async fn pages(url: &str) -> u32 {
+async fn list_pages(url: &str) -> u32 {
     let html = get_pages_async(&url, false).await.unwrap();
     let document = Html::parse_document(&html);
     let total_number_selector = Selector::parse("span.milestoneNumberTotal").unwrap();
@@ -40,34 +48,31 @@ async fn pages(url: &str) -> u32 {
         .collect::<String>()
         .parse::<i32>()
         .unwrap_or(0);
-    println!("totalNumber: {}", total_number);
+    info!("totalNumber: {}", total_number);
     let number_of_pages: u32 = ((total_number / 20) + 1).try_into().unwrap();
     number_of_pages
 }
 
 pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<HashMap<String, String>> {
     let url = search_cars_bg_url(&params, 1);
-    let number_of_pages = pages(&url).await;
+    let number_of_pages = list_pages(&url).await;
     let html = get_pages_async(&url, false).await.unwrap();
     if number_of_pages == 1 {
-        return read_listing(&html);
+        return read_listing(&html, false);
     } else {
-        let mut result = read_listing(&html);
+        let mut result = read_listing(&html, false);
         for i in 2..number_of_pages {
             sleep(Duration::from_secs(1));
-            println!("page: {}", i);
+            info!("page: {}", i);
             let url = search_cars_bg_url(&params, i);
             let html = get_pages_async(&url, false).await.unwrap();
-            result.extend(read_listing(&html));
-            if i == 3 {
-                break;
-            }
+            result.extend(read_listing(&html, false));
         }
         return result;
     }
 }
 
-fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
+fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
     let mut result = vec![];
     let document = Html::parse_document(html);
     let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
@@ -82,6 +87,11 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
             map.insert("id".to_owned(), id.to_owned());
         }
 
+        if !parse{
+            result.push(map);
+            continue;
+        }
+
         let h6_selector = Selector::parse("h6").unwrap();
         let mut fragment_counter = 1;
         for v in html_fragment.select(&h6_selector) {
@@ -92,7 +102,6 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
                 .collect::<Vec<String>>();
             if fragment_counter == 1 {
                 let date = holder[0].trim_end_matches(',');
-                println!("date: {}", date);
                 if r#"днес"# == date {
                     let today = Local::now().date_naive();
                     map.insert("published_on".to_owned(), today.to_string());
@@ -159,17 +168,38 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
     result
 }
 
-pub async fn get_view_counts(id: &str) -> Result<String, reqwest::Error> {
+pub async fn get_view_counts(id: String) -> Result<u32, String> {
+    let client = match reqwest::Client::builder()
+        .user_agent(BROWSER_USER_AGENT)
+        .build(){
+            Ok(client) => client,
+            Err(e) => return Err(e.to_string())
+        };
     let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    reqwest::get(&url).await.unwrap();
+    client
+        .get(url)
+        .send()
+        .await.unwrap();
     let url = format!("https://stats.cars.bg/get/?object_id={}", id);
-    let response = reqwest::get(&url).await.unwrap();
-    let text = response.text().await.unwrap();
-    Ok(text)
+    let response = client
+        .get(url)
+        .send().await;
+    
+    match response {
+        Ok(response) => {
+            match response.json::<ViewCounts>().await {
+                Ok(views) => {
+                    return Ok(views.value_resettable);
+                },
+                Err(e) => return Err(e.to_string())
+            }
+        },
+        Err(e) => Err(e.to_string())
+    }
 }
 
-pub async fn get_ids(url: &str) -> Result<Vec<String>, reqwest::Error> {
-    let html = get_pages_async(url, false).await.unwrap();
+pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
+    let html = get_pages_async(&url, false).await.unwrap();
     let document = Html::parse_document(&html);
     let selector = Selector::parse("div.offer-item").unwrap();
     let mut ids = vec![];
@@ -180,7 +210,7 @@ pub async fn get_ids(url: &str) -> Result<Vec<String>, reqwest::Error> {
     Ok(ids)
 }
 
-pub async fn read_details(id: &str) -> HashMap<String, String> {
+pub async fn read_details(id: String) -> HashMap<String, String> {
     let mut result = HashMap::new();
     let url = format!("{}/{}", CARS_BG_DETAILS_URL, id);
     let html = get_pages_async(&url, false).await.unwrap();
@@ -228,9 +258,7 @@ pub async fn read_details(id: &str) -> HashMap<String, String> {
         result.clear();
         return result;
     }
-    let view_count = get_view_counts(id).await.unwrap();
-    result.insert("view_count".to_owned(), view_count);
-
+    
     let selector = Selector::parse("div.text-copy > strong").unwrap();
     let mut strong = vec![];
 
@@ -245,7 +273,7 @@ pub async fn read_details(id: &str) -> HashMap<String, String> {
         result.insert("location".to_owned(), strong[1].to_owned());
     }
     get_vehicle_equipment(&document, &mut result);
-    result.insert("id".to_owned(), id.to_owned());
+    result.insert("id".to_owned(), id);
     return result;
 }
 
@@ -301,11 +329,12 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
 mod test_cars_bg {
     use std::str::FromStr;
 
+    use log::debug;
     use regex::Regex;
 
     use crate::{
-        config::equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT},
-        model::enums::{Engine, Gearbox},
+        config::{equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT}, self},
+        model::enums::{Engine, Gearbox}, utils::helpers::configure_log4rs, LOG_CONFIG,
     };
 
     use super::*;
@@ -339,10 +368,10 @@ mod test_cars_bg {
         let engine = Engine::from_str(fuel_type).unwrap();
         let gear_box = Gearbox::from_str(gearbox.unwrap()).unwrap();
         // Print the extracted information
-        println!("Fuel Type: {:?}", engine);
-        println!("Mileage: {:?}", mileage);
-        println!("Power: {:?}", power);
-        println!("Gearbox: {:?}", gear_box);
+        debug!("Fuel Type: {:?}", engine);
+        debug!("Mileage: {:?}", mileage);
+        debug!("Power: {:?}", power);
+        debug!("Gearbox: {:?}", gear_box);
     }
 
     #[test]
@@ -351,21 +380,22 @@ mod test_cars_bg {
             "Ел.огледала", "Стерео уредба", "Алуминиеви джанти", "DVD/TV", "Мултифункционален волан", "Сигурност:", "ABS, Airbag, Халогенни фарове, ASR/Тракшън контрол, Парктроник, Аларма, Имобилайзер, Центр. заключване, Застраховка, Старт-Стоп система", "Друго:", 
             "Автопилот", "Бордови компютър", "Навигационна система", "Теглич"];
         let result: Vec<String> = lines.iter().map(|&s| s.to_owned()).collect();
-        println!("result: {:?}", &CARS_BG_EQUIPMENT.len());
+        debug!("result: {:?}", &CARS_BG_EQUIPMENT.len());
         let equipment_id = get_equipment_as_u64(result, &CARS_BG_EQUIPMENT);
-        println!("equipment_id: {}", equipment_id);
+        debug!("equipment_id: {}", equipment_id);
         for (key, value) in CARS_BG_EQUIPMENT.iter() {
             let mask = 2_u64.pow(*key as u32);
             if equipment_id & mask == mask {
-                println!("value: {}", value);
+                debug!("value: {}", value);
             }
         }
         let values = get_values_by_equipment_id(equipment_id, &CARS_BG_EQUIPMENT);
-        println!("values: {:?}", values);
+        debug!("values: {:?}", values);
     }
 
     #[tokio::test]
     async fn get_ids_test() {
+        configure_log4rs(&LOG_CONFIG);
         let mut map = HashMap::new();
         //subm=1&add_search=1&typeoffer=1&priceFrom=18000&priceTo=30000&yearFrom=2007&yearTo=2011&page=32
         map.insert("subm".to_owned(), "1".to_owned());
@@ -376,13 +406,48 @@ mod test_cars_bg {
         map.insert("yearFrom".to_owned(), "2007".to_owned());
         map.insert("yearTo".to_owned(), "2011".to_owned());
         let records = search_cars_bg(map).await;
-        println!("records: {:?}", records.len());
+        debug!("records: {:?}", records.len());
         for record in records {
             sleep(Duration::from_millis(150));
             let id = record.get("id").unwrap();
-            let details = read_details(id).await;
-            println!("details: {:?}", details);
+            //let details = read_details(id.to_string()).await;
+            let view_count = get_view_counts(id.to_string()).await;
         }
+    }
+
+    #[tokio::test]
+    async fn list_pages_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let mut map = HashMap::new();
+        map.insert("subm".to_owned(), "1".to_owned());
+        map.insert("add_search".to_owned(), "1".to_owned());
+        map.insert("typeoffer".to_owned(), "1".to_owned());
+        map.insert("priceFrom".to_owned(), "18000".to_owned());
+        map.insert("yearFrom".to_owned(), "2004".to_owned());
+        let url = search_cars_bg_url(&map, 1);
+        let listing = list_pages(&url).await;
+        assert!(listing > 0);
+        info!("Pages found: {}", listing);
+    }
+
+    #[tokio::test]
+    async fn vehicles_per_pages_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let mut map = HashMap::new();
+        map.insert("subm".to_owned(), "1".to_owned());
+        map.insert("add_search".to_owned(), "1".to_owned());
+        map.insert("typeoffer".to_owned(), "1".to_owned());
+        map.insert("priceFrom".to_owned(), "18000".to_owned());
+        map.insert("yearFrom".to_owned(), "2004".to_owned());
+        map.insert("page".to_owned(), "1".to_owned());
+        let url = search_cars_bg_url(&map, 1);
+        let listing = list_pages(&url).await;
+        assert!(listing > 0);
+        info!("Pages found: {}", listing);
+        let html = get_pages_async(&url, false).await.unwrap();
+        let result = read_listing(&html, false);
+        assert!(result.len() > 0);
+        assert_eq!(20, result.len());
     }
 
     #[tokio::test]
@@ -401,8 +466,8 @@ mod test_cars_bg {
         for (key, value) in map.iter() {
             generated_url = format!("{}{}={}&", generated_url, key, value);
         }
-        println!("generated_url: {}", generated_url.trim_end_matches('&'));
+        info!("generated_url: {}", generated_url.trim_end_matches('&'));
         let url = search_cars_bg_url(&map, 1);
-        println!("url: {}", url);
+        info!("url: {}", url);
     }
 }
