@@ -10,7 +10,6 @@ use futures::StreamExt;
 use log::{debug, error, info};
 use reqwest::Url;
 
-
 lazy_static! {
     pub static ref CARS_BG_INSALE_FILE_NAME: String = format!(
         "{}/cars-bg-vehicle-{}.csv",
@@ -35,14 +34,14 @@ lazy_static! {
 
 use crate::{
     model::records::MobileRecord,
+    scraper::cars_bg::{get_view_counts, read_details, search_cars_bg},
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream},
-    writer::persistance::{MobileData, MobileDataWriter}, CONFIG, CREATED_ON, scraper::cars_bg::{search_cars_bg, read_details, get_view_counts},
+    writer::persistance::{MobileData, MobileDataWriter},
+    CONFIG, CREATED_ON,
 };
 use lazy_static::lazy_static;
 
-
 pub const FLUSH_SIZE: usize = 400;
-
 
 pub async fn scrape_cars_bg() -> Result<(), Box<dyn Error>> {
     if create_empty_csv::<MobileRecord>(&CARS_BG_INSALE_FILE_NAME).is_err() {
@@ -70,7 +69,6 @@ pub async fn scrape_cars_bg() -> Result<(), Box<dyn Error>> {
     }
 }
 
-
 async fn filter_links(consumer: &mut Receiver<String>, producer: Sender<String>) {
     let stream = Box::pin(to_stream(consumer));
     futures::pin_mut!(stream);
@@ -93,7 +91,6 @@ async fn filter_links(consumer: &mut Receiver<String>, producer: Sender<String>)
     }
     info!("Processed urls: {}", counter);
 }
-
 
 async fn start_searches(link_producer: Sender<String>) {
     let prices = vec![
@@ -128,7 +125,6 @@ async fn start_searches(link_producer: Sender<String>) {
             }
         }
     }
-
 }
 
 pub async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord>) {
@@ -143,16 +139,16 @@ pub async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRe
             || !data.contains_key("engine")
             || !data.contains_key("gearbox")
         {
-            continue;    
+            continue;
         }
         let mut record = MobileRecord::from(data);
-        match get_view_counts(id.clone()).await{
+        match get_view_counts(id.clone()).await {
             Ok(view_count) => {
                 record.view_count = view_count;
-            },
+            }
             Err(e) => {
                 error!("Failed to get view count for id: {}. Error: {}", id, e);
-            }    
+            }
         };
         output.send(record).unwrap();
         //sleep for 100 millis
