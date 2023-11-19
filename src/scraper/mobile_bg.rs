@@ -6,7 +6,6 @@ use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
-use crate::NOT_FOUND_MSG;
 use crate::POWER_TXT;
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
@@ -43,29 +42,10 @@ lazy_static! {
         Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
 }
 
-pub async fn details2map(url: &str) -> HashMap<String, String> {
-    debug!("Processing details {}", url);
-
+pub fn details2map(document: Html) -> HashMap<String, String> {
+    
     let mut map = HashMap::new();
-    let html = match get_pages_async(url, true).await {
-        Ok(v) => v,
-        Err(e) => {
-            error!("Error getting details {}", e);
-            return map;
-        }
-    };
-    if let Some(adv_value) = get_id_from_url(url.to_string()) {
-        map.insert("id".to_string(), adv_value);
-        if html.contains(NOT_FOUND_MSG) {
-            map.insert("error".to_string(), "Not found".to_string());
-            return map;
-        }
-    } else {
-        return HashMap::new();
-    }
-
-    let document = Html::parse_document(&html);
-
+    
     map.insert("type".to_string(), "DETAILS".to_string());
 
     let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
@@ -93,8 +73,7 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
             debug!("v: {}", v);
         }
         if values.len() < 2 {
-            debug!("Failed to get make and model for {}", url);
-            // return HashMap::new();
+            return HashMap::new();
         } else {
             map.insert("make".to_string(), values[0].to_string());
             map.insert("model".to_string(), values[1].to_string());
@@ -158,7 +137,7 @@ pub async fn details2map(url: &str) -> HashMap<String, String> {
                                 map.insert("millage".to_string(), "0".to_string());
                             }
                         } else {
-                            error!("Millage not found for {}", url);
+                            error!("Millage not found for");
                         }
                     }
 
@@ -277,7 +256,7 @@ fn process_price(text: String) -> (u32, Currency) {
     (price, currency)
 }
 
-fn get_url(element: &ElementRef) -> Option<String> {
+pub fn get_url(element: &ElementRef) -> Option<String> {
     match element.select(&TOP_MMM_SELECTOR).next() {
         Some(e) => {
             let href = e.value().attr("href").unwrap();
@@ -287,14 +266,6 @@ fn get_url(element: &ElementRef) -> Option<String> {
     }
 }
 
-fn get_id_from_url(url: String) -> Option<String> {
-    let id = url
-        .split('&')
-        .find(|s| s.starts_with("adv="))?
-        .split('=')
-        .last()?;
-    Some(id.to_owned())
-}
 
 pub async fn get_pages_async(
     url: &str,
@@ -439,24 +410,4 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
     (n, k)
 }
 
-#[cfg(test)]
-mod scrape_tests {
-    use log::info;
 
-    use crate::utils::helpers::configure_log4rs;
-
-    use super::details2map;
-
-    #[tokio::test]
-    async fn test_get_details() {
-        let id = "11695819071264345";
-        let url = format!(
-            "//www.mobile.bg/pcgi/mobile.cgi?act=4&adv={}&slink=u976ho",
-            id
-        );
-        configure_log4rs("config/loggers/dev_log4rs.yml");
-        let details = details2map(&url).await;
-        assert_eq!(details.get("id").unwrap(), id);
-        info!("details: {:?}", details);
-    }
-}

@@ -5,10 +5,7 @@ use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::{
-    config::equipment, model::enums::Engine, BROWSER_USER_AGENT, CARS_BG_DETAILS_URL,
-    CARS_BG_LISTING_URL,
-};
+use crate::{config::equipment, model::enums::Engine, BROWSER_USER_AGENT, CARS_BG_LISTING_URL};
 
 use super::mobile_bg::get_pages_async;
 use lazy_static::lazy_static;
@@ -206,10 +203,8 @@ pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
     Ok(ids)
 }
 
-pub async fn read_details(id: String) -> HashMap<String, String> {
+pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
     let mut result = HashMap::new();
-    let url = format!("{}/{}", CARS_BG_DETAILS_URL, id);
-    let html = get_pages_async(&url, false).await.unwrap();
     if html.contains(r#"Частно лице"#) {
         result.insert("dealer".to_owned(), "false".to_owned());
     } else {
@@ -264,12 +259,28 @@ pub async fn read_details(id: String) -> HashMap<String, String> {
         }
     }
 
+    let blur_text_selector = Selector::parse("div.blur-text").unwrap();
+    for el in document.select(&blur_text_selector) {
+        let date = el.text().collect::<String>();
+        info!("UPDATED ON: {}", date);
+        if date.contains(r#"днес"#) {
+            let today = Local::now().date_naive();
+            result.insert("updated_on".to_owned(), today.to_string());
+        } else if date.contains(r#"вчера"#) {
+            let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
+            result.insert("updated_on".to_owned(), yesterday.to_string());
+        } else {
+            let published_on = naive::NaiveDate::parse_from_str(&date, "%d.%m.%y").unwrap();
+            result.insert("updated_on".to_owned(), published_on.to_string());
+        }
+        break;
+    }
+
     if strong.len() >= 2 {
         result.insert("year".to_owned(), strong[0].to_owned());
         result.insert("location".to_owned(), strong[1].to_owned());
     }
     get_vehicle_equipment(&document, &mut result);
-    result.insert("id".to_owned(), id);
     return result;
 }
 
@@ -295,26 +306,34 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
         }
     }
 
-    let engine = equipment[4].to_owned();
-    data.insert("engine".to_owned(), engine);
-    let mileage = equipment[5].to_owned();
-    let numeric = mileage
-        .chars()
-        .filter(|&c| c.is_numeric())
-        .collect::<String>()
-        .parse::<i32>()
-        .unwrap_or(0);
-    data.insert("mileage".to_owned(), numeric.to_string());
-    let gearbox = equipment[6].to_owned();
-    data.insert("gearbox".to_owned(), gearbox);
-    let power = equipment[7].to_owned();
-    let numerice = power
-        .chars()
-        .filter(|&c| c.is_numeric())
-        .collect::<String>()
-        .parse::<i32>()
-        .unwrap_or(0);
-    data.insert("power".to_owned(), numerice.to_string());
+    for eq in equipment.iter() {
+        if eq.contains(r#"скорости"#) {
+            data.insert("gearbox".to_owned(), eq.to_string());
+        } else if eq.contains(r#"к.с."#) {
+            let numeric = eq
+                .chars()
+                .filter(|&c| c.is_numeric())
+                .collect::<String>()
+                .parse::<i32>()
+                .unwrap_or(0);
+            data.insert("power".to_owned(), numeric.to_string());
+        } else if eq.contains(r#"км"#) {
+            let numeric = eq
+                .chars()
+                .filter(|&c| c.is_numeric())
+                .collect::<String>()
+                .parse::<i32>()
+                .unwrap_or(0);
+            data.insert("millage".to_owned(), numeric.to_string());
+        } else if eq.contains("Газ/Бензин")
+            || eq.contains("Дизел")
+            || eq.contains("Бензин")
+            || eq.contains("Електричество")
+            || eq.contains("Хибрид")
+        {
+            data.insert("engine".to_owned(), eq.to_string());
+        }
+    }
     let equipment_id = equipment::get_equipment_as_u64(equipment, &equipment::CARS_BG_EQUIPMENT);
     data.insert("equipment".to_owned(), equipment_id.to_string());
 
@@ -329,10 +348,7 @@ mod test_cars_bg {
     use regex::Regex;
 
     use crate::{
-        config::{
-            self,
-            equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT},
-        },
+        config::equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT},
         model::enums::{Engine, Gearbox},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -370,7 +386,7 @@ mod test_cars_bg {
         let gear_box = Gearbox::from_str(gearbox.unwrap()).unwrap();
         // Print the extracted information
         debug!("Fuel Type: {:?}", engine);
-        debug!("Mileage: {:?}", mileage);
+        debug!("millage: {:?}", mileage);
         debug!("Power: {:?}", power);
         debug!("Gearbox: {:?}", gear_box);
     }
@@ -411,8 +427,6 @@ mod test_cars_bg {
         for record in records {
             sleep(Duration::from_millis(150));
             let id = record.get("id").unwrap();
-            //let details = read_details(id.to_string()).await;
-            let view_count = get_view_counts(id.to_string()).await;
         }
     }
 

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    env::var,
     error::Error,
     fmt::Debug,
     vec,
@@ -34,7 +35,8 @@ lazy_static! {
 
 use crate::{
     model::records::MobileRecord,
-    scraper::cars_bg::{get_view_counts, read_details, search_cars_bg},
+    scraper::scrapers::{CarsBGScraper, ScraperTrait},
+    services::cars_bg_scraper,
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream},
     writer::persistance::{MobileData, MobileDataWriter},
     CONFIG, CREATED_ON,
@@ -115,15 +117,30 @@ async fn start_searches(link_producer: Sender<String>) {
     let mut over_100K = map.clone();
     over_100K.insert("priceFrom".to_owned(), "95000".to_owned());
     searches.push(over_100K);
-
+    let mut search_task = vec![];
     for search in searches {
-        let listing = search_cars_bg(search).await;
-        for data in listing {
-            if let Some(id) = data.get("id") {
-                info!("id: {}", id);
-                link_producer.send(id.to_string()).unwrap();
+        let cars_bg_scraper: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
+        let total_number = cars_bg_scraper.total_number(search.clone()).await.unwrap();
+        let cloned_producer = link_producer.clone();
+        let task = tokio::spawn(async move {
+            let number_of_pages = cars_bg_scraper
+                .parent
+                .get_number_of_pages(total_number)
+                .unwrap();
+            for page in 1..=number_of_pages + 1 {
+                let ids = cars_bg_scraper
+                    .get_listed_ids(search.clone(), page)
+                    .await
+                    .unwrap();
+                for id in ids {
+                    cloned_producer.send(id).unwrap();
+                }
             }
-        }
+        });
+        search_task.push(task);
+    }
+    for task in search_task {
+        task.await.unwrap();
     }
 }
 
@@ -131,8 +148,17 @@ pub async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRe
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     let mut counter = 0;
+    let cars_bg_scraper = CarsBGScraper::new("https://www.cars.bg", 250);
     while let Some(id) = stream.next().await {
-        let data: HashMap<String, String> = read_details(id.clone()).await;
+        let url = cars_bg_scraper.parent.search_url(
+            Some(format!("/offer/{}", id.clone())),
+            HashMap::new(),
+            0,
+        );
+        let data = cars_bg_scraper
+            .parse_details(url, id.clone())
+            .await
+            .unwrap();
         if data.is_empty()
             || !data.contains_key("id")
             || !data.contains_key("make")
@@ -141,15 +167,7 @@ pub async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRe
         {
             continue;
         }
-        let mut record = MobileRecord::from(data);
-        match get_view_counts(id.clone()).await {
-            Ok(view_count) => {
-                record.view_count = view_count;
-            }
-            Err(e) => {
-                error!("Failed to get view count for id: {}. Error: {}", id, e);
-            }
-        };
+        let record = MobileRecord::from(data);
         output.send(record).unwrap();
         //sleep for 100 millis
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
