@@ -35,8 +35,8 @@ lazy_static! {
 
 use crate::{
     model::records::MobileRecord,
-    scraper::scrapers::{CarsBGScraper, ScraperTrait},
-    services::cars_bg_scraper,
+    scraper::scraper_cars_bg::CarsBGScraper,
+    scraper::scraper_trait::ScraperTrait,
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream},
     writer::persistance::{MobileData, MobileDataWriter},
     CONFIG, CREATED_ON,

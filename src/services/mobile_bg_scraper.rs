@@ -1,4 +1,9 @@
-use std::{collections::{HashSet, HashMap}, error::Error, fmt::Debug, vec};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+    fmt::Debug,
+    vec,
+};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::StreamExt;
@@ -13,10 +18,11 @@ use crate::{
         records::MobileRecord,
         search_metadata::{asearch, asearches, SearchMetadata},
     },
-    scraper::mobile_bg::{get_links},
+    scraper::mobile_bg_helpers::get_links,
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream, mobile_search_url},
     writer::persistance::{MobileData, MobileDataWriter},
-    DETAILS_URL, LISTING_URL, UPDATED_VEHICLES_FILE_NAME, DELETED_FILE_NAME, FOR_UPDATE_FILE_NAME, INSALE_FILE_NAME, ARCHIVE_FILE_NAME, METADATA_FILE_NAME,
+    ARCHIVE_FILE_NAME, DELETED_FILE_NAME, DETAILS_URL, FOR_UPDATE_FILE_NAME, INSALE_FILE_NAME,
+    LISTING_URL, METADATA_FILE_NAME, UPDATED_VEHICLES_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -209,7 +215,7 @@ async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord
     while let Some(url) = stream.next().await {
         debug!("url: {}", url.clone());
         let mut not_found = 0;
-        let data = HashMap::new();//details2map(url.to_string());
+        let data = HashMap::new(); //details2map(url.to_string());
         if data.is_empty()
             || !data.contains_key("id")
             || !data.contains_key("make")

@@ -2,7 +2,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    scraper::mobile_bg::{get_header_data, get_pages, get_pages_async, slink},
+    scraper::mobile_bg_helpers::{get_header_data, get_pages, get_pages_async, slink},
     utils::helpers::{extract_ascii_latin, mobile_search_url},
     LISTING_URL, TIMESTAMP,
 };
