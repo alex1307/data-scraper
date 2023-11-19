@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::{config::equipment, model::enums::Engine, BROWSER_USER_AGENT, CARS_BG_LISTING_URL};
 
-use super::mobile_bg::get_pages_async;
+use super::mobile_bg_helpers::get_pages_async;
 use lazy_static::lazy_static;
 
 lazy_static! {

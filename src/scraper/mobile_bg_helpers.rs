@@ -43,9 +43,8 @@ lazy_static! {
 }
 
 pub fn details2map(document: Html) -> HashMap<String, String> {
-    
     let mut map = HashMap::new();
-    
+
     map.insert("type".to_string(), "DETAILS".to_string());
 
     let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
@@ -266,7 +265,6 @@ pub fn get_url(element: &ElementRef) -> Option<String> {
     }
 }
 
-
 pub async fn get_pages_async(
     url: &str,
     encoding: bool,
@@ -409,5 +407,3 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 
     (n, k)
 }
-
-
