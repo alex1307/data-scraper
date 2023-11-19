@@ -1,5 +1,4 @@
 use data_scraper::services::cars_bg_scraper::scrape_cars_bg;
-use data_scraper::services::mobile_bg_scraper::{scrape, update};
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 use log::{error, info};
