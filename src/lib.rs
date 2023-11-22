@@ -56,4 +56,23 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
+    pub static ref CARS_BG_INSALE_FILE_NAME: String = format!(
+        "{}/cars-bg-vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
+        "{}/cars-bg-updated-vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_METADATA_FILE_NAME: String =
+        format!("{}/cars-meta-data.csv", CONFIG.get_data_dir());
+    pub static ref CARS_BG_FOR_UPDATE_FILE_NAME: String =
+        format!("{}/cars-bg-ids-for-update.csv", CONFIG.get_data_dir());
+    pub static ref CARS_BG_DELETED_FILE_NAME: String = format!(
+        "{}/not-found-ids-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
 }

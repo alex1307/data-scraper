@@ -1,11 +1,7 @@
-use std::collections::HashMap;
-
-use data_scraper::services::ScraperAppService::{lets_scrape, Crawlers};
+use data_scraper::services::ScraperAppService::lets_scrape;
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
-use data_scraper::{
-    scraper::scraper_mobile_bg::MobileBGScraper, services::ScraperAppService::run_scraper,
-};
+
 use log::info;
 
 #[tokio::main]

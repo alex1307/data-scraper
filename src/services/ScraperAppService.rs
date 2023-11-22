@@ -11,7 +11,7 @@ use crate::{
     },
     services::ScraperService::{process, save},
     utils::helpers::create_empty_csv,
-    INSALE_FILE_NAME,
+    CARS_BG_INSALE_FILE_NAME, INSALE_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -21,7 +21,7 @@ lazy_static! {
     pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
 }
 
-use super::{cars_bg_scraper::CARS_BG_INSALE_FILE_NAME, ScraperService::start};
+use super::ScraperService::start;
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),

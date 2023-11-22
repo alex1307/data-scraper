@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::E, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use log::{debug, error, info};
 use tokio::{
