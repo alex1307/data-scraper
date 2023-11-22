@@ -35,8 +35,8 @@ lazy_static! {
 
 use crate::{
     model::records::MobileRecord,
-    scraper::scraper_cars_bg::CarsBGScraper,
     scraper::scraper_trait::ScraperTrait,
+    scraper::{scraper_cars_bg::CarsBGScraper, scraper_trait::LinkId},
     utils::helpers::{create_empty_csv, crossbeam_utils::to_stream},
     writer::persistance::{MobileData, MobileDataWriter},
     CONFIG, CREATED_ON,
@@ -50,7 +50,7 @@ pub async fn scrape_cars_bg() -> Result<(), Box<dyn Error>> {
         error!("Failed to create file {}", CARS_BG_INSALE_FILE_NAME.clone());
     }
 
-    let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<String>();
+    let (link_producer, mut link_consumer) = crossbeam::channel::unbounded::<LinkId>();
     let (details_producer, mut details_consumer) = crossbeam::channel::unbounded::<MobileRecord>();
     let start = tokio::spawn(async move {
         start_searches(link_producer).await;
@@ -94,7 +94,7 @@ async fn filter_links(consumer: &mut Receiver<String>, producer: Sender<String>)
     info!("Processed urls: {}", counter);
 }
 
-async fn start_searches(link_producer: Sender<String>) {
+pub async fn start_searches(link_producer: Sender<LinkId>) {
     let prices = vec![
         1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10_000, 11_000, 13_000, 15_000,
         18_000, 19_000, 21_000, 25_000, 30_000, 40_000, 50_000, 95_000,
@@ -144,21 +144,13 @@ async fn start_searches(link_producer: Sender<String>) {
     }
 }
 
-pub async fn process_links(input: &mut Receiver<String>, output: Sender<MobileRecord>) {
+pub async fn process_links(input: &mut Receiver<LinkId>, output: Sender<MobileRecord>) {
     let stream = Box::pin(to_stream(input));
     futures::pin_mut!(stream);
     let mut counter = 0;
     let cars_bg_scraper = CarsBGScraper::new("https://www.cars.bg", 250);
-    while let Some(id) = stream.next().await {
-        let url = cars_bg_scraper.parent.search_url(
-            Some(format!("/offer/{}", id.clone())),
-            HashMap::new(),
-            0,
-        );
-        let data = cars_bg_scraper
-            .parse_details(url, id.clone())
-            .await
-            .unwrap();
+    while let Some(link) = stream.next().await {
+        let data = cars_bg_scraper.parse_details(link.clone()).await.unwrap();
         if data.is_empty()
             || !data.contains_key("id")
             || !data.contains_key("make")
@@ -258,6 +250,7 @@ mod node_tests {
     use log::info;
 
     use crate::{
+        scraper::scraper_trait::LinkId,
         services::cars_bg_scraper::start_searches,
         utils::helpers::{configure_log4rs, crossbeam_utils::to_stream},
     };
@@ -268,18 +261,11 @@ mod node_tests {
     #[tokio::test]
     async fn test_searches() {
         configure_log4rs("config/loggers/dev_log4rs.yml");
-        let (tx, mut rx) = crossbeam::channel::unbounded::<String>();
+        let (tx, mut rx) = crossbeam::channel::unbounded::<LinkId>();
         let task = tokio::spawn(async move {
             start_searches(tx).await;
         });
         task.await.unwrap();
-        print(&mut rx).await;
-    }
-    async fn print(rx: &mut Receiver<String>) {
-        let stream = Box::pin(to_stream(rx));
-        futures::pin_mut!(stream);
-        while let Some(payload) = stream.next().await {
-            info!("payload: {}", payload);
-        }
+        let stream = Box::pin(to_stream(&mut rx));
     }
 }

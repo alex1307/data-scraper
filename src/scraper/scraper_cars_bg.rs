@@ -2,12 +2,15 @@ use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::info;
+use log::{debug, info};
 
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::{scraper::cars_bg_helpers::read_carsbg_details, BROWSER_USER_AGENT};
+use crate::{
+    scraper::{cars_bg_helpers::read_carsbg_details, scraper_trait::LinkId},
+    BROWSER_USER_AGENT,
+};
 
 use super::scraper_trait::{Scraper, ScraperTrait};
 
@@ -41,6 +44,7 @@ pub async fn get_view_count(id: String) -> Result<u32, String> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CarsBGScraper {
     pub parent: Scraper,
 }
@@ -78,7 +82,7 @@ impl ScraperTrait for CarsBGScraper {
         &self,
         params: HashMap<String, String>,
         page_number: u32,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<LinkId>, String> {
         let mut ids = vec![];
         tokio::time::sleep(Duration::from_millis(self.parent.wait_time_ms)).await;
         let url = self.parent.search_url(
@@ -95,25 +99,28 @@ impl ScraperTrait for CarsBGScraper {
             for e in html_fragment.select(&selector) {
                 let href = e.value().attr("href").unwrap();
                 let id = href.split("/offer/").last().unwrap();
-                ids.push(id.to_owned());
+                ids.push(LinkId {
+                    url: href.to_string(),
+                    id: id.to_owned(),
+                });
                 break;
             }
         }
-        info!("ids: {:?}", ids);
+        debug!("ids: {:?}", ids);
         Ok(ids)
     }
 
-    async fn parse_details(
-        &self,
-        url: String,
-        id: String,
-    ) -> Result<HashMap<String, String>, String> {
-        let html = self.parent.html_search(&url, None).await?;
+    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
+        let html = self.parent.html_search(&link.url, None).await?;
         let mut result = read_carsbg_details(html);
-        let views = get_view_count(id.clone()).await?;
-        result.insert("id".to_owned(), id);
+        let views = get_view_count(link.id.clone()).await?;
+        result.insert("id".to_owned(), link.id);
         result.insert("view_count".to_owned(), views.to_string());
         Ok(result)
+    }
+
+    fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
+        self.parent.get_number_of_pages(total_number)
     }
 }
 
@@ -174,15 +181,12 @@ mod cars_bg_tests {
 
         let ids = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         let first = ids.first().unwrap();
-        let path = Some(format!("/offer/{}", first));
+        let path = Some(format!("/offer/{:?}", first));
         let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
         info!("search_url: {}", search_url);
-        let details = cars_bg
-            .parse_details(search_url, first.to_owned())
-            .await
-            .unwrap();
+        let details = cars_bg.parse_details(first.clone()).await.unwrap();
         assert!(details.len() > 0);
-        assert_eq!(details.get("id").unwrap(), first);
+        assert_eq!(details.get("id").unwrap(), &first.id);
         info!("details: {:?}", details);
         let record = crate::model::records::MobileRecord::from(details);
         info!("record: {:?}", record);
