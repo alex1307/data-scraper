@@ -1,4 +1,4 @@
-PROJECT_NAME=scraper
+PROJECT_NAME=crawler
 TARGET_DIR=target/release
 RELEASE_DIR=release
 CONFIG_DIR=config
