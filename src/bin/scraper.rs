@@ -1,28 +1,32 @@
-use data_scraper::services::cars_bg_scraper::scrape_cars_bg;
+use std::collections::HashMap;
+
+use data_scraper::services::ScraperAppService::{lets_scrape, Crawlers};
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
-use log::{error, info};
+use data_scraper::{
+    scraper::scraper_mobile_bg::MobileBGScraper, services::ScraperAppService::run_scraper,
+};
+use log::info;
 
 #[tokio::main]
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
-    info!("Scraper started");
-    scrape_cars_bg().await.unwrap_or_else(|e| {
-        error!("Failed to scrape data: {}", e);
-    });
-    // info!("Starting scraper");
-    // let args = std::env::args().collect::<Vec<String>>();
-    // info!("Using arguments: {:?}", args);
-    // if args.len() == 2 && args[1] == "update" {
-    //     info!("Updating scraped data...");
-    //     update().await.unwrap_or_else(|e| {
-    //         error!("Failed to update data: {}", e);
-    //     });
-    // } else {
-    //     info!("Scraping the latest adverts...");
-    //     scrape().await.unwrap_or_else(|e| {
-    //         error!("Failed to scrape data: {}", e);
-    //     });
-    // }
-    info!("Scraper finished");
+    let args = std::env::args().collect::<Vec<String>>();
+    info!("Starting crawler: {:?}", args);
+    if args.len() < 2 {
+        println!("Usage: ./crawler cars.bg or mobile.bg");
+        return;
+    }
+
+    let crawler_name = &args[1];
+    let crawler = match crawler_name.to_lowercase().as_str() {
+        "mobile.bg" => lets_scrape("mobile.bg").await,
+        _ => lets_scrape("cars.bg").await,
+    };
+
+    if let Ok(()) = crawler {
+        println!("Success");
+    } else {
+        println!("Scraping failed.");
+    }
 }

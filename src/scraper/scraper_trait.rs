@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 use crate::BROWSER_USER_AGENT;
 
@@ -13,6 +14,18 @@ lazy_static! {
         .unwrap();
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, Default)]
+pub struct LinkId {
+    pub url: String,
+    pub id: String,
+}
+
+impl PartialEq for LinkId {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 #[async_trait]
 pub trait ScraperTrait {
     async fn total_number(&self, params: HashMap<String, String>) -> Result<u32, String>;
@@ -20,12 +33,10 @@ pub trait ScraperTrait {
         &self,
         params: HashMap<String, String>,
         page_number: u32,
-    ) -> Result<Vec<String>, String>;
-    async fn parse_details(
-        &self,
-        url: String,
-        id: String,
-    ) -> Result<HashMap<String, String>, String>;
+    ) -> Result<Vec<LinkId>, String>;
+    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String>;
+
+    fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String>;
 }
 
 #[derive(Debug, Clone)]

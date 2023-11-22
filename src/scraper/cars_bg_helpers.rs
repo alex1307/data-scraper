@@ -1,7 +1,7 @@
 use std::{collections::HashMap, thread::sleep, time::Duration, vec};
 
 use chrono::{naive, Local};
-use log::info;
+use log::{debug, info};
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
@@ -262,7 +262,7 @@ pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
     let blur_text_selector = Selector::parse("div.blur-text").unwrap();
     for el in document.select(&blur_text_selector) {
         let date = el.text().collect::<String>();
-        info!("UPDATED ON: {}", date);
+        debug!("UPDATED ON: {}", date);
         if date.contains(r#"днес"#) {
             let today = Local::now().date_naive();
             result.insert("updated_on".to_owned(), today.to_string());
@@ -270,7 +270,13 @@ pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
             let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
             result.insert("updated_on".to_owned(), yesterday.to_string());
         } else {
-            let published_on = naive::NaiveDate::parse_from_str(&date, "%d.%m.%y").unwrap();
+            let published_on = match naive::NaiveDate::parse_from_str(&date.trim(), "%d.%m.%y") {
+                Ok(date) => date,
+                Err(e) => {
+                    info!("Error parsing date: {}", e);
+                    continue;
+                }
+            };
             result.insert("updated_on".to_owned(), published_on.to_string());
         }
         break;
@@ -484,5 +490,13 @@ mod test_cars_bg {
         info!("generated_url: {}", generated_url.trim_end_matches('&'));
         let url = search_cars_bg_url(&map, 1);
         info!("url: {}", url);
+    }
+
+    #[test]
+    fn to_date() {
+        configure_log4rs(&LOG_CONFIG);
+        let date = naive::NaiveDate::parse_from_str("19.11.23", "%d.%m.%y").unwrap();
+        info!("date: {}", date);
+        assert_eq!("2023-11-19", date.to_string());
     }
 }
