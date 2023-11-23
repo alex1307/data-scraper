@@ -6,7 +6,7 @@ DEST_CONFIG_DIR=/Users/$(USER)/Software/$(RELEASE_DIR)/Rust/$(PROJECT_NAME)/conf
 DEST_RELEASE_DIR=/Users/$(USER)/Software/$(RELEASE_DIR)/Rust/$(PROJECT_NAME)
 .PHONY: all build release copy_config clean test
 
-all: deploy copy-config clean
+all: build deploy copy-config clean
 
 build:
 	cargo build --release --target-dir $(DEST_RELEASE_DIR)
