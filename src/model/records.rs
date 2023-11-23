@@ -2,7 +2,14 @@ use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::CREATED_ON;
+use crate::{
+    scraper::{
+        CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
+        MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY,
+        TOP_KEY, VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,
+    },
+    CREATED_ON,
+};
 
 use super::{
     enums::{Currency, Engine, Gearbox},
@@ -38,25 +45,25 @@ impl Header for MobileRecord {
     fn header() -> Vec<&'static str> {
         vec![
             "id",
-            "make",
-            "model",
-            "currency",
-            "price",
-            "millage",
-            "year",
-            "engine",
-            "gearbox",
-            "power",
-            "phone",
-            "location",
-            "view_count",
-            "equipment",
-            "top",
-            "vip",
-            "sold",
-            "dealer",
+            &MAKE_KEY,
+            &MODEL_KEY,
+            &CURRENCY_KEY,
+            &PRICE_KEY,
+            &MILEAGE_KEY,
+            &YEAR_KEY,
+            &ENGINE_KEY,
+            &GEARBOX_KEY,
+            &POWER_KEY,
+            &PHONE_KEY,
+            &LOCATION_KEY,
+            &VIEW_COUNT_KEY,
+            &EQUIPMENT_KEY,
+            &TOP_KEY,
+            &VIP_KEY,
+            &SOLD_KEY,
+            &DEALER_KEY,
             "created_on",
-            "updated_on",
+            &PUBLISHED_ON_KEY,
             "deleted_on",
         ]
     }
@@ -70,70 +77,97 @@ impl Identity for MobileRecord {
 
 impl From<HashMap<String, String>> for MobileRecord {
     fn from(map: HashMap<String, String>) -> Self {
-        let default_0 = &"0".to_string();
-        let default_str = &"none".to_string();
-        let id = map.get("id").unwrap_or(default_str).to_string();
-        let phone = map.get("phone").unwrap_or(default_str).to_string();
-        let engine = Engine::from_str(map.get("engine").unwrap_or(default_str).as_str())
-            .unwrap_or(Engine::NotAvailable);
-        let gearbox = Gearbox::from_str(map.get("gearbox").unwrap_or(default_str).as_str())
-            .unwrap_or(Gearbox::NotAvailable);
+        let default_0 = &"0".to_owned();
+        let default_str = &"none".to_owned();
+        let id = map.get("id").unwrap_or(default_str).to_owned();
+        let phone = map
+            .get(&PHONE_KEY.to_owned())
+            .unwrap_or(default_str)
+            .to_string();
+        let engine = Engine::from_str(
+            map.get(&ENGINE_KEY.to_owned())
+                .unwrap_or(default_str)
+                .as_str(),
+        )
+        .unwrap_or(Engine::NotAvailable);
+        let gearbox = Gearbox::from_str(
+            map.get(&GEARBOX_KEY.to_owned())
+                .unwrap_or(default_str)
+                .as_str(),
+        )
+        .unwrap_or(Gearbox::NotAvailable);
         let power = map
-            .get("power")
+            .get(&POWER_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u16>()
             .unwrap_or(0);
         let view_count = map
-            .get("view_count")
+            .get(&VIEW_COUNT_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u32>()
             .unwrap_or(0);
         let equipment = map
-            .get("equipment")
+            .get(&EQUIPMENT_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u64>()
             .unwrap_or(0);
         let price = map
-            .get("price")
+            .get(&PRICE_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u32>()
             .unwrap_or(0);
-        let currency = Currency::from_str(map.get("currency").unwrap_or(default_str).as_str())
-            .unwrap_or(Currency::BGN);
+        let currency = Currency::from_str(
+            map.get(&CURRENCY_KEY.to_owned())
+                .unwrap_or(default_str)
+                .as_str(),
+        )
+        .unwrap_or(Currency::BGN);
         let millage = map
-            .get("millage")
+            .get(&MILEAGE_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u32>()
             .unwrap();
         let year = map
-            .get("year")
+            .get(&YEAR_KEY.to_owned())
             .unwrap_or(default_0)
             .parse::<u16>()
             .unwrap_or(0);
         let top = map
-            .get("top")
+            .get(&TOP_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
         let vip = map
-            .get("vip")
+            .get(&VIP_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
         let dealer = map
-            .get("dealer")
+            .get(&DEALER_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
         let sold = map
-            .get("sold")
+            .get(&SOLD_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
             .unwrap();
-        let location = map.get("location").unwrap_or(default_str).to_string();
-        let make = map.get("make").unwrap_or(default_str).to_string();
-        let model = map.get("model").unwrap_or(default_str).to_string();
-        let updated_on = map.get("updated_on").unwrap_or(default_str).to_string();
+        let location = map
+            .get(&LOCATION_KEY.to_string())
+            .unwrap_or(default_str)
+            .to_string();
+        let make = map
+            .get(&MAKE_KEY.to_string())
+            .unwrap_or(default_str)
+            .to_string();
+        let model = map
+            .get(&MODEL_KEY.to_string())
+            .unwrap_or(default_str)
+            .to_string();
+        let updated_on = map
+            .get(&PUBLISHED_ON_KEY.to_string())
+            .unwrap_or(default_str)
+            .to_string();
         MobileRecord {
             id,
             engine,
