@@ -5,9 +5,9 @@ use log::{error, info};
 use crate::{
     model::records::MobileRecord,
     scraper::{
-        scraper_cars_bg::CarsBGScraper,
-        scraper_mobile_bg::MobileBGScraper,
-        scraper_trait::{LinkId, ScraperTrait},
+        CarsBgScraper::CarsBGScraper,
+        MobileBgScraper::MobileBGScraper,
+        ScraperTrait::{LinkId, ScraperTrait},
     },
     services::ScraperService::{process, save},
     utils::helpers::create_empty_csv,
@@ -99,6 +99,7 @@ async fn searches(cralwer: Crawlers) -> Vec<HashMap<String, String>> {
                 price_filter.insert("priceTo".to_owned(), (prices[i + 1]).to_string());
                 searches.push(price_filter);
             }
+            map.remove("priceTo");
             let mut most_expensive = map.clone();
             most_expensive.insert("priceFrom".to_owned(), "95000".to_owned());
             searches.push(most_expensive);
@@ -121,6 +122,7 @@ async fn mobile_bg_searches() -> Vec<HashMap<String, String>> {
     params.insert("topmenu".to_string(), "1".to_string());
     params.insert("rub".to_string(), 1.to_string());
     params.insert("pubtype".to_string(), 1.to_string());
+    params.insert("f20".to_string(), 7.to_string());
     for i in 0..prices.len() - 2 {
         let mut params = params.clone();
         params.insert("f7".to_owned(), prices[i].to_string());
@@ -128,8 +130,19 @@ async fn mobile_bg_searches() -> Vec<HashMap<String, String>> {
         meta_searches.push(params.clone());
     }
     let mut most_expensive = params.clone();
+    params.remove("f8");
     most_expensive.insert("f7".to_owned(), "95000".to_owned());
     meta_searches.push(most_expensive);
+    params.remove("f7");
+    params.remove("f8");
+
+    let mut sold_vehicles = params.clone();
+    sold_vehicles.insert(
+        "f94".to_string(),
+        "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
+    );
+    meta_searches.push(sold_vehicles);
+
     params.clear();
     params.insert("act".to_owned(), "3".to_owned());
     params.insert("rub".to_string(), 1.to_string());
@@ -182,8 +195,8 @@ mod app_test {
     use std::collections::HashMap;
 
     use super::run_scraper;
-    use crate::scraper::scraper_cars_bg::CarsBGScraper;
-    use crate::scraper::scraper_mobile_bg::MobileBGScraper;
+    use crate::scraper::CarsBgScraper::CarsBGScraper;
+    use crate::scraper::MobileBgScraper::MobileBGScraper;
     use crate::utils::helpers::configure_log4rs;
     use crate::LOG_CONFIG;
 

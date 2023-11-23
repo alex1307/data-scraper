@@ -1,6 +1,24 @@
 use crate::config::equipment::get_equipment_as_u64;
 use crate::config::equipment::MOBILE_BG_EQUIPMENT;
 use crate::model::enums::Currency;
+use crate::scraper::CURRENCY_KEY;
+use crate::scraper::DEALER_KEY;
+use crate::scraper::ENGINE_KEY;
+use crate::scraper::EQUIPMENT_KEY;
+use crate::scraper::GEARBOX_KEY;
+use crate::scraper::LOCATION_KEY;
+use crate::scraper::MAKE_KEY;
+use crate::scraper::MILEAGE_KEY;
+use crate::scraper::MODEL_KEY;
+use crate::scraper::PHONE_KEY;
+use crate::scraper::POWER_KEY;
+use crate::scraper::PRICE_KEY;
+use crate::scraper::PUBLISHED_ON_KEY;
+use crate::scraper::SOLD_KEY;
+use crate::scraper::TOP_KEY;
+use crate::scraper::VIEW_COUNT_KEY;
+use crate::scraper::VIP_KEY;
+use crate::scraper::YEAR_KEY;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
@@ -45,8 +63,6 @@ lazy_static! {
 pub fn details2map(document: Html) -> HashMap<String, String> {
     let mut map = HashMap::new();
 
-    map.insert("type".to_string(), "DETAILS".to_string());
-
     let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
         txt.text().collect::<Vec<_>>().join("")
     } else {
@@ -60,9 +76,9 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
         "Unknown".to_string()
     };
     let is_dealer = document.select(&DEALER_SELECTOR).next().is_some();
-    map.insert("phone".to_string(), phone);
-    map.insert("dealer".to_string(), (!is_dealer).to_string());
-    map.insert("location".to_string(), address);
+    map.insert(PHONE_KEY.to_string(), phone);
+    map.insert(DEALER_KEY.to_string(), (!is_dealer).to_string());
+    map.insert(LOCATION_KEY.to_string(), address);
 
     if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next() {
         let text = h1_element.text().collect::<Vec<_>>().join(";");
@@ -74,33 +90,33 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
         if values.len() < 2 {
             return HashMap::new();
         } else {
-            map.insert("make".to_string(), values[0].to_string());
-            map.insert("model".to_string(), values[1].to_string());
+            map.insert(MAKE_KEY.to_string(), values[0].to_string());
+            map.insert(MODEL_KEY.to_string(), values[1].to_string());
         }
     }
 
     if document.select(&KAPARO_SELECTOR).count() > 0 {
-        map.insert("sold".to_string(), "true".to_string());
+        map.insert(SOLD_KEY.to_string(), "true".to_string());
     } else {
-        map.insert("sold".to_string(), "false".to_string());
+        map.insert(SOLD_KEY.to_string(), "false".to_string());
     }
 
     if let Some(element) = document.select(&UPDATED_ON_SELECTOR).next() {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         if let Some(updated_on) = extract_date(&txt) {
-            map.insert("updated_on".to_string(), updated_on);
+            map.insert(PUBLISHED_ON_KEY.to_string(), updated_on);
         } else {
-            map.insert("updated_on".to_string(), "".to_string());
+            map.insert(PUBLISHED_ON_KEY.to_string(), "".to_string());
         }
     }
 
     if document.select(&TOP_SELECTOR).count() > 0 {
-        map.insert("top".to_string(), "true".to_string());
+        map.insert(TOP_KEY.to_string(), "true".to_string());
     } else if document.select(&VIP_SELECTOR).count() > 0 {
-        map.insert("vip".to_string(), "true".to_string());
+        map.insert(VIP_KEY.to_string(), "true".to_string());
     } else {
-        map.insert("top".to_string(), "false".to_string());
-        map.insert("vip".to_string(), "false".to_string());
+        map.insert(TOP_KEY.to_string(), "false".to_string());
+        map.insert(VIP_KEY.to_string(), "false".to_string());
     }
 
     for element in document.select(&DILAR_SELECTOR) {
@@ -112,14 +128,14 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
                 let v = l.split('_').collect::<Vec<&str>>();
                 if v.len() >= 3 {
                     if ENGINE_TXT == v[1] {
-                        map.insert("engine".to_string(), v[2].to_string());
+                        map.insert(ENGINE_KEY.to_string(), v[2].to_string());
                     }
                     if GEARBOX_TXT == v[1] {
-                        map.insert("gearbox".to_string(), v[2].to_string());
+                        map.insert(GEARBOX_KEY.to_string(), v[2].to_string());
                     }
 
                     if v[1].contains(POWER_TXT) {
-                        map.insert("power".to_string(), extract_integers(v[2])[0].to_string());
+                        map.insert(POWER_KEY.to_string(), extract_integers(v[2])[0].to_string());
                     }
 
                     if v[1].contains(MILLAGE_TXT) {
@@ -131,12 +147,12 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
                                 .collect::<String>()
                                 .parse::<i32>()
                             {
-                                map.insert("millage".to_string(), numeric_value.to_string());
+                                map.insert(MILEAGE_KEY.to_string(), numeric_value.to_string());
                             } else {
-                                map.insert("millage".to_string(), "0".to_string());
+                                map.insert(MILEAGE_KEY.to_string(), "0".to_string());
                             }
                         } else {
-                            error!("Millage not found for");
+                            error!("Milage not found for");
                         }
                     }
 
@@ -150,9 +166,9 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
                             .collect::<String>()
                             .parse::<i32>()
                         {
-                            map.insert("year".to_string(), numeric_value.to_string());
+                            map.insert(YEAR_KEY.to_string(), numeric_value.to_string());
                         } else {
-                            map.insert("year".to_string(), "0".to_string());
+                            map.insert(YEAR_KEY.to_string(), "0".to_string());
                         }
                     }
                 }
@@ -163,7 +179,7 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
     for element in document.select(&ADV_ACT_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join(" ");
         map.insert(
-            "view_count".to_string(),
+            VIEW_COUNT_KEY.to_string(),
             extract_integers(&txt)[0].to_string(),
         );
     }
@@ -171,8 +187,8 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
     for element in document.select(&DETAILS_PRICE_SELECTOR) {
         let txt = element.text().collect::<Vec<_>>().join("");
         let (price, currency) = process_price(txt);
-        map.insert("currency".to_string(), currency.to_string());
-        map.insert("price".to_string(), price.to_string());
+        map.insert(CURRENCY_KEY.to_string(), currency.to_string());
+        map.insert(PRICE_KEY.to_string(), price.to_string());
     }
 
     let divs = document.select(&DIV_MARGIN_SELECTOR);
@@ -188,7 +204,7 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
     }
     if !&extras.is_empty() {
         map.insert(
-            "equipment".to_string(),
+            EQUIPMENT_KEY.to_string(),
             get_equipment_as_u64(extras, &MOBILE_BG_EQUIPMENT).to_string(),
         );
     }

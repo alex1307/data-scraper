@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 use crate::BROWSER_USER_AGENT;
 
@@ -14,7 +15,7 @@ lazy_static! {
         .unwrap();
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Default)]
 pub struct LinkId {
     pub url: String,
     pub id: String,
@@ -23,6 +24,12 @@ pub struct LinkId {
 impl PartialEq for LinkId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl Hash for LinkId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
@@ -85,13 +92,11 @@ impl Scraper {
         if total_number == 0 {
             return Ok(0);
         }
-        let number_of_pages: u32 = (total_number / 20)
-            .try_into()
-            .map_err(|_| "Failed to convert total number of pages to u32")?;
+        let number_of_pages: u32 = total_number / 20;
         if total_number % 20 == 0 {
-            return Ok(number_of_pages);
+            Ok(number_of_pages)
         } else {
-            return Ok(number_of_pages + 1);
+            Ok(number_of_pages + 1)
         }
     }
 

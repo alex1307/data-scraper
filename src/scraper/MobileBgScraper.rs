@@ -9,7 +9,7 @@ use crate::scraper::mobile_bg_helpers::slink;
 
 use super::{
     mobile_bg_helpers::{details2map, get_url},
-    scraper_trait::{LinkId, Scraper, ScraperTrait},
+    ScraperTrait::{LinkId, Scraper, ScraperTrait},
 };
 #[derive(Debug, Clone)]
 pub struct MobileBGScraper {
@@ -81,23 +81,17 @@ impl ScraperTrait for MobileBGScraper {
         let re = Regex::new(r"adv=(\d+)").unwrap();
         for element in document.select(&selector) {
             if let Some(url) = get_url(&element) {
-                if url.contains(r#"https:"#) {
-                    if let Some(caps) = re.captures(&url) {
-                        if let Some(matched) = caps.get(1) {
-                            links.push(LinkId {
-                                id: matched.as_str().to_owned(),
-                                url,
-                            });
-                        }
-                    }
+                let url = if url.contains(r#"https:"#) {
+                    url
                 } else {
-                    if let Some(caps) = re.captures(&url) {
-                        if let Some(matched) = caps.get(1) {
-                            links.push(LinkId {
-                                id: matched.as_str().to_owned(),
-                                url: format!("https:{}", url),
-                            });
-                        }
+                    format!("https:{}", url)
+                };
+                if let Some(caps) = re.captures(&url) {
+                    if let Some(matched) = caps.get(1) {
+                        links.push(LinkId {
+                            id: matched.as_str().to_owned(),
+                            url,
+                        });
                     }
                 }
             }
@@ -125,7 +119,10 @@ mod screaper_mobile_bg_test {
     use std::collections::{HashMap, HashSet};
 
     use crate::{
-        scraper::scraper_trait::{LinkId, ScraperTrait as _},
+        scraper::{
+            MobileBgScraper,
+            ScraperTrait::{LinkId, ScraperTrait as _},
+        },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
@@ -134,7 +131,8 @@ mod screaper_mobile_bg_test {
     #[tokio::test]
     async fn total_number_test() {
         configure_log4rs(&LOG_CONFIG);
-        let mobile_bg = super::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+        let mobile_bg =
+            MobileBgScraper::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
         let mut params = HashMap::new();
         params.insert("act".to_owned(), "3".to_owned());
         params.insert("f10".to_owned(), "2004".to_owned());
@@ -179,7 +177,8 @@ mod screaper_mobile_bg_test {
     #[tokio::test]
     async fn process_mobile_bg_details_test() {
         configure_log4rs(&LOG_CONFIG);
-        let cars_bg = super::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+        let cars_bg =
+            MobileBgScraper::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
         let mut params = HashMap::new();
         params.insert("act".to_owned(), "3".to_owned());
         params.insert("f10".to_owned(), "2004".to_owned());

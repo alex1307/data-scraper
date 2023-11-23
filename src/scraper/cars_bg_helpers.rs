@@ -3,11 +3,15 @@ use std::{collections::HashMap, thread::sleep, time::Duration, vec};
 use chrono::{naive, Local};
 use log::{debug, info};
 use scraper::{Html, Selector};
-use serde::Deserialize;
 
-use crate::{config::equipment, model::enums::Engine, BROWSER_USER_AGENT, CARS_BG_LISTING_URL};
+use crate::{
+    config::equipment, model::enums::Engine, scraper::PUBLISHED_ON_KEY, CARS_BG_LISTING_URL,
+};
 
-use super::mobile_bg_helpers::get_pages_async;
+use super::{
+    mobile_bg_helpers::get_pages_async, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY,
+    LOCATION_KEY, MAKE_KEY, MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, YEAR_KEY,
+};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -15,11 +19,6 @@ lazy_static! {
     static ref VIEW_COUNT_SELECTOR: Selector = Selector::parse("div#offer_view_count").unwrap();
     static ref MAKE_MODEL_SELECTOR: Selector = Selector::parse("div.text-copy h2").unwrap();
     static ref PHONE_SELECTOR: Selector = Selector::parse("a.a_call_link > div").unwrap();
-}
-#[derive(Debug, Deserialize)]
-struct ViewCounts {
-    status: String,
-    value_resettable: u32,
 }
 
 fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
@@ -36,7 +35,7 @@ fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
 }
 
 async fn list_pages(url: &str) -> u32 {
-    let html = get_pages_async(&url, false).await.unwrap();
+    let html = get_pages_async(url, false).await.unwrap();
     let document = Html::parse_document(&html);
     let total_number_selector = Selector::parse("span.milestoneNumberTotal").unwrap();
     let element = document.select(&total_number_selector).next().unwrap();
@@ -57,7 +56,7 @@ pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<HashMap<Stri
     let number_of_pages = list_pages(&url).await;
     let html = get_pages_async(&url, false).await.unwrap();
     if number_of_pages == 1 {
-        return read_listing(&html, false);
+        read_listing(&html, false)
     } else {
         let mut result = read_listing(&html, false);
         for i in 2..number_of_pages {
@@ -67,7 +66,7 @@ pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<HashMap<Stri
             let html = get_pages_async(&url, false).await.unwrap();
             result.extend(read_listing(&html, false));
         }
-        return result;
+        result
     }
 }
 
@@ -103,13 +102,13 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
                 let date = holder[0].trim_end_matches(',');
                 if r#"днес"# == date {
                     let today = Local::now().date_naive();
-                    map.insert("published_on".to_owned(), today.to_string());
+                    map.insert(PUBLISHED_ON_KEY.to_owned(), today.to_string());
                 } else if r#"вчера"# == date {
                     let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
-                    map.insert("published_on".to_owned(), yesterday.to_string());
+                    map.insert(PUBLISHED_ON_KEY.to_owned(), yesterday.to_string());
                 } else {
                     let published_on = naive::NaiveDate::parse_from_str(date, "%d.%m.%y").unwrap();
-                    map.insert("published_on".to_owned(), published_on.to_string());
+                    map.insert(PUBLISHED_ON_KEY.to_owned(), published_on.to_string());
                 }
             } else if fragment_counter == 2 {
                 let price = holder[0]
@@ -118,14 +117,14 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
                     .collect::<String>()
                     .parse::<i32>()
                     .unwrap_or(0);
-                map.insert("price".to_owned(), price.to_string());
+                map.insert(PRICE_KEY.to_owned(), price.to_string());
                 break;
             }
             fragment_counter += 1;
         }
 
         let card_2nd_line_selector = Selector::parse("div.card__secondary").unwrap();
-        for v in html_fragment.select(&card_2nd_line_selector) {
+        if let Some(v) = html_fragment.select(&card_2nd_line_selector).next() {
             let holder = v
                 .inner_html()
                 .split_ascii_whitespace()
@@ -145,50 +144,27 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
                 .unwrap_or(0);
 
             if let Ok(engine) = <Engine as std::str::FromStr>::from_str(&holder[1]) {
-                map.insert("engine".to_owned(), engine.to_string());
+                map.insert(ENGINE_KEY.to_owned(), engine.to_string());
             }
-            map.insert("year".to_owned(), year.to_string());
-            map.insert("millage".to_owned(), millage.to_string());
+            map.insert(YEAR_KEY.to_owned(), year.to_string());
+            map.insert(MILEAGE_KEY.to_owned(), millage.to_string());
             break;
         }
+
         let card_footer_selector = Selector::parse("div.card__footer").unwrap();
         for v in html_fragment.select(&card_footer_selector) {
             let holder = v
                 .inner_html()
-                .replace("\n", "")
-                .split(",")
+                .replace('\n', "")
+                .split(',')
                 .map(|s| s.trim().to_owned())
                 .collect::<Vec<String>>();
             let location = holder[1].to_owned();
-            map.insert("location".to_owned(), location);
+            map.insert(LOCATION_KEY.to_owned(), location);
         }
         result.push(map);
     }
     result
-}
-
-pub async fn get_view_counts(id: String) -> Result<u32, String> {
-    let client = match reqwest::Client::builder()
-        .user_agent(BROWSER_USER_AGENT)
-        .build()
-    {
-        Ok(client) => client,
-        Err(e) => return Err(e.to_string()),
-    };
-    let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    client.get(url).send().await.unwrap();
-    let url = format!("https://stats.cars.bg/get/?object_id={}", id);
-    let response = client.get(url).send().await;
-
-    match response {
-        Ok(response) => match response.json::<ViewCounts>().await {
-            Ok(views) => {
-                return Ok(views.value_resettable);
-            }
-            Err(e) => return Err(e.to_string()),
-        },
-        Err(e) => Err(e.to_string()),
-    }
 }
 
 pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
@@ -197,8 +173,9 @@ pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
     let selector = Selector::parse("div.offer-item").unwrap();
     let mut ids = vec![];
     for element in document.select(&selector) {
-        let id = element.value().attr("data-id").unwrap();
-        ids.push(id.to_owned());
+        if let Some(id) = element.value().attr("data-id") {
+            ids.push(id.to_owned());
+        }
     }
     Ok(ids)
 }
@@ -206,9 +183,9 @@ pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
 pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
     let mut result = HashMap::new();
     if html.contains(r#"Частно лице"#) {
-        result.insert("dealer".to_owned(), "false".to_owned());
+        result.insert(DEALER_KEY.to_owned(), "false".to_owned());
     } else {
-        result.insert("dealer".to_owned(), "true".to_owned());
+        result.insert(DEALER_KEY.to_owned(), "true".to_owned());
     }
     let document = Html::parse_document(&html);
     if let Some(el) = document.select(&PRICE_SELECTOR).next() {
@@ -219,32 +196,34 @@ pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
             .collect::<String>()
             .parse::<i32>()
             .unwrap_or(0);
-        result.insert("price".to_owned(), price.to_string());
+        result.insert(PRICE_KEY.to_owned(), price.to_string());
     } else {
         result.clear();
         return result;
     }
 
-    let phone = document
-        .select(&PHONE_SELECTOR)
-        .next()
-        .unwrap()
-        .inner_html();
-    result.insert(
-        "phone".to_owned(),
-        phone.replace("\n", "").trim().to_string(),
-    );
-    let make_model = document
-        .select(&MAKE_MODEL_SELECTOR)
-        .next()
-        .unwrap()
-        .inner_html()
-        .split_ascii_whitespace()
-        .map(|s| s.to_owned())
-        .collect::<Vec<String>>();
+    if let Some(phone_txt) = document.select(&PHONE_SELECTOR).next() {
+        let phone = phone_txt.inner_html();
+        result.insert(
+            PHONE_KEY.to_owned(),
+            phone.replace('\n', "").trim().to_string(),
+        );
+    }
+    let make_model = document.select(&MAKE_MODEL_SELECTOR).next();
+    let make_model = match make_model {
+        None => {
+            result.clear();
+            return result;
+        }
+        Some(mm) => mm
+            .inner_html()
+            .split_ascii_whitespace()
+            .map(|s| s.to_owned())
+            .collect::<Vec<String>>(),
+    };
     if make_model.len() > 1 {
-        result.insert("make".to_owned(), make_model[0].to_owned());
-        result.insert("model".to_owned(), make_model[1].to_owned());
+        result.insert(MAKE_KEY.to_owned(), make_model[0].to_owned());
+        result.insert(MODEL_KEY.to_owned(), make_model[1].to_owned());
     } else {
         result.clear();
         return result;
@@ -265,29 +244,29 @@ pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
         debug!("UPDATED ON: {}", date);
         if date.contains(r#"днес"#) {
             let today = Local::now().date_naive();
-            result.insert("updated_on".to_owned(), today.to_string());
+            result.insert(PUBLISHED_ON_KEY.to_owned(), today.to_string());
         } else if date.contains(r#"вчера"#) {
             let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
-            result.insert("updated_on".to_owned(), yesterday.to_string());
+            result.insert(PUBLISHED_ON_KEY.to_owned(), yesterday.to_string());
         } else {
-            let published_on = match naive::NaiveDate::parse_from_str(&date.trim(), "%d.%m.%y") {
+            let published_on = match naive::NaiveDate::parse_from_str(date.trim(), "%d.%m.%y") {
                 Ok(date) => date,
                 Err(e) => {
                     info!("Error parsing date: {}", e);
                     continue;
                 }
             };
-            result.insert("updated_on".to_owned(), published_on.to_string());
+            result.insert(PUBLISHED_ON_KEY.to_owned(), published_on.to_string());
         }
         break;
     }
 
     if strong.len() >= 2 {
-        result.insert("year".to_owned(), strong[0].to_owned());
-        result.insert("location".to_owned(), strong[1].to_owned());
+        result.insert(YEAR_KEY.to_owned(), strong[0].to_owned());
+        result.insert(LOCATION_KEY.to_owned(), strong[1].to_owned());
     }
     get_vehicle_equipment(&document, &mut result);
-    return result;
+    result
 }
 
 fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
@@ -314,7 +293,7 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
 
     for eq in equipment.iter() {
         if eq.contains(r#"скорости"#) {
-            data.insert("gearbox".to_owned(), eq.to_string());
+            data.insert(GEARBOX_KEY.to_owned(), eq.to_string());
         } else if eq.contains(r#"к.с."#) {
             let numeric = eq
                 .chars()
@@ -322,7 +301,7 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
                 .collect::<String>()
                 .parse::<i32>()
                 .unwrap_or(0);
-            data.insert("power".to_owned(), numeric.to_string());
+            data.insert(POWER_KEY.to_owned(), numeric.to_string());
         } else if eq.contains(r#"км"#) {
             let numeric = eq
                 .chars()
@@ -330,18 +309,18 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
                 .collect::<String>()
                 .parse::<i32>()
                 .unwrap_or(0);
-            data.insert("millage".to_owned(), numeric.to_string());
+            data.insert(MILEAGE_KEY.to_owned(), numeric.to_string());
         } else if eq.contains("Газ/Бензин")
             || eq.contains("Дизел")
             || eq.contains("Бензин")
             || eq.contains("Електричество")
             || eq.contains("Хибрид")
         {
-            data.insert("engine".to_owned(), eq.to_string());
+            data.insert(ENGINE_KEY.to_owned(), eq.to_string());
         }
     }
     let equipment_id = equipment::get_equipment_as_u64(equipment, &equipment::CARS_BG_EQUIPMENT);
-    data.insert("equipment".to_owned(), equipment_id.to_string());
+    data.insert(EQUIPMENT_KEY.to_owned(), equipment_id.to_string());
 
     //println!("equipment * : {:?}", equipment);
 }
@@ -381,7 +360,7 @@ mod test_cars_bg {
             .unwrap_or("N/A");
         let mileage = mileage_regex
             .find(input)
-            .map(|m| m.as_str().replace(" ", ""));
+            .map(|m| m.as_str().replace(' ', ""));
         let power = power_regex
             .find(input)
             .map(|m| m.as_str().replace("к.с", ""));

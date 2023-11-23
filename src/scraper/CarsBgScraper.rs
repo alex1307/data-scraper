@@ -2,17 +2,17 @@ use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, error, info};
 
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
 use crate::{
-    scraper::{cars_bg_helpers::read_carsbg_details, scraper_trait::LinkId},
+    scraper::{cars_bg_helpers::read_carsbg_details, ScraperTrait::LinkId},
     BROWSER_USER_AGENT,
 };
 
-use super::scraper_trait::{Scraper, ScraperTrait};
+use super::ScraperTrait::{Scraper, ScraperTrait};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -29,16 +29,31 @@ struct ViewCountsCarsBG {
 
 pub async fn get_view_count(id: String) -> Result<u32, String> {
     let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    REQWEST_ASYNC_CLIENT.get(url).send().await.unwrap();
+    match REQWEST_ASYNC_CLIENT.get(url).send().await {
+        Ok(_) => (),
+        Err(e) => {
+            error!(
+                "Error setting counter for: {}. Error: {}",
+                id,
+                e.to_string()
+            );
+            return Ok(0);
+        }
+    };
     let url = format!("https://stats.cars.bg/get/?object_id={}", id);
     let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
 
     match response {
         Ok(response) => match response.json::<ViewCountsCarsBG>().await {
-            Ok(views) => {
-                return Ok(views.value_resettable);
+            Ok(views) => Ok(views.value_resettable),
+            Err(e) => {
+                error!(
+                    "Error setting counter for: {}. Error: {}",
+                    id,
+                    e.to_string()
+                );
+                Ok(0)
             }
-            Err(e) => return Err(e.to_string()),
         },
         Err(e) => Err(e.to_string()),
     }
@@ -96,7 +111,7 @@ impl ScraperTrait for CarsBGScraper {
         for element in document.select(&selector) {
             let html_fragment = Html::parse_fragment(element.inner_html().as_str());
             let selector = Selector::parse("a").unwrap();
-            for e in html_fragment.select(&selector) {
+            if let Some(e) = html_fragment.select(&selector).next() {
                 let href = e.value().attr("href").unwrap();
                 let id = href.split("/offer/").last().unwrap();
                 ids.push(LinkId {
@@ -113,9 +128,19 @@ impl ScraperTrait for CarsBGScraper {
     async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
         let html = self.parent.html_search(&link.url, None).await?;
         let mut result = read_carsbg_details(html);
-        let views = get_view_count(link.id.clone()).await?;
+        match get_view_count(link.id.clone()).await {
+            Ok(views) => {
+                result.insert("view_count".to_owned(), views.to_string());
+            }
+            Err(e) => {
+                error!(
+                    "Error setting counter for: {}. Error: {}",
+                    link.id,
+                    e.to_string()
+                );
+            }
+        }
         result.insert("id".to_owned(), link.id);
-        result.insert("view_count".to_owned(), views.to_string());
         Ok(result)
     }
 
@@ -131,7 +156,7 @@ mod cars_bg_tests {
     use log::info;
 
     use crate::{
-        scraper::{scraper_cars_bg::CarsBGScraper, scraper_trait::ScraperTrait as _},
+        scraper::{CarsBgScraper::CarsBGScraper, ScraperTrait::ScraperTrait as _},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
