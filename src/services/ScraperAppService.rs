@@ -150,8 +150,9 @@ async fn mobile_bg_searches() -> Vec<HashMap<String, String>> {
     params.insert("topmenu".to_string(), "1".to_string());
 
     for search in meta_searches.clone() {
-        let slink = MOBILE_BG_CRAWLER.slink(search).await.unwrap();
+        let slink = MOBILE_BG_CRAWLER.slink(search.clone()).await.unwrap();
         params.insert("slink".to_owned(), slink.clone());
+        info!("slink: {} for search: {:?}", slink, search);
         searches.push(params.clone());
     }
     searches
@@ -193,10 +194,15 @@ where
 #[cfg(test)]
 mod app_test {
     use std::collections::HashMap;
+    use std::str::FromStr;
+
+    use log::info;
 
     use super::run_scraper;
     use crate::scraper::CarsBgScraper::CarsBGScraper;
     use crate::scraper::MobileBgScraper::MobileBGScraper;
+    use crate::scraper::ScraperTrait::ScraperTrait;
+    use crate::services::ScraperAppService::{Crawlers, CARS_BG_CRAWLER, MOBILE_BG_CRAWLER};
     use crate::utils::helpers::configure_log4rs;
     use crate::LOG_CONFIG;
 
@@ -257,4 +263,34 @@ mod app_test {
         .await
         .unwrap();
     }
+
+    #[tokio::test]
+    async fn test_cars_bg_searches() {
+        let crawler = Crawlers::from_str("cars.bg").unwrap();
+        configure_log4rs(&LOG_CONFIG);
+        let searches = super::searches(crawler).await;
+        let mut total = 0;
+        for search in searches {
+            let total_number = CARS_BG_CRAWLER.total_number(search.clone()).await.unwrap();
+            total += total_number;
+            info!("total_number: {} for search: {:?}", total_number, search);
+        }
+        info!("total: {}", total);
+    }
+
+    #[tokio::test]
+    async fn test_mobile_bg_searches() {
+        let crawler = Crawlers::from_str("mobile.bg").unwrap();
+        configure_log4rs(&LOG_CONFIG);
+        let searches = super::searches(crawler).await;
+        let mut total = 0;
+        for search in searches {
+            let total_number = MOBILE_BG_CRAWLER.total_number(search.clone()).await.unwrap();
+            total += total_number;
+            info!("total_number: {} for search: {:?}", total_number, search);
+        }
+        info!("total: {}", total);
+    }
+
 }
+
