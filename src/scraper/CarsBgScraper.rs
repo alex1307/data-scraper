@@ -24,7 +24,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, Deserialize)]
 struct ViewCountsCarsBG {
-    status: String,
+    _status: String,
     value_resettable: u32,
 }
 
@@ -113,13 +113,15 @@ impl ScraperTrait for CarsBGScraper {
             let html_fragment = Html::parse_fragment(element.inner_html().as_str());
             let selector = Selector::parse("a").unwrap();
             for e in html_fragment.select(&selector) {
-                let href = e.value().attr("href").unwrap();
-                let id = href.split("/offer/").last().unwrap();
-                ids.push(LinkId {
-                    url: href.to_string(),
-                    id: id.to_owned(),
-                });
-                break;
+                if let Some(href) = e.value().attr("href") {
+                    if let Some(id) = href.split("/offer/").last() {
+                        ids.push(LinkId {
+                            url: href.to_string(),
+                            id: id.to_owned(),
+                        });
+                        break;
+                    }
+                }
             }
         }
         debug!("ids: {:?}", ids);
@@ -189,6 +191,7 @@ mod cars_bg_tests {
 
         assert!(all.len() > 0);
         assert_eq!(all.len(), total_number as usize);
+        info!("all: {:?}", all);
     }
 
     #[tokio::test]

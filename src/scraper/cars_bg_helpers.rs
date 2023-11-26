@@ -411,7 +411,7 @@ mod test_cars_bg {
         debug!("records: {:?}", records.len());
         for record in records {
             sleep(Duration::from_millis(150));
-            let id = record.get("id").unwrap();
+            let _id = record.get("id").unwrap();
         }
     }
 
