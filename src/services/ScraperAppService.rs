@@ -11,7 +11,7 @@ use crate::{
     },
     services::ScraperService::{process, save},
     utils::helpers::create_empty_csv,
-    CARS_BG_INSALE_FILE_NAME, INSALE_FILE_NAME,
+    CARS_BG_INSALE_FILE_NAME, MOBILE_BG_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -68,7 +68,7 @@ pub async fn lets_scrape(crawler: &str) -> Result<(), String> {
             let searches = searches(crawler.clone()).await;
             run_scraper(
                 MOBILE_BG_CRAWLER.clone(),
-                INSALE_FILE_NAME.to_owned(),
+                MOBILE_BG_FILE_NAME.to_owned(),
                 searches,
                 "mobile.bg",
             )
@@ -167,13 +167,12 @@ pub async fn run_scraper<T: ScraperTrait + Clone + Send>(
 where
     T: 'static,
 {
-    let (link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<LinkId>(1000);
-    let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<MobileRecord>(1000);
+    let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<MobileRecord>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
     let process_scraper = scraper.clone();
-    let mut link_producer = link_producer.clone();
     let start_handler =
         tokio::spawn(async move { start(Box::new(scraper), searches, &mut link_producer).await });
     let process_handler = tokio::spawn(async move {
@@ -285,12 +284,13 @@ mod app_test {
         let searches = super::searches(crawler).await;
         let mut total = 0;
         for search in searches {
-            let total_number = MOBILE_BG_CRAWLER.total_number(search.clone()).await.unwrap();
+            let total_number = MOBILE_BG_CRAWLER
+                .total_number(search.clone())
+                .await
+                .unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
         }
         info!("total: {}", total);
     }
-
 }
-
