@@ -3,13 +3,12 @@ use std::{collections::HashMap, time::Duration};
 use log::{debug, error, info};
 use tokio::{
     sync::mpsc::{Receiver, Sender},
-    time::{sleep, timeout},
+    time::timeout,
 };
 
 use crate::{
     model::records::MobileRecord,
     scraper::ScraperTrait::{LinkId, ScraperTrait},
-    services::SEMAPHORE,
     writer::persistance::{MobileData, MobileDataWriter},
 };
 
