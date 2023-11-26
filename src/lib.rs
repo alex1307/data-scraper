@@ -38,8 +38,8 @@ lazy_static! {
     pub static ref CREATED_ON: String = chrono::Utc::now().format(DATE_FORMAT).to_string();
     pub static ref ARCHIVE_FILE_NAME: String =
         format!("{}/vehicle.archive.csv", CONFIG.get_data_dir());
-    pub static ref INSALE_FILE_NAME: String = format!(
-        "{}/vehicle-{}.csv",
+    pub static ref MOBILE_BG_FILE_NAME: String = format!(
+        "{}/mobile-bg-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );

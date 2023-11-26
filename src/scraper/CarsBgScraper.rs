@@ -16,6 +16,7 @@ use super::ScraperTrait::{Scraper, ScraperTrait};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
         .user_agent(BROWSER_USER_AGENT)
         .build()
         .unwrap();
@@ -28,18 +29,18 @@ struct ViewCountsCarsBG {
 }
 
 pub async fn get_view_count(id: String) -> Result<u32, String> {
-    let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    match REQWEST_ASYNC_CLIENT.get(url).send().await {
-        Ok(_) => (),
-        Err(e) => {
-            error!(
-                "Error setting counter for: {}. Error: {}",
-                id,
-                e.to_string()
-            );
-            return Ok(0);
-        }
-    };
+    // let url = format!("https://stats.cars.bg/add/?object_id={}", id);
+    // // match REQWEST_ASYNC_CLIENT.get(url).send().await {
+    // //     Ok(_) => (),
+    // //     Err(e) => {
+    // //         error!(
+    // //             "Error setting counter for: {}. Error: {}",
+    // //             id,
+    // //             e.to_string()
+    // //         );
+    // //         return Ok(0);
+    // //     }
+    // // };
     let url = format!("https://stats.cars.bg/get/?object_id={}", id);
     let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
 
@@ -111,7 +112,7 @@ impl ScraperTrait for CarsBGScraper {
         for element in document.select(&selector) {
             let html_fragment = Html::parse_fragment(element.inner_html().as_str());
             let selector = Selector::parse("a").unwrap();
-            if let Some(e) = html_fragment.select(&selector).next() {
+            for e in html_fragment.select(&selector) {
                 let href = e.value().attr("href").unwrap();
                 let id = href.split("/offer/").last().unwrap();
                 ids.push(LinkId {

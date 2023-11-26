@@ -10,7 +10,7 @@ async fn main() {
     let args = std::env::args().collect::<Vec<String>>();
     info!("Starting crawler: {:?}", args);
     if args.len() < 2 {
-        println!("Usage: ./crawler cars.bg or mobile.bg");
+        info!("Usage: ./crawler cars.bg or mobile.bg");
         return;
     }
 
@@ -21,8 +21,8 @@ async fn main() {
     };
 
     if let Ok(()) = crawler {
-        println!("Success");
+        info!("Success");
     } else {
-        println!("Scraping failed.");
+        info!("Scraping failed.");
     }
 }
