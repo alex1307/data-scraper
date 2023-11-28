@@ -1,23 +1,60 @@
-use data_scraper::services::ScraperAppService::lets_scrape;
+use data_scraper::services::ScraperAppService::{download_new_vehicles, Crawlers, download_all};
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 
 use log::info;
 
+use clap::{Args, Parser, Subcommand, command};
+
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+
+#[derive(Args, Debug)]
+struct CrawlerArgs {
+    source: String,
+}
+
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    ScrapeAll(CrawlerArgs),
+    ScrapeNew(CrawlerArgs),
+}
+
+
 #[tokio::main]
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
-    let args = std::env::args().collect::<Vec<String>>();
-    info!("Starting crawler: {:?}", args);
-    if args.len() < 2 {
-        info!("Usage: ./crawler cars.bg or mobile.bg");
-        return;
-    }
+    let command = Cli::parse();
+    let cmd = &command.command;
 
-    let crawler_name = &args[1];
-    let crawler = match crawler_name.to_lowercase().as_str() {
-        "mobile.bg" => lets_scrape("mobile.bg").await,
-        _ => lets_scrape("cars.bg").await,
+    let crawler = match cmd {
+        Commands::ScrapeAll(args) => {
+            info!("Starting crawler: {:?}", command);
+            info!("cmd: {:?}", cmd);
+            info!("args: {:?}", args);
+            if args.source.is_empty() {
+                info!("Usage: ./crawler cars.bg or mobile.bg");
+                return;
+            }
+            download_all(&args.source).await
+        },
+        Commands::ScrapeNew(args) => {
+            info!("Starting crawler: {:?}", command);
+            info!("cmd: {:?}", cmd);
+            info!("args: {:?}", args);
+            if args.source.is_empty() {
+                info!("Usage: ./crawler cars.bg or mobile.bg");
+                return;
+            }
+            download_new_vehicles(&args.source).await
+        },
     };
 
     if let Ok(()) = crawler {

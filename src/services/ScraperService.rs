@@ -7,7 +7,7 @@ use tokio::{
 };
 
 use crate::{
-    model::records::MobileRecord,
+    model::{records::MobileRecord, traits::SetIdentity},
     scraper::ScraperTrait::{LinkId, ScraperTrait},
     writer::persistance::{MobileData, MobileDataWriter},
 };
@@ -100,6 +100,7 @@ where
                     .await
                     .unwrap();
                 for id in ids {
+                    
                     if let Err(e) = cloned_producer.send(id).await {
                         error!("Error sending id: {}", e);
                     }
@@ -168,18 +169,16 @@ where
     Ok(())
 }
 
-pub async fn save(
-    mut records_producer: Receiver<MobileRecord>,
+pub async fn save<T: Clone + serde::Serialize>(
+    mut receiver: Receiver<T>,
     file_name: String,
-    source: &str,
 ) -> Result<(), String> {
     let mut counter = 0;
     let mut data = vec![];
 
-    while let Some(mut record) = records_producer.recv().await {
+    while let Some(record) = receiver.recv().await {
         counter += 1;
         debug!("Processed data counter: {}", counter);
-        record.id = format!("{}-{}", source, record.id);
         data.push(record.clone());
         if counter % 50 == 0 {
             save2file(&file_name, data.clone());

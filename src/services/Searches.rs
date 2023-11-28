@@ -4,7 +4,7 @@ use log::info;
 
 use crate::services::ScraperAppService::MOBILE_BG_CRAWLER;
 
-pub async fn cars_bg_new_searche() -> Vec<HashMap<String, String>> {
+pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
     map.insert("subm".to_owned(), "1".to_owned());
     map.insert("add_search".to_owned(), "1".to_owned());
@@ -16,7 +16,7 @@ pub async fn cars_bg_new_searche() -> Vec<HashMap<String, String>> {
     price_filter("priceForm", "priceTo", map.clone())
 }
 
-pub async fn cars_bg_all_searche() -> Vec<HashMap<String, String>> {
+pub fn cars_bg_all_searches() -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
     map.insert("subm".to_owned(), "1".to_owned());
     map.insert("add_search".to_owned(), "1".to_owned());
