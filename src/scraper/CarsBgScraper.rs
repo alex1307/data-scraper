@@ -24,7 +24,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, Deserialize)]
 struct ViewCountsCarsBG {
-    _status: String,
+    status: String,
     value_resettable: u32,
 }
 
