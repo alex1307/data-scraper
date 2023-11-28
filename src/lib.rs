@@ -11,8 +11,12 @@ use std::sync::Once;
 
 use crate::config::app_config::AppConfig;
 
+pub const CARS_BG_LISTING_URL: &str = r#"https://www.cars.bg/carslist.php?"#;
+pub const CARS_BG_DETAILS_URL: &str = r#"https://www.cars.bg/offer"#;
+
 pub const LISTING_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=3&f10=2004&";
 pub const DETAILS_URL: &str = "https://www.mobile.bg/pcgi/mobile.cgi?act=4&";
+
 pub const ACTION_DETAILS: &str = "act=4";
 pub const ACTION_LIST: &str = "act=3";
 pub const DATE_FORMAT: &str = "%Y-%m-%d";
@@ -34,8 +38,8 @@ lazy_static! {
     pub static ref CREATED_ON: String = chrono::Utc::now().format(DATE_FORMAT).to_string();
     pub static ref ARCHIVE_FILE_NAME: String =
         format!("{}/vehicle.archive.csv", CONFIG.get_data_dir());
-    pub static ref INSALE_FILE_NAME: String = format!(
-        "{}/vehicle-{}.csv",
+    pub static ref MOBILE_BG_FILE_NAME: String = format!(
+        "{}/mobile-bg-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
@@ -48,6 +52,25 @@ lazy_static! {
     pub static ref FOR_UPDATE_FILE_NAME: String =
         format!("{}/ids-for-update.csv", CONFIG.get_data_dir());
     pub static ref DELETED_FILE_NAME: String = format!(
+        "{}/not-found-ids-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_INSALE_FILE_NAME: String = format!(
+        "{}/cars-bg-vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
+        "{}/cars-bg-updated-vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_METADATA_FILE_NAME: String =
+        format!("{}/cars-meta-data.csv", CONFIG.get_data_dir());
+    pub static ref CARS_BG_FOR_UPDATE_FILE_NAME: String =
+        format!("{}/cars-bg-ids-for-update.csv", CONFIG.get_data_dir());
+    pub static ref CARS_BG_DELETED_FILE_NAME: String = format!(
         "{}/not-found-ids-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
