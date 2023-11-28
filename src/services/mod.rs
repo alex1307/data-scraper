@@ -1,5 +1,6 @@
 pub mod ScraperAppService;
 pub mod ScraperService;
+pub mod Searches;
 
 use std::sync::Arc;
 
