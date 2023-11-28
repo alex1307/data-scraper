@@ -31,7 +31,7 @@ clap = { version = "4.0", features = ["derive"] }
 
 [[bin]]
 name="crawler"
-path="src/bin/scraper.rs"
+path="src/bin/crawler.rs"
 
 
 
