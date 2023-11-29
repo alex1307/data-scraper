@@ -4,6 +4,7 @@ pub mod scraper;
 pub mod services;
 pub mod utils;
 pub mod writer;
+pub mod helpers;
 
 use lazy_static::lazy_static;
 

@@ -1,6 +1,7 @@
 pub mod CarsBgScraper;
 pub mod MobileBgScraper;
 pub mod ScraperTrait;
+pub mod CarGrScraper;
 pub mod cars_bg_helpers;
 pub mod mobile_bg_helpers;
 //pub mod datastream;
