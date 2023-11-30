@@ -44,11 +44,15 @@ pub trait ScraperTrait {
     async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String>;
 
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String>;
+
+    fn get_timeout(&self) -> u64 {
+        250
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Scraper {
-    url: String,
+    pub url: String,
     page: String,
     pub wait_time_ms: u64,
 }
