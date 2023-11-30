@@ -11,7 +11,7 @@ use crate::{
     },
     services::ScraperService::{process, save},
     utils::helpers::create_empty_csv,
-    CARS_BG_INSALE_FILE_NAME, MOBILE_BG_FILE_NAME,
+    CARS_BG_ALL_FILE_NAME, CARS_BG_INSALE_FILE_NAME, MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -21,7 +21,12 @@ lazy_static! {
     pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
 }
 
-use super::{ScraperService::start, Searches::{cars_bg_new_searches, mobile_bg_new_searches, cars_bg_all_searches, mobile_bg_all_searches}};
+use super::{
+    ScraperService::start,
+    Searches::{
+        cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches, mobile_bg_new_searches,
+    },
+};
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),
@@ -57,7 +62,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             let searches = cars_bg_all_searches();
             scrape_all_vehicles(
                 CARS_BG_CRAWLER.clone(),
-                CARS_BG_INSALE_FILE_NAME.to_owned(),
+                CARS_BG_ALL_FILE_NAME.to_owned(),
                 searches,
             )
             .await
@@ -66,7 +71,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             let searches = mobile_bg_all_searches().await;
             scrape_all_vehicles(
                 MOBILE_BG_CRAWLER.clone(),
-                MOBILE_BG_FILE_NAME.to_owned(),
+                MOBILE_BG_ALL_FILE_NAME.to_owned(),
                 searches,
             )
             .await
@@ -98,8 +103,6 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
         }
     }
 }
-
-
 
 pub async fn scrape_new_vehicles<T: ScraperTrait + Clone + Send>(
     scraper: T,
@@ -145,7 +148,7 @@ where
     }
     let start_handler =
         tokio::spawn(async move { start(Box::new(scraper), searches, &mut producer).await });
-    
+
     let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
 
     if let (Ok(_), Ok(_)) = tokio::join!(start_handler, save_to_file) {

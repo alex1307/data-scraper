@@ -3,7 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use log::{debug, error, info};
 use tokio::{
     sync::mpsc::{Receiver, Sender},
-    time::timeout,
+    time::{sleep, timeout},
 };
 
 use crate::{
@@ -83,7 +83,7 @@ where
     let mut handlers = vec![];
     let mut sum_total_number = 0;
     for search in searches {
-        let total_number = scraper.total_number(search.clone()).await?;
+        let total_number = scraper.total_number(search.clone()).await?.clone();
         info!(
             "Starting search: {:?}. Found {} vehicles",
             search, total_number
@@ -95,12 +95,12 @@ where
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
             for page_number in 1..number_of_pages {
+                sleep(Duration::from_millis(250)).await;
                 let ids = cloned_scraper
                     .get_listed_ids(cloned_params.clone(), page_number)
                     .await
                     .unwrap();
                 for id in ids {
-                    
                     if let Err(e) = cloned_producer.send(id).await {
                         error!("Error sending id: {}", e);
                     }

@@ -12,8 +12,7 @@ pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
     map.insert("last".to_owned(), "1".to_owned());
     map.insert("conditions[]".to_owned(), "1".to_owned());
     map.insert("yearFrom".to_owned(), "2004".to_owned());
-    map.insert("steering_wheel".to_owned(), "1".to_owned());
-    price_filter("priceForm", "priceTo", map.clone())
+    price_filter("priceFrom", "priceTo", map.clone())
 }
 
 pub fn cars_bg_all_searches() -> Vec<HashMap<String, String>> {
@@ -21,14 +20,12 @@ pub fn cars_bg_all_searches() -> Vec<HashMap<String, String>> {
     map.insert("subm".to_owned(), "1".to_owned());
     map.insert("add_search".to_owned(), "1".to_owned());
     map.insert("typeoffer".to_owned(), "1".to_owned());
-    map.insert("last".to_owned(), "1".to_owned());
     map.insert("conditions[]".to_owned(), "1".to_owned());
-    map.insert("steering_wheel".to_owned(), "1".to_owned());
     let mut searches = vec![];
     for year in 2004..2023 {
         map.insert("yearFrom".to_owned(), year.to_string());
         map.insert("yearTo".to_owned(), (year + 1).to_string());
-        let price_filter = price_filter("priceForm", "priceTo", map.clone());
+        let price_filter = price_filter("priceFrom", "priceTo", map.clone());
         searches.extend(price_filter);
     }
     searches
