@@ -37,7 +37,6 @@ lazy_static! {
             _ => HashMap::new(),
         }
     };
-
     pub static ref CAR_GR_EQUIPMENT: HashMap<u64, String> = {
         let yaml_str = std::fs::read_to_string("config/car-gr-equipment.yml").unwrap();
         let yaml_value: Value = serde_yaml::from_str(&yaml_str).unwrap();
@@ -55,7 +54,6 @@ lazy_static! {
             _ => HashMap::new(),
         }
     };
-
 }
 
 pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {
