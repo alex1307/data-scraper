@@ -15,6 +15,7 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
+        .redirect(reqwest::redirect::Policy::limited(10))
         .user_agent(BROWSER_USER_AGENT)
         .build()
         .unwrap();

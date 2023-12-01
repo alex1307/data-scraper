@@ -67,10 +67,16 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CARS_BG_ALL_FILE_NAME: String =
-        format!("{}/cars-bg-all-data.csv", CONFIG.get_data_dir());
-    pub static ref MOBILE_BG_ALL_FILE_NAME: String =
-        format!("{}/mobile-bg-all-data.csv", CONFIG.get_data_dir());
+    pub static ref CARS_BG_ALL_FILE_NAME: String = format!(
+        "{}/cars-bg-all-data-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_ALL_FILE_NAME: String = format!(
+        "{}/mobile-bg-all-data-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
     pub static ref CARS_BG_FOR_UPDATE_FILE_NAME: String =
         format!("{}/cars-bg-ids-for-update.csv", CONFIG.get_data_dir());
     pub static ref CARS_BG_DELETED_FILE_NAME: String = format!(
