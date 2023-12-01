@@ -37,6 +37,25 @@ lazy_static! {
             _ => HashMap::new(),
         }
     };
+
+    pub static ref CAR_GR_EQUIPMENT: HashMap<u64, String> = {
+        let yaml_str = std::fs::read_to_string("config/car-gr-equipment.yml").unwrap();
+        let yaml_value: Value = serde_yaml::from_str(&yaml_str).unwrap();
+        match yaml_value["equipment"].clone() {
+            Value::Mapping(map) => {
+                let mut result_map: HashMap<u64, String> = HashMap::new();
+                for (key, value) in map {
+                    let key = key.as_i64().unwrap() as u64;
+                    let value = value.as_str().unwrap().to_owned();
+                    result_map.insert(key, value);
+                }
+                result_map
+            }
+
+            _ => HashMap::new(),
+        }
+    };
+
 }
 
 pub fn get_keys_by_values(values: &[&str]) -> Vec<u64> {

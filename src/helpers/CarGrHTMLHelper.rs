@@ -1,6 +1,43 @@
+use std::f32::consts::E;
+
 use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
+
+use crate::config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT};
+
+pub fn get_equipment(html_page: &str) -> u64 {
+    if let Some(start_index) = html_page.find("<script>window.__NUXT__=(function(a,b,c,d,") {
+        info!("start_index: {}", start_index);
+        let sub = &html_page[start_index..];
+        //info!("sub: {}", sub);
+        if let Some(end_index) = sub.find("</script>") {
+            info!("end_index: {}", end_index);
+            let sub = &sub[..end_index];
+            //info!("sub: {}", sub);
+            info!("------------------------------------");
+            if let Some(extras_start_index) = sub.find("extras:[") {
+                let extralist = &sub[extras_start_index..];
+                if let Some(extras_end_index) = extralist.find("],") {
+                    let extralist = &extralist[7..extras_end_index + 1];
+                    info!("extralist: {}", extralist);
+                    let json_text = extralist
+                        .replace("key:", "\"key\":")
+                        .replace("value:", "\"value\":")
+                        .replace("name:", "\"name\":");
+                    let values =
+                        serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
+                    let equipment_list = values.into_iter().map(|v|v.name).collect::<Vec<_>>();
+                    let equipment_id = get_equipment_as_u64(equipment_list, &CAR_GR_EQUIPMENT);
+                    return equipment_id;
+                }
+            }
+        }
+    } else {
+        info!("Not found");
+    }
+    0
+}
 
 pub fn get_listed_links(source: &str) -> Vec<String> {
     let mut links = vec![];
@@ -50,7 +87,7 @@ mod car_gr_test_suit {
     use scraper::{Html, Selector};
 
     use crate::{
-        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number, KeyValue},
+        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number, KeyValue, get_equipment},
         scraper::{
             mobile_bg_helpers::extract_numbers, CarGrScraper::CarGrScraper, ScraperTrait::Scraper,
         },
@@ -178,7 +215,6 @@ mod car_gr_test_suit {
                 });
             }
         }
- 
     }
 
     #[tokio::test]
@@ -206,37 +242,12 @@ mod car_gr_test_suit {
     #[tokio::test]
     async fn get_extras_test() {
         configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
+        let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover";
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
-        if let Some(start_index) = page.find("<script>window.__NUXT__=(function(a,b,c,d,") {
-            info!("start_index: {}", start_index);
-            let sub = &page[start_index..];
-            //info!("sub: {}", sub);
-            if let Some(end_index) = sub.find("</script>") {
-                info!("end_index: {}", end_index);
-                let sub = &sub[..end_index];
-                //info!("sub: {}", sub);
-                info!("------------------------------------");
-                if let Some(extras_start_index) = sub.find("extras:[") {
-                    let extralist = &sub[extras_start_index..];
-                    if let Some(extras_end_index) = extralist.find("],") {
-                        let extralist = &extralist[7..extras_end_index + 1];
-                        info!("extralist: {}", extralist);
-                        let json_text = extralist
-                            .replace("key:", "\"key\":")
-                            .replace("value:", "\"value\":")
-                            .replace("name:", "\"name\":");
-                        let values =
-                            serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
-                        for value in values {
-                            info!("value: {:?}", value);
-                        }
-                    }
-                }
-            }
-        } else {
-            info!("Not found");
-        }
+        let equipment = get_equipment(&page);
+        assert!(equipment >0);
+        info!("equipment: {}", equipment);
+        
     }
 }
