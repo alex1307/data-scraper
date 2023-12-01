@@ -7,7 +7,7 @@ use tokio::{
 };
 
 use crate::{
-    model::{records::MobileRecord, traits::SetIdentity},
+    model::records::MobileRecord,
     scraper::ScraperTrait::{LinkId, ScraperTrait},
     writer::persistance::{MobileData, MobileDataWriter},
 };

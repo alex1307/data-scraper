@@ -1,5 +1,3 @@
-use std::f32::consts::E;
-
 use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
@@ -25,9 +23,8 @@ pub fn get_equipment(html_page: &str) -> u64 {
                         .replace("key:", "\"key\":")
                         .replace("value:", "\"value\":")
                         .replace("name:", "\"name\":");
-                    let values =
-                        serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
-                    let equipment_list = values.into_iter().map(|v|v.name).collect::<Vec<_>>();
+                    let values = serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
+                    let equipment_list = values.into_iter().map(|v| v.name).collect::<Vec<_>>();
                     let equipment_id = get_equipment_as_u64(equipment_list, &CAR_GR_EQUIPMENT);
                     return equipment_id;
                 }
@@ -87,12 +84,10 @@ mod car_gr_test_suit {
     use scraper::{Html, Selector};
 
     use crate::{
-        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number, KeyValue, get_equipment},
-        scraper::{
-            mobile_bg_helpers::extract_numbers, CarGrScraper::CarGrScraper, ScraperTrait::Scraper,
-        },
+        helpers::CarGrHTMLHelper::{get_equipment, get_listed_links, get_total_number},
+        scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper},
         utils::helpers::configure_log4rs,
-        LOG_CONFIG, NOT_FOUND_MSG,
+        LOG_CONFIG,
     };
 
     #[tokio::test]
@@ -246,8 +241,7 @@ mod car_gr_test_suit {
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let equipment = get_equipment(&page);
-        assert!(equipment >0);
+        assert!(equipment > 0);
         info!("equipment: {}", equipment);
-        
     }
 }

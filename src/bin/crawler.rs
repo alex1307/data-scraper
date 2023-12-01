@@ -1,4 +1,4 @@
-use data_scraper::services::ScraperAppService::{download_all, download_new_vehicles, Crawlers};
+use data_scraper::services::ScraperAppService::{download_all, download_new_vehicles};
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 

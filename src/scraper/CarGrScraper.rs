@@ -2,7 +2,6 @@ use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 use log::info;
-use scraper::{Html, Selector};
 
 use crate::{
     helpers::CarGrHTMLHelper::{get_listed_links, get_total_number},
@@ -102,11 +101,7 @@ mod car_gr_test_suit {
     use log::info;
 
     use crate::{
-        helpers::CarGrHTMLHelper::get_total_number,
-        scraper::{
-            CarGrScraper::CarGrScraper,
-            ScraperTrait::{Scraper, ScraperTrait},
-        },
+        scraper::{CarGrScraper::CarGrScraper, ScraperTrait::ScraperTrait},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };

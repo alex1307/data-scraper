@@ -163,7 +163,6 @@ where
 #[cfg(test)]
 mod app_test {
     use std::collections::HashMap;
-    use std::str::FromStr;
 
     use log::info;
 
@@ -171,7 +170,7 @@ mod app_test {
     use crate::scraper::CarsBgScraper::CarsBGScraper;
     use crate::scraper::MobileBgScraper::MobileBGScraper;
     use crate::scraper::ScraperTrait::ScraperTrait;
-    use crate::services::ScraperAppService::{Crawlers, CARS_BG_CRAWLER, MOBILE_BG_CRAWLER};
+    use crate::services::ScraperAppService::{CARS_BG_CRAWLER, MOBILE_BG_CRAWLER};
     use crate::services::Searches::{cars_bg_new_searches, mobile_bg_new_searches};
     use crate::utils::helpers::configure_log4rs;
     use crate::LOG_CONFIG;
