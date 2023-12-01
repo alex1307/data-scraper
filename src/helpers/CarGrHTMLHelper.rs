@@ -1,5 +1,6 @@
 use log::info;
 use scraper::{Html, Selector};
+use serde::Deserialize;
 
 pub fn get_listed_links(source: &str) -> Vec<String> {
     let mut links = vec![];
@@ -34,17 +35,27 @@ pub fn get_total_number(source: &str) -> u32 {
     }
     total_number
 }
+
+#[derive(Debug, Deserialize, Clone)]
+struct KeyValue {
+    key: i32,
+    value: String,
+    name: String,
+}
 #[cfg(test)]
 mod car_gr_test_suit {
     use std::collections::HashMap;
 
     use log::info;
+    use scraper::{Html, Selector};
 
     use crate::{
-        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number},
-        scraper::ScraperTrait::Scraper,
+        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number, KeyValue},
+        scraper::{
+            mobile_bg_helpers::extract_numbers, CarGrScraper::CarGrScraper, ScraperTrait::Scraper,
+        },
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
+        LOG_CONFIG, NOT_FOUND_MSG,
     };
 
     #[tokio::test]
@@ -68,5 +79,164 @@ mod car_gr_test_suit {
         assert_eq!(data.len(), 24);
         let total_number = get_total_number(&html);
         assert_eq!(total_number, 122);
+    }
+
+    #[tokio::test]
+    async fn get_vehicle_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
+        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
+        let page = scraper.parent.html_search(url, None).await.unwrap();
+        info!("page: {}", page.as_bytes().len());
+        //info!("page: {}", page);
+        let selector = Selector::parse("div.tw-text-base").unwrap();
+        let document = Html::parse_document(&page);
+        for element in document.select(&selector) {
+            let text = element.text().collect::<Vec<_>>().join(" ");
+            if text.contains("Registration") {
+                text.split("\n").for_each(|line| {
+                    info!("line: {}", line.trim().replace(' ', ""));
+                    if line.contains('/') {
+                        let millage = line.split('/').collect::<Vec<_>>()[1];
+                        let millage = millage
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .unwrap_or(0);
+                        info!("year: {}", millage);
+                    } else {
+                        let value = line
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .unwrap_or(0);
+                        info!("year: {}", value);
+                    }
+                });
+            }
+
+            if text.contains("Fuel type") {
+                text.split("\n").for_each(|line| {
+                    info!("line: {}", line.trim().replace(' ', ""));
+                });
+            }
+
+            if text.contains("Engine") {
+                text.split("\n").for_each(|line| {
+                    info!("line: {}", line.trim().replace(' ', ""));
+                    if line.contains("cc") {
+                        let millage = line.split("cc").collect::<Vec<_>>()[0];
+                        let cc = millage
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .unwrap_or(0);
+                        info!("cc: {}", cc);
+                    }
+                });
+            }
+
+            if text.contains("Transmission") {
+                text.split("\n").for_each(|line| {
+                    info!("line: {}", line.trim().replace(' ', ""));
+                });
+            }
+
+            if text.contains("Power") {
+                text.split("\n").for_each(|line| {
+                    info!("line: {}", line.trim().replace(' ', ""));
+                    if line.contains("bhp") {
+                        let millage = line.split("bhp").collect::<Vec<_>>()[0];
+                        let millage = millage
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .unwrap_or(0);
+                        info!("power: {}", millage);
+                    }
+                });
+            }
+
+            if text.contains("Mileage") {
+                text.split("\n").for_each(|line| {
+                    let line = line.trim().replace(' ', "");
+                    info!("line: {}", line);
+                    if line.contains("km") {
+                        let millage = line.split("km").collect::<Vec<_>>()[0];
+                        let millage = millage
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u32>()
+                            .unwrap_or(0);
+                        info!("millage: {}", millage);
+                    }
+                });
+            }
+        }
+
+    }
+
+    #[tokio::test]
+    async fn get_specification_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
+        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
+        let page = scraper.parent.html_search(url, None).await.unwrap();
+        info!("page: {}", page.as_bytes().len());
+        //info!("page: {}", page);
+        let row_selector = Selector::parse("tr.c-table-row").unwrap();
+        let td_selector = Selector::parse("td").unwrap();
+        let document = Html::parse_document(&page);
+        for row in document.select(&row_selector) {
+            let tds = row.select(&td_selector).collect::<Vec<_>>();
+            if tds.len() >= 2 {
+                let make_model = tds[0].text().collect::<String>();
+                let model = tds[1].text().collect::<String>();
+
+                info!("[{}] and [{}]", make_model, model);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn get_extras_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
+        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
+        let page = scraper.parent.html_search(url, None).await.unwrap();
+        if let Some(start_index) = page.find("<script>window.__NUXT__=(function(a,b,c,d,") {
+            info!("start_index: {}", start_index);
+            let sub = &page[start_index..];
+            //info!("sub: {}", sub);
+            if let Some(end_index) = sub.find("</script>") {
+                info!("end_index: {}", end_index);
+                let sub = &sub[..end_index];
+                //info!("sub: {}", sub);
+                info!("------------------------------------");
+                if let Some(extras_start_index) = sub.find("extras:[") {
+                    let extralist = &sub[extras_start_index..];
+                    if let Some(extras_end_index) = extralist.find("],") {
+                        let extralist = &extralist[7..extras_end_index + 1];
+                        info!("extralist: {}", extralist);
+                        let json_text = extralist
+                            .replace("key:", "\"key\":")
+                            .replace("value:", "\"value\":")
+                            .replace("name:", "\"name\":");
+                        let values =
+                            serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
+                        for value in values {
+                            info!("value: {:?}", value);
+                        }
+                    }
+                }
+            }
+        } else {
+            info!("Not found");
+        }
     }
 }
