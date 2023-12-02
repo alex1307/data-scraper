@@ -4,7 +4,18 @@ use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::{config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT}, scraper::{PRICE_KEY, GEARBOX_KEY, ENGINE_KEY, POWER_KEY, MILEAGE_KEY, YEAR_KEY, PHONE_KEY, MAKE_KEY, MODEL_KEY, CURRENCY_KEY}};
+use crate::{config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT}, scraper::{PRICE_KEY, GEARBOX_KEY, ENGINE_KEY, POWER_KEY, MILEAGE_KEY, YEAR_KEY, PHONE_KEY, MAKE_KEY, MODEL_KEY, CURRENCY_KEY, EQUIPMENT_KEY, DEALER_KEY, LOCATION_KEY}};
+
+pub fn vehicle_data(html_page:&str) -> HashMap<String, String> {
+    let mut vehicle = HashMap::new();
+    let specification = get_specification(html_page);
+    let dealer = get_dealer_data(html_page);
+    let equipment = get_equipment(html_page);
+    vehicle.insert(EQUIPMENT_KEY.to_owned(), equipment.to_string());
+    vehicle.extend(specification);
+    vehicle.extend(dealer);    
+    vehicle
+}
 
 pub fn get_specification(html_page: &str) -> HashMap<String, String> {
     let mut data = HashMap::new();
@@ -110,27 +121,32 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
 pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
     let document = Html::parse_document(&html_page);
     let selector = Selector::parse("div.main-seller-info a").unwrap();
+    let mut data = HashMap::new();
     for element in document.select(&selector) {
-        let href = match element.value().attr("href") {
-            Some(href) => href,
-            None => continue,
-        };
-        let title = match element.value().attr("title") {
-            Some(title) => title,
+        match element.value().attr("href") {
+            Some(href) => {
+                data.insert("dealer_url".to_owned(), href.to_owned());
+            },
             None => continue,
         };
 
-        info!("href: {}", href);
-        info!("title: {}", title);
+        match element.value().attr("title") {
+            Some(title) => {
+                data.insert(DEALER_KEY.to_owned(), title.to_owned());
+                
+            },
+            None => continue,
+        };
+        break;
     }
 
     let selector = Selector::parse("div.main-seller-info span").unwrap();
     for element in document.select(&selector) {
         let text = element.text().collect::<Vec<_>>().join(" ");
-        info!("location: {}", text.trim());
+        data.insert(LOCATION_KEY.to_owned(), text);
         break;
     }
-    HashMap::new()
+    data
 }
 
 pub fn get_equipment(html_page: &str) -> u64 {
@@ -213,7 +229,7 @@ mod car_gr_test_suit {
     use scraper::{Html, Selector};
 
     use crate::{
-        helpers::CarGrHTMLHelper::{get_equipment, get_listed_links, get_total_number, get_specification, get_dealer_data},
+        helpers::CarGrHTMLHelper::{get_equipment, get_listed_links, get_total_number, get_specification, get_dealer_data, vehicle_data},
         scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper, MILEAGE_KEY},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -379,5 +395,21 @@ mod car_gr_test_suit {
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
+    }
+
+    #[tokio::test]
+    async fn vehicle_data_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
+        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
+        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let data = vehicle_data(&page);
+        info!("land-rover: {:?}", data);
+
+        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
+        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
+        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let data = vehicle_data(&page);
+        info!("mercedes: {:?}", data);
     }
 }
