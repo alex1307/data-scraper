@@ -12,6 +12,13 @@ use crate::{
     },
 };
 
+#[derive(Debug, Deserialize, Clone)]
+struct KeyValue {
+    key: i32,
+    value: String,
+    name: String,
+}
+
 pub fn vehicle_data(html_page: &str) -> HashMap<String, String> {
     let mut vehicle = HashMap::new();
     let specification = get_specification(html_page);
@@ -217,12 +224,6 @@ pub fn get_total_number(source: &str) -> u32 {
     total_number
 }
 
-#[derive(Debug, Deserialize, Clone)]
-struct KeyValue {
-    key: i32,
-    value: String,
-    name: String,
-}
 #[cfg(test)]
 mod car_gr_test_suit {
     use std::collections::HashMap;
@@ -390,6 +391,8 @@ mod car_gr_test_suit {
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
+        assert!(!data.is_empty());
+        assert_eq!(data.len(), 3);
     }
 
     #[tokio::test]
@@ -400,6 +403,9 @@ mod car_gr_test_suit {
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
+        assert!(!data.is_empty());
+        assert_eq!(data.len(), 2);
+        info!("data: {:?}", data);
     }
 
     #[tokio::test]
