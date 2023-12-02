@@ -42,11 +42,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                 .replace("\r", "")
                 .trim()
                 .to_lowercase();
-            let value = value
-                .replace("\n", "")
-                .replace("\r", "")
-                .trim()
-                .to_string();
+            let value = value.replace("\n", "").replace("\r", "").trim().to_string();
             if PRICE_KEY.to_owned() == key {
                 let value = value
                     .chars()
