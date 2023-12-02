@@ -4,16 +4,22 @@ use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::{config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT}, scraper::{PRICE_KEY, GEARBOX_KEY, ENGINE_KEY, POWER_KEY, MILEAGE_KEY, YEAR_KEY, PHONE_KEY, MAKE_KEY, MODEL_KEY, CURRENCY_KEY, EQUIPMENT_KEY, DEALER_KEY, LOCATION_KEY}};
+use crate::{
+    config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT},
+    scraper::{
+        CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
+        MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, YEAR_KEY,
+    },
+};
 
-pub fn vehicle_data(html_page:&str) -> HashMap<String, String> {
+pub fn vehicle_data(html_page: &str) -> HashMap<String, String> {
     let mut vehicle = HashMap::new();
     let specification = get_specification(html_page);
     let dealer = get_dealer_data(html_page);
     let equipment = get_equipment(html_page);
     vehicle.insert(EQUIPMENT_KEY.to_owned(), equipment.to_string());
     vehicle.extend(specification);
-    vehicle.extend(dealer);    
+    vehicle.extend(dealer);
     vehicle
 }
 
@@ -27,17 +33,16 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
         if tds.len() >= 2 {
             let key = tds[0].text().collect::<String>();
             let value = tds[1].text().collect::<String>();
-            let key = key.trim().replace(":", "")
+            let key = key
+                .trim()
+                .replace(":", "")
                 .replace(" ", "")
                 .replace("\t", "")
                 .replace("\n", "")
                 .replace("\r", "")
-                .trim().to_lowercase();
-            let value = value
-                .replace("\n", "")
-                .replace("\r", "")
                 .trim()
-                .to_string();
+                .to_lowercase();
+            let value = value.replace("\n", "").replace("\r", "").trim().to_string();
             if PRICE_KEY.to_owned() == key {
                 let value = value
                     .chars()
@@ -46,9 +51,9 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .parse::<u32>()
                     .unwrap_or(0);
                 data.insert(PRICE_KEY.to_owned(), value.to_string());
-            } else if "fuel type".to_owned() == key{
+            } else if "fuel type".to_owned() == key {
                 data.insert(ENGINE_KEY.to_owned(), value.to_string());
-            } else if POWER_KEY.to_owned() == key{
+            } else if POWER_KEY.to_owned() == key {
                 let value = value
                     .chars()
                     .filter(|&c| c.is_numeric())
@@ -56,7 +61,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .parse::<u32>()
                     .unwrap_or(0);
                 data.insert(POWER_KEY.to_owned(), value.to_string());
-            } else if MILEAGE_KEY.to_owned() == key{
+            } else if MILEAGE_KEY.to_owned() == key {
                 let value = value
                     .chars()
                     .filter(|&c| c.is_numeric())
@@ -64,16 +69,14 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .parse::<u32>()
                     .unwrap_or(0);
                 data.insert(MILEAGE_KEY.to_owned(), value.to_string());
-            } else if "registration" == key{
+            } else if "registration" == key {
                 let value = if value.contains('/') {
                     let year = value.split('/').collect::<Vec<_>>()[1];
-                    year
-                        .chars()
+                    year.chars()
                         .filter(|&c| c.is_numeric())
                         .collect::<String>()
                         .parse::<u32>()
                         .unwrap_or(0)
-                    
                 } else {
                     value
                         .chars()
@@ -83,14 +86,15 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                         .unwrap_or(0)
                 };
                 data.insert(YEAR_KEY.to_owned(), value.to_string());
-            } else if "transmission".to_owned() == key{
+            } else if "transmission".to_owned() == key {
                 data.insert(GEARBOX_KEY.to_owned(), value.to_string());
-            } else if "engine"== key {
-                let value = value.chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
+            } else if "engine" == key {
+                let value = value
+                    .chars()
+                    .filter(|&c| c.is_numeric())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .unwrap_or(0);
                 data.insert("cc".to_owned(), value.to_string());
             } else if "make-model" == key {
                 data.insert("full".to_owned(), value.to_owned());
@@ -101,15 +105,14 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     data.insert(MAKE_KEY.to_owned(), make);
                     data.insert(MODEL_KEY.to_owned(), model);
                 }
-                
-            } else if "telephone" == key{
-                let value = value.chars()
-                            .filter(|&c| !c.is_whitespace())
-                            .collect::<String>();
-                            
+            } else if "telephone" == key {
+                let value = value
+                    .chars()
+                    .filter(|&c| !c.is_whitespace())
+                    .collect::<String>();
+
                 data.insert(PHONE_KEY.to_owned(), value.to_owned());
-            } 
-            else {
+            } else {
                 data.insert(key, value);
             }
         }
@@ -126,15 +129,14 @@ pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
         match element.value().attr("href") {
             Some(href) => {
                 data.insert("dealer_url".to_owned(), href.to_owned());
-            },
+            }
             None => continue,
         };
 
         match element.value().attr("title") {
             Some(title) => {
                 data.insert(DEALER_KEY.to_owned(), title.to_owned());
-                
-            },
+            }
             None => continue,
         };
         break;
@@ -229,7 +231,10 @@ mod car_gr_test_suit {
     use scraper::{Html, Selector};
 
     use crate::{
-        helpers::CarGrHTMLHelper::{get_equipment, get_listed_links, get_total_number, get_specification, get_dealer_data, vehicle_data},
+        helpers::CarGrHTMLHelper::{
+            get_dealer_data, get_equipment, get_listed_links, get_specification, get_total_number,
+            vehicle_data,
+        },
         scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper, MILEAGE_KEY},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -365,7 +370,6 @@ mod car_gr_test_suit {
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_specification(&page);
         info!("data: {:?}", data);
-    
     }
 
     #[tokio::test]
@@ -391,7 +395,8 @@ mod car_gr_test_suit {
     #[tokio::test]
     async fn get_private_seller_test() {
         configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
+        let url =
+            "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
@@ -400,7 +405,8 @@ mod car_gr_test_suit {
     #[tokio::test]
     async fn vehicle_data_test() {
         configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
+        let url =
+            "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
         let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
         let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = vehicle_data(&page);

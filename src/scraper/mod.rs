@@ -28,5 +28,4 @@ lazy_static! {
     pub static ref EQUIPMENT_KEY: String = "equipment".to_string();
     pub static ref PUBLISHED_ON_KEY: String = "published_on".to_string();
     pub static ref VIEW_COUNT_KEY: String = "view_count".to_string();
-
 }
