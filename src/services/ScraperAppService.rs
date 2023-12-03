@@ -5,13 +5,18 @@ use log::{error, info};
 use crate::{
     model::records::MobileRecord,
     scraper::{
+        CarGrScraper::CarGrScraper,
         CarsBgScraper::CarsBGScraper,
         MobileBgScraper::MobileBGScraper,
         ScraperTrait::{LinkId, ScraperTrait},
     },
-    services::ScraperService::{process, save},
+    services::{
+        ScraperService::{process, save},
+        Searches::car_gr_new_searches,
+    },
     utils::helpers::create_empty_csv,
-    CARS_BG_ALL_FILE_NAME, CARS_BG_INSALE_FILE_NAME, MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
+    CARS_BG_ALL_FILE_NAME, CARS_BG_INSALE_FILE_NAME, CAR_GR_ALL_FILE_NAME, CAR_GR_FILE_NAME,
+    MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -19,18 +24,21 @@ lazy_static! {
     pub static ref MOBILE_BG_CRAWLER: MobileBGScraper =
         MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
     pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
+    pub static ref CAR_GR_CRAWLER: CarGrScraper = CarGrScraper::new("https://www.car.gr", 250);
 }
 
 use super::{
     ScraperService::start,
     Searches::{
-        cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches, mobile_bg_new_searches,
+        car_gr_all_searches, cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches,
+        mobile_bg_new_searches,
     },
 };
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),
     MobileBG(String),
+    CarGr(String),
 }
 
 impl FromStr for Crawlers {
@@ -50,6 +58,7 @@ impl FromStr for Crawlers {
             "mobile.bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile_bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
+            "car.gr" => Ok(Crawlers::CarGr(r#"https://www.car.gr"#.to_owned())),
             _ => Err("Invalid crawler".into()),
         }
     }
@@ -76,12 +85,21 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             )
             .await
         }
+        Crawlers::CarGr(_) => {
+            let searches: Vec<HashMap<String, String>> = car_gr_all_searches();
+            scrape_all_vehicles(
+                MOBILE_BG_CRAWLER.clone(),
+                CAR_GR_ALL_FILE_NAME.to_owned(),
+                searches,
+            )
+            .await
+        }
     }
 }
 
 pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
     let crawler = Crawlers::from_str(crawler)?;
-
+    info!("crawler: {:?}", crawler);
     match crawler {
         Crawlers::CarsBG(_) => {
             let searches = cars_bg_new_searches();
@@ -95,8 +113,18 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
         Crawlers::MobileBG(_) => {
             let searches = mobile_bg_new_searches().await;
             scrape_new_vehicles(
-                MOBILE_BG_CRAWLER.clone(),
-                MOBILE_BG_FILE_NAME.to_owned(),
+                CAR_GR_CRAWLER.clone(),
+                CAR_GR_FILE_NAME.to_owned(),
+                searches,
+            )
+            .await
+        }
+        Crawlers::CarGr(_) => {
+            let searches: Vec<HashMap<String, String>> = car_gr_new_searches();
+            info!("searches: {:?}", searches.len());
+            scrape_new_vehicles(
+                CAR_GR_CRAWLER.clone(),
+                CAR_GR_FILE_NAME.to_owned(),
                 searches,
             )
             .await
@@ -118,10 +146,24 @@ where
         error!("Failed to create file {}", file_name.clone());
     }
     let process_scraper = scraper.clone();
-    let start_handler =
-        tokio::spawn(async move { start(Box::new(scraper), searches, &mut link_producer).await });
+    let headers = scraper.clone().headers().await;
+    let start_handler = tokio::spawn(async move {
+        start(
+            Box::new(scraper),
+            searches,
+            &mut link_producer,
+            headers.clone(),
+        )
+        .await
+    });
     let process_handler = tokio::spawn(async move {
-        process(process_scraper, &mut link_receiver, &mut record_producer).await
+        process(
+            process_scraper,
+            &mut link_receiver,
+            &mut record_producer,
+            HashMap::new(),
+        )
+        .await
     });
     let save_to_file = tokio::spawn(async move { save(record_receiver, file_name).await });
 
@@ -146,8 +188,9 @@ where
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
-    let start_handler =
-        tokio::spawn(async move { start(Box::new(scraper), searches, &mut producer).await });
+    let start_handler = tokio::spawn(async move {
+        start(Box::new(scraper), searches, &mut producer, HashMap::new()).await
+    });
 
     let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
 
@@ -237,7 +280,10 @@ mod app_test {
         let searches = cars_bg_new_searches();
         let mut total = 0;
         for search in searches {
-            let total_number = CARS_BG_CRAWLER.total_number(search.clone()).await.unwrap();
+            let total_number = CARS_BG_CRAWLER
+                .total_number(search.clone(), HashMap::new())
+                .await
+                .unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
         }
@@ -251,7 +297,7 @@ mod app_test {
         let mut total = 0;
         for search in searches {
             let total_number = MOBILE_BG_CRAWLER
-                .total_number(search.clone())
+                .total_number(search.clone(), HashMap::new())
                 .await
                 .unwrap();
             total += total_number;

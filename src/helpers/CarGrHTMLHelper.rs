@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::Duration;
 use log::info;
 use scraper::{Html, Selector};
 use serde::Deserialize;
@@ -8,8 +9,10 @@ use crate::{
     config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT},
     scraper::{
         CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
-        MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, YEAR_KEY,
+        MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, TOP_KEY,
+        VIEW_COUNT_KEY, YEAR_KEY,
     },
+    CREATED_ON, DATE_FORMAT, NOW,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -58,7 +61,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .parse::<u32>()
                     .unwrap_or(0);
                 data.insert(PRICE_KEY.to_owned(), value.to_string());
-            } else if "fuel type".to_owned() == key {
+            } else if "fueltype".to_owned() == key {
                 data.insert(ENGINE_KEY.to_owned(), value.to_string());
             } else if POWER_KEY.to_owned() == key {
                 let value = value
@@ -112,6 +115,14 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     data.insert(MAKE_KEY.to_owned(), make);
                     data.insert(MODEL_KEY.to_owned(), model);
                 }
+            } else if "views" == key {
+                let value = value
+                    .chars()
+                    .filter(|&c| c.is_numeric())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .unwrap_or(0);
+                data.insert(VIEW_COUNT_KEY.to_owned(), value.to_string());
             } else if "telephone" == key {
                 let value = value
                     .chars()
@@ -119,12 +130,42 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .collect::<String>();
 
                 data.insert(PHONE_KEY.to_owned(), value.to_owned());
+            } else if "modified" == key {
+                let modified = value.split_ascii_whitespace().collect::<Vec<_>>();
+                let duration = match modified[1] {
+                    "hours" => {
+                        let hours = -modified[0].parse::<i64>().unwrap_or(0);
+                        Duration::hours(hours)
+                    }
+                    "days" => {
+                        let days = -modified[0].parse::<i64>().unwrap_or(0);
+                        Duration::days(days)
+                    }
+                    "months" => {
+                        let months = -modified[0].parse::<i64>().unwrap_or(0);
+                        Duration::days(months * 30)
+                    }
+                    _ => Duration::hours(0),
+                };
+                match NOW.checked_add_signed(duration) {
+                    Some(date) => {
+                        let date = date.format(DATE_FORMAT).to_string();
+                        data.insert(PUBLISHED_ON_KEY.to_owned(), date);
+                    }
+                    None => {
+                        data.insert(CREATED_ON.to_owned(), NOW.format(DATE_FORMAT).to_string());
+                    }
+                }
+                info!("key: {}, value: {}", key, value.trim())
             } else {
                 data.insert(key, value);
             }
         }
     }
     data.insert(CURRENCY_KEY.to_owned(), "EUR".to_owned());
+    if html_page.contains("Promoted") {
+        data.insert(TOP_KEY.to_owned(), "true".to_owned());
+    }
     data
 }
 
@@ -152,7 +193,8 @@ pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
     let selector = Selector::parse("div.main-seller-info span").unwrap();
     for element in document.select(&selector) {
         let text = element.text().collect::<Vec<_>>().join(" ");
-        data.insert(LOCATION_KEY.to_owned(), text);
+        let trimmed = text.replace("\n", "").replace("\r", "");
+        data.insert(LOCATION_KEY.to_owned(), trimmed.trim().to_owned());
         break;
     }
     data
@@ -160,19 +202,13 @@ pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
 
 pub fn get_equipment(html_page: &str) -> u64 {
     if let Some(start_index) = html_page.find("<script>window.__NUXT__=(function(a,b,c,d,") {
-        info!("start_index: {}", start_index);
         let sub = &html_page[start_index..];
-        //info!("sub: {}", sub);
         if let Some(end_index) = sub.find("</script>") {
-            info!("end_index: {}", end_index);
             let sub = &sub[..end_index];
-            //info!("sub: {}", sub);
-            info!("------------------------------------");
             if let Some(extras_start_index) = sub.find("extras:[") {
                 let extralist = &sub[extras_start_index..];
                 if let Some(extras_end_index) = extralist.find("],") {
                     let extralist = &extralist[7..extras_end_index + 1];
-                    info!("extralist: {}", extralist);
                     let json_text = extralist
                         .replace("key:", "\"key\":")
                         .replace("value:", "\"value\":")
@@ -229,6 +265,7 @@ mod car_gr_test_suit {
     use std::collections::HashMap;
 
     use log::info;
+    use reqwest::header;
     use scraper::{Html, Selector};
 
     use crate::{
@@ -236,7 +273,11 @@ mod car_gr_test_suit {
             get_dealer_data, get_equipment, get_listed_links, get_specification, get_total_number,
             vehicle_data,
         },
-        scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper, MILEAGE_KEY},
+        model::records::MobileRecord,
+        scraper::{
+            CarGrScraper::CarGrScraper,
+            ScraperTrait::{Scraper, ScraperTrait},
+        },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
@@ -256,7 +297,10 @@ mod car_gr_test_suit {
         //params.insert("created".to_owned(), ">1".to_owned());
         let scraper = Scraper::new(url, "pg".to_owned(), 250);
         let url = scraper.search_url(None, params, 1);
-        let html = scraper.html_search(&url, None).await.unwrap();
+        let html = scraper
+            .html_search(&url, None, HashMap::new())
+            .await
+            .unwrap();
         //info!("html: {}", html);
         let data = get_listed_links(&html);
         assert_eq!(data.len(), 24);
@@ -268,8 +312,12 @@ mod car_gr_test_suit {
     async fn get_vehicle_test() {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         info!("page: {}", page.as_bytes().len());
         //info!("page: {}", page);
         let selector = Selector::parse("div.tw-text-base").unwrap();
@@ -367,8 +415,12 @@ mod car_gr_test_suit {
     async fn get_specification_test() {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         let data = get_specification(&page);
         info!("data: {:?}", data);
     }
@@ -377,8 +429,12 @@ mod car_gr_test_suit {
     async fn get_extras_test() {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         let equipment = get_equipment(&page);
         assert!(equipment > 0);
         info!("equipment: {}", equipment);
@@ -388,8 +444,12 @@ mod car_gr_test_suit {
     async fn get_dealer_test() {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         let data = get_dealer_data(&page);
         assert!(!data.is_empty());
         assert_eq!(data.len(), 3);
@@ -400,8 +460,12 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url =
             "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         let data = get_dealer_data(&page);
         assert!(!data.is_empty());
         assert_eq!(data.len(), 2);
@@ -413,15 +477,28 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url =
             "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let headers = scraper.clone().headers().await;
+        info!("headers: {:?}", headers);
+        let page = scraper
+            .parent
+            .html_search(url, None, HashMap::new())
+            .await
+            .unwrap();
         let data = vehicle_data(&page);
-        info!("land-rover: {:?}", data);
-
+        //info!("land-rover: {:?}", data);
+        let record = MobileRecord::from(data);
+        info!("record: {:?}", record);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, "pg".to_owned(), 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
+        let scraper = CarGrScraper::new(url, 250);
+        let page = scraper
+            .parent
+            .html_search(url, None, headers.clone())
+            .await
+            .unwrap();
         let data = vehicle_data(&page);
-        info!("mercedes: {:?}", data);
+        // info!("mercedes: {:?}", data);
+        let record = MobileRecord::from(data);
+        info!("record: {:?}", record);
     }
 }

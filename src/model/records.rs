@@ -146,7 +146,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             .get(&DEALER_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
-            .unwrap();
+            .unwrap_or(false);
         let sold = map
             .get(&SOLD_KEY.to_owned())
             .unwrap_or(&"false".to_string())

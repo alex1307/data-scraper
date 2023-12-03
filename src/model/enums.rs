@@ -43,10 +43,28 @@ pub enum Engine {
     Diesel,
     #[serde(rename = "Hybrid")]
     Hybrid,
+    #[serde(rename = "LPG")]
+    LPG,
+    #[serde(rename = "CNG")]
+    CNG,
+    #[serde(rename = "HybridPetrol")]
+    HybridPetrol,
+
+    #[serde(rename = "HybridDiesel")]
+    HybridDiesel,
+
     #[serde(rename = "Electric")]
     Electric,
 
+    #[serde(rename = "PlugInHybridPetrol")]
+    PlugInHybridPetrol,
+
+    #[serde(rename = "PlugInHybridDiesel")]
+    PlugInHybridDiesel,
+
+    #[serde(rename = "PluginHybrid")]
     PluginHybrid,
+
     #[default]
     #[serde(rename = "N/A")]
     NotAvailable,
@@ -88,12 +106,18 @@ impl ToString for Gearbox {
 impl ToString for Engine {
     fn to_string(&self) -> String {
         match self {
-            Engine::Petrol => "Бензинов".to_string(),
-            Engine::Diesel => "Дизелов".to_string(),
-            Engine::PluginHybrid => "Plug-in хибрид".to_string(),
-            Engine::Electric => "Електрически".to_string(),
-            Engine::Hybrid => "Хибриден".to_string(),
-            Engine::NotAvailable => "NotFound".to_string(),
+            Engine::Petrol => "Petrol".to_string(),
+            Engine::Diesel => "Diesel".to_string(),
+            Engine::PluginHybrid => "Plug-in-hybrid".to_string(),
+            Engine::Electric => "Electric".to_string(),
+            Engine::Hybrid => "Hybrid".to_string(),
+            Engine::LPG => "LPG".to_string(),
+            Engine::CNG => "CNG".to_string(),
+            Engine::HybridPetrol => "Hybrid-petrol".to_string(),
+            Engine::HybridDiesel => "Hybrid-diesel".to_string(),
+            Engine::PlugInHybridPetrol => "Plug-in-hybrid-petrol".to_string(),
+            Engine::PlugInHybridDiesel => "Plug-in-hybrid-diesel".to_string(),
+            _ => "NotFound".to_string(),
         }
     }
 }
@@ -105,9 +129,12 @@ impl FromStr for Gearbox {
         match s {
             "Автоматична" => Ok(Gearbox::Automatic),
             "Автоматични скорости" => Ok(Gearbox::Automatic),
+            "Automatic" => Ok(Gearbox::Automatic),
             "Ръчна" => Ok(Gearbox::Manual),
+            "Manual" => Ok(Gearbox::Manual),
             "Ръчни скорости" => Ok(Gearbox::Manual),
             "Полуавтоматична" => Ok(Gearbox::Semiautomatic),
+            "semiauto" => Ok(Gearbox::Semiautomatic),
             _ => Ok(Gearbox::NotAvailable),
         }
     }
@@ -119,16 +146,26 @@ impl FromStr for Engine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Бензинов" => Ok(Engine::Petrol),
+            "Petrol" => Ok(Engine::Petrol),
             "Бензин" => Ok(Engine::Petrol),
-            "Газ/Бензин" => Ok(Engine::Petrol),
-            "Метан/Бензин" => Ok(Engine::Petrol),
+            "Газ/Бензин" => Ok(Engine::LPG),
+            "Gas/lpg" => Ok(Engine::LPG),
+            "Метан/Бензин" => Ok(Engine::CNG),
+            "Natural gas(cng)" => Ok(Engine::CNG),
             "Дизелов" => Ok(Engine::Diesel),
             "Дизел" => Ok(Engine::Diesel),
+            "Diesel" => Ok(Engine::Diesel),
             "Plug-in хибрид" => Ok(Engine::PluginHybrid),
+            "Electric" => Ok(Engine::Electric),
             "Електрически" => Ok(Engine::Electric),
             "Електричество" => Ok(Engine::Electric),
             "Хибриден" => Ok(Engine::Hybrid),
+            "Hybrid" => Ok(Engine::Hybrid),
             "Хибрид" => Ok(Engine::Hybrid),
+            "Hybrid petrol" => Ok(Engine::HybridPetrol),
+            "Hybrid diesel" => Ok(Engine::HybridDiesel),
+            "Plug-in hybrid petrol" => Ok(Engine::PlugInHybridPetrol),
+            "Plug-in hybrid diesel" => Ok(Engine::PlugInHybridDiesel),
             _ => Ok(Engine::NotAvailable),
         }
     }

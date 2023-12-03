@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
+
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
@@ -35,13 +37,23 @@ impl Hash for LinkId {
 
 #[async_trait]
 pub trait ScraperTrait {
-    async fn total_number(&self, params: HashMap<String, String>) -> Result<u32, String>;
+    async fn headers(&self) -> HashMap<String, String>;
+    async fn total_number(
+        &self,
+        params: HashMap<String, String>,
+        headers: HashMap<String, String>,
+    ) -> Result<u32, String>;
     async fn get_listed_ids(
         &self,
         params: HashMap<String, String>,
         page_number: u32,
+        headers: HashMap<String, String>,
     ) -> Result<Vec<LinkId>, String>;
-    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String>;
+    async fn parse_details(
+        &self,
+        link: LinkId,
+        headers: HashMap<String, String>,
+    ) -> Result<HashMap<String, String>, String>;
 
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String>;
 
@@ -108,8 +120,14 @@ impl Scraper {
         &self,
         url: &str,
         decoding_from: Option<String>,
+        headers: HashMap<String, String>,
     ) -> Result<String, String> {
-        let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
+        let mut builder = REQWEST_ASYNC_CLIENT.get(url);
+        for (key, value) in headers {
+            builder = builder.header(key.clone(), value.clone());
+            info!("Building HTTP request -> key: {}, value: {}", key, value);
+        }
+        let response = builder.send().await;
         if let Ok(response) = response {
             if let Some(label) = decoding_from {
                 let bytes = response.bytes().await.unwrap().to_vec();
@@ -123,6 +141,6 @@ impl Scraper {
                 return Ok(html);
             }
         }
-        Err(format!("Failed to get html from {}", url))
+        return Err(format!("Failed to get html from {}", url));
     }
 }
