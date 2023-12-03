@@ -1,16 +1,27 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 
+use log::info;
 use regex::Regex;
 use scraper::{Html, Selector};
-
-use crate::scraper::mobile_bg_helpers::slink;
 
 use super::{
     mobile_bg_helpers::{details2map, get_url},
     ScraperTrait::{LinkId, Scraper, ScraperTrait},
 };
+use crate::{scraper::mobile_bg_helpers::slink, BROWSER_USER_AGENT};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .user_agent(BROWSER_USER_AGENT)
+        .build()
+        .unwrap();
+}
+
 #[derive(Debug, Clone)]
 pub struct MobileBGScraper {
     pub parent: Scraper,
@@ -27,7 +38,11 @@ impl MobileBGScraper {
         let url = self.parent.search_url(None, params.clone(), 0);
         let html = self
             .parent
-            .html_search(url.as_str(), Some("windows-1251".to_string()))
+            .html_search(
+                url.as_str(),
+                Some("windows-1251".to_string()),
+                HashMap::new(),
+            )
             .await?;
         let slink = slink(&html);
         if slink.is_empty() {
@@ -39,11 +54,34 @@ impl MobileBGScraper {
 
 #[async_trait]
 impl ScraperTrait for MobileBGScraper {
-    async fn total_number(&self, params: HashMap<String, String>) -> Result<u32, String> {
+    async fn headers(&self) -> HashMap<String, String> {
+        let response = REQWEST_ASYNC_CLIENT
+            .get("https://www.cars.bg")
+            .send()
+            .await
+            .unwrap();
+        let mut headers = HashMap::new();
+        let cookie = response.headers().get("Set-Cookie").unwrap();
+        let cf_ray = response.headers().get("CF-RAY").unwrap();
+        info!("Cookie: {:?}", cookie);
+        headers.insert("Cookie".to_owned(), cookie.to_str().unwrap().to_owned());
+        headers.insert("CF-RAY".to_owned(), cf_ray.to_str().unwrap().to_owned());
+        headers.insert(
+            "Sec-Ch-Ua".to_owned(),
+            r#"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24""#.to_owned(),
+        );
+        headers
+    }
+
+    async fn total_number(
+        &self,
+        params: HashMap<String, String>,
+        headers: HashMap<String, String>,
+    ) -> Result<u32, String> {
         let url = self.parent.search_url(None, params.clone(), 0);
         let html = self
             .parent
-            .html_search(url.as_str(), Some("windows-1251".to_string()))
+            .html_search(url.as_str(), Some("windows-1251".to_string()), headers)
             .await?;
         let document = Html::parse_document(&html);
         let selector = Selector::parse(r#"meta[name="description"]"#).unwrap();
@@ -69,11 +107,12 @@ impl ScraperTrait for MobileBGScraper {
         &self,
         params: HashMap<String, String>,
         page_number: u32,
+        headers: HashMap<String, String>,
     ) -> Result<Vec<LinkId>, String> {
         let url = self.parent.search_url(None, params.clone(), page_number);
         let html = self
             .parent
-            .html_search(&url, Some("windows-1251".to_string()))
+            .html_search(&url, Some("windows-1251".to_string()), headers)
             .await?;
         let document = Html::parse_document(&html);
         let mut links = vec![];
@@ -99,10 +138,14 @@ impl ScraperTrait for MobileBGScraper {
         Ok(links)
     }
 
-    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
+    async fn parse_details(
+        &self,
+        link: LinkId,
+        headers: HashMap<String, String>,
+    ) -> Result<HashMap<String, String>, String> {
         let html = self
             .parent
-            .html_search(&link.url, Some("windows-1251".to_string()))
+            .html_search(&link.url, Some("windows-1251".to_string()), headers)
             .await?;
         let document = Html::parse_document(&html);
         let mut result = details2map(document);
@@ -144,7 +187,10 @@ mod screaper_mobile_bg_test {
             "f94".to_string(),
             "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
         );
-        let total_number = mobile_bg.total_number(params.clone()).await.unwrap();
+        let total_number = mobile_bg
+            .total_number(params.clone(), HashMap::new())
+            .await
+            .unwrap();
         let slink = mobile_bg.slink(params.clone()).await.unwrap();
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
@@ -152,7 +198,10 @@ mod screaper_mobile_bg_test {
         params.insert("pubtype".to_string(), 1.to_string());
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink);
-        let slink_total_number = mobile_bg.total_number(params.clone()).await.unwrap();
+        let slink_total_number = mobile_bg
+            .total_number(params.clone(), HashMap::new())
+            .await
+            .unwrap();
 
         info!("total_number: {}", total_number);
         info!("total_number: {}", slink_total_number);
@@ -163,7 +212,7 @@ mod screaper_mobile_bg_test {
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
             let ids = mobile_bg
-                .get_listed_ids(params.clone(), page)
+                .get_listed_ids(params.clone(), page, HashMap::new())
                 .await
                 .unwrap();
             assert!(ids.len() > 0);
@@ -197,7 +246,10 @@ mod screaper_mobile_bg_test {
         params.insert("pubtype".to_string(), 1.to_string());
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink.clone());
-        let ids = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
+        let ids = cars_bg
+            .get_listed_ids(params.clone(), 1, HashMap::new())
+            .await
+            .unwrap();
         let first = ids.first().unwrap();
         params.clear();
         params.insert("act".to_owned(), "4".to_owned());
@@ -208,7 +260,10 @@ mod screaper_mobile_bg_test {
         let url = cars_bg.parent.search_url(None, params.clone(), 1);
         info!("url: {}", url);
         info!("first: {:?}", first);
-        let details = cars_bg.parse_details(first.clone()).await.unwrap();
+        let details = cars_bg
+            .parse_details(first.clone(), HashMap::new())
+            .await
+            .unwrap();
         info!("details: {:?}", details);
         let record = crate::model::records::MobileRecord::from(details);
         info!("record: {:?}", record);

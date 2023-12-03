@@ -1,6 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use log::{debug, error, info};
+use reqwest::header;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     time::{sleep, timeout},
@@ -76,14 +77,17 @@ pub async fn start<T: ScraperTrait + Clone>(
     scraper: Box<T>,
     searches: Vec<HashMap<String, String>>,
     link_producer: &mut Sender<LinkId>,
+    headers: HashMap<String, String>,
 ) -> Result<(), String>
 where
     T: Send + 'static,
 {
     let mut handlers = vec![];
     let mut sum_total_number = 0;
+    let cloned = headers.clone();
     for search in searches {
-        let total_number = scraper.total_number(search.clone()).await?.clone();
+        let c1 = headers.clone();
+        let total_number = scraper.total_number(search.clone(), c1).await?.clone();
         info!(
             "Starting search: {:?}. Found {} vehicles",
             search, total_number
@@ -92,17 +96,22 @@ where
         let cloned_params = search.clone();
         let cloned_producer = link_producer.clone();
         sum_total_number += total_number;
+        let c2 = headers.clone();
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-            for page_number in 1..number_of_pages {
-                sleep(Duration::from_millis(250)).await;
+            for page_number in 1..2 {
                 let ids = cloned_scraper
-                    .get_listed_ids(cloned_params.clone(), page_number)
+                    .get_listed_ids(cloned_params.clone(), page_number, c2.clone())
                     .await
                     .unwrap();
+                info!("*** Found ids: {}", ids.len());
+                info!("*** Found ids: {:?}", ids);
                 for id in ids {
-                    if let Err(e) = cloned_producer.send(id).await {
+                    sleep(Duration::from_millis(10000)).await;
+                    if let Err(e) = cloned_producer.send(id.clone()).await {
                         error!("Error sending id: {}", e);
+                    } else {
+                        info!("Sent id: {}", &id.id);
                     }
                 }
             }
@@ -126,6 +135,7 @@ pub async fn process<T: ScraperTrait + Clone + Send>(
     scraper: T,
     link_receiver: &mut Receiver<LinkId>,
     records_producer: &mut Sender<MobileRecord>,
+    headers: HashMap<String, String>,
 ) -> Result<(), String>
 where
     T: 'static,
@@ -133,9 +143,11 @@ where
     let mut counter = 0;
     let mut wait_counter = 0;
     loop {
-        match timeout(Duration::from_millis(1000), link_receiver.recv()).await {
+        counter += 1;
+        info!("Processing urls: {}", counter);
+        match timeout(Duration::from_secs(300), link_receiver.recv()).await {
             Ok(Some(link)) => {
-                let data = scraper.parse_details(link).await.unwrap();
+                let data = scraper.parse_details(link, headers.clone()).await.unwrap();
                 if !is_valid_data(&data) {
                     continue;
                 }
@@ -144,13 +156,13 @@ where
                 //sleep for 100 millis
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 debug!("Processed urls: {}", counter);
-                counter += 1;
+                
                 if counter % 500 == 0 {
                     info!(">>> Processed urls: {}", counter);
                 }
             }
             Ok(None) => {
-                info!("No more links to process");
+                info!("No more links to process. Total processed: {}", counter);
                 break;
             }
             Err(e) => {
