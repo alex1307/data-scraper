@@ -265,7 +265,6 @@ mod car_gr_test_suit {
     use std::collections::HashMap;
 
     use log::info;
-    use reqwest::header;
     use scraper::{Html, Selector};
 
     use crate::{
@@ -274,10 +273,7 @@ mod car_gr_test_suit {
             vehicle_data,
         },
         model::records::MobileRecord,
-        scraper::{
-            CarGrScraper::CarGrScraper,
-            ScraperTrait::{Scraper, ScraperTrait},
-        },
+        scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
@@ -297,10 +293,7 @@ mod car_gr_test_suit {
         //params.insert("created".to_owned(), ">1".to_owned());
         let scraper = Scraper::new(url, "pg".to_owned(), 250);
         let url = scraper.search_url(None, params, 1);
-        let html = scraper
-            .html_search(&url, None, HashMap::new())
-            .await
-            .unwrap();
+        let html = scraper.html_search(&url, None).await.unwrap();
         //info!("html: {}", html);
         let data = get_listed_links(&html);
         assert_eq!(data.len(), 24);
@@ -313,11 +306,7 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         info!("page: {}", page.as_bytes().len());
         //info!("page: {}", page);
         let selector = Selector::parse("div.tw-text-base").unwrap();
@@ -416,11 +405,7 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_specification(&page);
         info!("data: {:?}", data);
     }
@@ -430,11 +415,7 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let equipment = get_equipment(&page);
         assert!(equipment > 0);
         info!("equipment: {}", equipment);
@@ -445,11 +426,7 @@ mod car_gr_test_suit {
         configure_log4rs(&LOG_CONFIG);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
         assert!(!data.is_empty());
         assert_eq!(data.len(), 3);
@@ -461,11 +438,7 @@ mod car_gr_test_suit {
         let url =
             "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = get_dealer_data(&page);
         assert!(!data.is_empty());
         assert_eq!(data.len(), 2);
@@ -478,24 +451,14 @@ mod car_gr_test_suit {
         let url =
             "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let headers = scraper.clone().headers().await;
-        info!("headers: {:?}", headers);
-        let page = scraper
-            .parent
-            .html_search(url, None, HashMap::new())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = vehicle_data(&page);
         //info!("land-rover: {:?}", data);
         let record = MobileRecord::from(data);
         info!("record: {:?}", record);
         let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
         let scraper = CarGrScraper::new(url, 250);
-        let page = scraper
-            .parent
-            .html_search(url, None, headers.clone())
-            .await
-            .unwrap();
+        let page = scraper.parent.html_search(url, None).await.unwrap();
         let data = vehicle_data(&page);
         // info!("mercedes: {:?}", data);
         let record = MobileRecord::from(data);

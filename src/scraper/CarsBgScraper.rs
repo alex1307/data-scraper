@@ -29,18 +29,6 @@ struct ViewCountsCarsBG {
 }
 
 pub async fn get_view_count(id: String) -> Result<u32, String> {
-    // let url = format!("https://stats.cars.bg/add/?object_id={}", id);
-    // // match REQWEST_ASYNC_CLIENT.get(url).send().await {
-    // //     Ok(_) => (),
-    // //     Err(e) => {
-    // //         error!(
-    // //             "Error setting counter for: {}. Error: {}",
-    // //             id,
-    // //             e.to_string()
-    // //         );
-    // //         return Ok(0);
-    // //     }
-    // // };
     let url = format!("https://stats.cars.bg/get/?object_id={}", id);
     let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
 
@@ -75,34 +63,21 @@ impl CarsBGScraper {
 
 #[async_trait]
 impl ScraperTrait for CarsBGScraper {
-    async fn headers(&self) -> HashMap<String, String> {
-        let response = REQWEST_ASYNC_CLIENT
-            .get("https://www.cars.bg")
-            .send()
-            .await
-            .unwrap();
-        let mut headers = HashMap::new();
-        let cookie = response.headers().get("Set-Cookie").unwrap();
-        let cf_ray = response.headers().get("CF-RAY").unwrap();
-        info!("Cookie: {:?}", cookie);
-        headers.insert("Cookie".to_owned(), cookie.to_str().unwrap().to_owned());
-        headers.insert("CF-RAY".to_owned(), cf_ray.to_str().unwrap().to_owned());
-        headers.insert(
-            "Sec-Ch-Ua".to_owned(),
-            r#"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24""#.to_owned(),
-        );
-        headers
+    async fn get_html(
+        &self,
+        path: Option<String>,
+        params: HashMap<String, String>,
+        page: u32,
+    ) -> Result<String, String> {
+        let url = self.parent.search_url(path, params, page);
+        self.parent.html_search(&url, None).await
     }
 
-    async fn total_number(
+    fn total_number(
         &self,
-        params: HashMap<String, String>,
-        headers: HashMap<String, String>,
+        html: &str,
+        //,
     ) -> Result<u32, String> {
-        let url = self
-            .parent
-            .search_url(Some("/carslist.php?".to_string()), params.clone(), 0);
-        let html = self.parent.html_search(url.as_str(), None, headers).await?;
         let document = Html::parse_document(&html);
         let total_number_selector = Selector::parse("span.milestoneNumberTotal").unwrap();
         let element = document.select(&total_number_selector).next().unwrap();
@@ -121,7 +96,6 @@ impl ScraperTrait for CarsBGScraper {
         &self,
         params: HashMap<String, String>,
         page_number: u32,
-        headers: HashMap<String, String>,
     ) -> Result<Vec<LinkId>, String> {
         let mut ids = vec![];
         tokio::time::sleep(Duration::from_millis(self.parent.wait_time_ms)).await;
@@ -130,7 +104,7 @@ impl ScraperTrait for CarsBGScraper {
             params.clone(),
             page_number,
         );
-        let html = self.parent.html_search(url.as_str(), None, headers).await?;
+        let html = self.parent.html_search(url.as_str(), None).await?;
         let document = Html::parse_document(&html);
         let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
         for element in document.select(&selector) {
@@ -152,12 +126,8 @@ impl ScraperTrait for CarsBGScraper {
         Ok(ids)
     }
 
-    async fn parse_details(
-        &self,
-        link: LinkId,
-        headers: HashMap<String, String>,
-    ) -> Result<HashMap<String, String>, String> {
-        let html = self.parent.html_search(&link.url, None, headers).await?;
+    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
+        let html = self.parent.html_search(&link.url, None).await?;
         let mut result = read_carsbg_details(html);
         match get_view_count(link.id.clone()).await {
             Ok(views) => {
@@ -205,21 +175,22 @@ mod cars_bg_tests {
         params.insert("priceTo".to_owned(), "30000".to_owned());
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
-
-        let total_number = cars_bg
-            .total_number(params.clone(), HashMap::new())
+        let url = cars_bg
+            .parent
+            .search_url(Some("/carslist.php?".to_string()), params, 1);
+        let html = cars_bg
+            .parent
+            .html_search(url.as_str(), None)
             .await
             .unwrap();
+        let total_number = cars_bg.total_number(&html).unwrap();
         assert!(total_number > 0);
         info!("total_number: {}", total_number);
         let number_of_pages = cars_bg.parent.get_number_of_pages(total_number).unwrap();
         assert_eq!(number_of_pages, total_number / 20 + 1);
         let mut all = vec![];
         for page in 1..=number_of_pages + 1 {
-            let ids = cars_bg
-                .get_listed_ids(params.clone(), page, HashMap::new())
-                .await
-                .unwrap();
+            let ids = cars_bg.get_listed_ids(params.clone(), page).await.unwrap();
             all.extend(ids);
         }
 
@@ -242,18 +213,12 @@ mod cars_bg_tests {
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
 
-        let ids = cars_bg
-            .get_listed_ids(params.clone(), 1, HashMap::new())
-            .await
-            .unwrap();
+        let ids = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         let first = ids.first().unwrap();
         let path = Some(format!("/offer/{:?}", first));
         let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
         info!("search_url: {}", search_url);
-        let details = cars_bg
-            .parse_details(first.clone(), HashMap::new())
-            .await
-            .unwrap();
+        let details = cars_bg.parse_details(first.clone()).await.unwrap();
         assert!(details.len() > 0);
         assert_eq!(details.get("id").unwrap(), &first.id);
         info!("details: {:?}", details);

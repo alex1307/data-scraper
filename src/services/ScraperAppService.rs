@@ -88,7 +88,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         Crawlers::CarGr(_) => {
             let searches: Vec<HashMap<String, String>> = car_gr_all_searches();
             scrape_all_vehicles(
-                MOBILE_BG_CRAWLER.clone(),
+                CAR_GR_CRAWLER.clone(),
                 CAR_GR_ALL_FILE_NAME.to_owned(),
                 searches,
             )
@@ -146,16 +146,8 @@ where
         error!("Failed to create file {}", file_name.clone());
     }
     let process_scraper = scraper.clone();
-    let headers = scraper.clone().headers().await;
-    let start_handler = tokio::spawn(async move {
-        start(
-            Box::new(scraper),
-            searches,
-            &mut link_producer,
-            headers.clone(),
-        )
-        .await
-    });
+    let start_handler =
+        tokio::spawn(async move { start(Box::new(scraper), searches, &mut link_producer).await });
     let process_handler = tokio::spawn(async move {
         process(
             process_scraper,
@@ -188,9 +180,10 @@ where
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
-    let start_handler = tokio::spawn(async move {
-        start(Box::new(scraper), searches, &mut producer, HashMap::new()).await
-    });
+    let start_handler =
+        tokio::spawn(
+            async move { start(Box::new(scraper), searches, &mut producer, vec![]).await },
+        );
 
     let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
 
@@ -281,8 +274,7 @@ mod app_test {
         let mut total = 0;
         for search in searches {
             let total_number = CARS_BG_CRAWLER
-                .total_number(search.clone(), HashMap::new())
-                .await
+                .total_number(search.clone(), vec![])
                 .unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
