@@ -1,6 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use log::{debug, error, info};
+use rand::Rng;
 use reqwest::header;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
@@ -25,68 +26,18 @@ fn is_valid_data(data: &HashMap<String, String>) -> bool {
         .all(|&key| data.contains_key(key))
 }
 
-// pub async fn start<T: ScraperTrait + Clone>(
-//     scraper: Box<T>,
-//     searches: Vec<HashMap<String, String>>,
-//     link_producer: &mut Sender<LinkId>,
-// ) -> Result<(), String>
-// where
-//     T: Send + 'static,
-// {
-//     let mut sum_total_number = 0;
-//     let mut sum_sent_ids = 0;
-//     for search in searches {
-//         let total_number = scraper.total_number(search.clone()).await?;
-//         // info!(
-//         //     "Starting search: {:?}. Found {} vehicles",
-//         //     search, total_number
-//         // );
-//         let cloned_scraper = scraper.clone();
-//         let cloned_params = search.clone();
-//         sum_total_number += total_number;
-//         let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-//         for page_number in 1..number_of_pages {
-//             let ids = cloned_scraper
-//                 .get_listed_ids(cloned_params.clone(), page_number)
-//                 .await
-//                 .unwrap();
-//             info!("*** Found ids: {}", ids.len());
-//             for id in ids {
-//                 if let Err(e) = link_producer.send(id).await {
-//                     error!("Error sending id: {}", e);
-//                 } else {
-//                     sum_sent_ids += 1;
-//                 }
-//             }
-
-//             if sum_sent_ids % 250 == 0 {
-//                 info!("**** Sent ids: {}", sum_sent_ids);
-//             }
-//         }
-//     }
-
-//     info!("-------------------------------------------------");
-//     info!("Total number of vehicles: {}", sum_total_number);
-//     info!("Total number of sent LinkIds: {}", sum_sent_ids);
-//     info!("-------------------------------------------------");
-
-//     Ok(())
-// }
-
 pub async fn start<T: ScraperTrait + Clone>(
     scraper: Box<T>,
     searches: Vec<HashMap<String, String>>,
     link_producer: &mut Sender<LinkId>,
-    headers: HashMap<String, String>,
 ) -> Result<(), String>
 where
     T: Send + 'static,
 {
     let mut handlers = vec![];
     let mut sum_total_number = 0;
-    let cloned = headers.clone();
     for search in searches {
-        let c1 = headers.clone();
+        let url = scraper.search_url(None, search.clone(), 0);
         let total_number = scraper.total_number(search.clone(), c1).await?.clone();
         info!(
             "Starting search: {:?}. Found {} vehicles",
@@ -96,18 +47,20 @@ where
         let cloned_params = search.clone();
         let cloned_producer = link_producer.clone();
         sum_total_number += total_number;
-        let c2 = headers.clone();
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-            for page_number in 1..2 {
+            for page_number in 1..number_of_pages {
                 let ids = cloned_scraper
-                    .get_listed_ids(cloned_params.clone(), page_number, c2.clone())
+                    .get_listed_ids(cloned_params.clone(), page_number)
                     .await
                     .unwrap();
                 info!("*** Found ids: {}", ids.len());
                 info!("*** Found ids: {:?}", ids);
+                let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
+                sleep(Duration::from_millis(listing_wait_time as u64)).await;
                 for id in ids {
-                    sleep(Duration::from_millis(10000)).await;
+                    let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
+                    sleep(Duration::from_millis(advert_wait_time)).await;
                     if let Err(e) = cloned_producer.send(id.clone()).await {
                         error!("Error sending id: {}", e);
                     } else {
@@ -156,7 +109,7 @@ where
                 //sleep for 100 millis
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 debug!("Processed urls: {}", counter);
-                
+
                 if counter % 500 == 0 {
                     info!(">>> Processed urls: {}", counter);
                 }

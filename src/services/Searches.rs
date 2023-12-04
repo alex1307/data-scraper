@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::info;
 
-use crate::services::ScraperAppService::MOBILE_BG_CRAWLER;
+use crate::{scraper::ScraperTrait::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER};
 
 pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
@@ -54,9 +54,12 @@ pub async fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
     params.insert("rub".to_string(), 1.to_string());
     params.insert("pubtype".to_string(), 1.to_string());
     params.insert("topmenu".to_string(), "1".to_string());
-
     for search in meta_searches.clone() {
-        let slink = MOBILE_BG_CRAWLER.slink(search.clone()).await.unwrap();
+        let html = MOBILE_BG_CRAWLER
+            .get_html(None, search.clone(), 1)
+            .await
+            .unwrap();
+        let slink = MOBILE_BG_CRAWLER.slink(&html).unwrap();
         params.insert("slink".to_owned(), slink.clone());
         info!("slink: {} for search: {:?}", slink, search);
         searches.push(params.clone());
@@ -86,10 +89,21 @@ pub async fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     params.insert("topmenu".to_string(), "1".to_string());
 
     for search in meta_searches.clone() {
-        let slink = MOBILE_BG_CRAWLER.slink(search.clone()).await.unwrap();
-        params.insert("slink".to_owned(), slink.clone());
-        info!("slink: {} for search: {:?}", slink, search);
-        searches.push(params.clone());
+        let html = MOBILE_BG_CRAWLER
+            .get_html(None, search.clone(), 1)
+            .await
+            .unwrap();
+        match MOBILE_BG_CRAWLER.slink(&html) {
+            Ok(slink) => {
+                params.insert("slink".to_owned(), slink.clone());
+                info!("slink: {} for search: {:?}", slink, search);
+                searches.push(params.clone());
+            }
+            Err(e) => {
+                info!("Error: {}", e);
+                continue;
+            }
+        }
     }
     searches
 }
@@ -123,19 +137,17 @@ pub fn car_gr_new_searches() -> Vec<HashMap<String, String>> {
     map.insert("withprice".to_owned(), "1".to_owned());
     map.insert("created".to_owned(), ">1".to_owned());
     map.insert("lang".to_owned(), "en".to_owned());
-    map.insert("registration-from".to_owned(), "2007".to_owned());
-    map.insert("registration-to".to_owned(), "2008".to_owned());
+    map.insert("registration-from".to_owned(), "2004".to_owned());
+    // map.insert("registration-to".to_owned(), "2008".to_owned());
     let price_filter = price_filter("price-from", "price-to", map.clone());
-    price_filter[4..5].to_vec()
+    price_filter
 }
 
 pub fn car_gr_all_searches() -> Vec<HashMap<String, String>> {
     let mut searches = vec![];
     let mut map = HashMap::new();
-    map.insert("category".to_owned(), "15001".to_owned());
-    map.insert("media_types".to_owned(), "photo".to_owned());
     map.insert("withprice".to_owned(), "1".to_owned());
-    for year in 1980..2023 {
+    for year in 2022..2023 {
         map.insert("registration-from".to_owned(), year.to_string());
         map.insert("registration-to".to_owned(), (year + 1).to_string());
         let price_filter = price_filter("price-from", "price-to", map.clone());
