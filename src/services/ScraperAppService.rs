@@ -181,9 +181,7 @@ where
         error!("Failed to create file {}", file_name.clone());
     }
     let start_handler =
-        tokio::spawn(
-            async move { start(Box::new(scraper), searches, &mut producer, vec![]).await },
-        );
+        tokio::spawn(async move { start(Box::new(scraper), searches, &mut producer).await });
 
     let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
 
@@ -201,6 +199,7 @@ mod app_test {
     use std::collections::HashMap;
 
     use log::info;
+    use scraper::html;
 
     use super::scrape_new_vehicles;
     use crate::scraper::CarsBgScraper::CarsBGScraper;
@@ -250,7 +249,8 @@ mod app_test {
         );
 
         let scraper = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-        let slink = scraper.slink(params.clone()).await.unwrap();
+        let html = scraper.get_html(None, params.clone(), 1).await.unwrap();
+        let slink = scraper.slink(&html).unwrap();
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
         params.insert("rub".to_string(), 1.to_string());
@@ -273,9 +273,11 @@ mod app_test {
         let searches = cars_bg_new_searches();
         let mut total = 0;
         for search in searches {
-            let total_number = CARS_BG_CRAWLER
-                .total_number(search.clone(), vec![])
+            let html = CARS_BG_CRAWLER
+                .get_html(Some(r#"carslist.php?"#.to_string()), search.clone(), 1)
+                .await
                 .unwrap();
+            let total_number = CARS_BG_CRAWLER.total_number(&html).unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
         }
@@ -288,10 +290,11 @@ mod app_test {
         let searches = mobile_bg_new_searches().await;
         let mut total = 0;
         for search in searches {
-            let total_number = MOBILE_BG_CRAWLER
-                .total_number(search.clone(), HashMap::new())
+            let html = MOBILE_BG_CRAWLER
+                .get_html(None, search.clone(), 1)
                 .await
                 .unwrap();
+            let total_number = MOBILE_BG_CRAWLER.total_number(&html).unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
         }

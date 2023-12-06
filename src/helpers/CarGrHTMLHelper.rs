@@ -298,7 +298,7 @@ mod car_gr_test_suit {
         let data = get_listed_links(&html);
         assert_eq!(data.len(), 24);
         let total_number = get_total_number(&html);
-        assert_eq!(total_number, 122);
+        assert_eq!(total_number, 125);
     }
 
     #[tokio::test]

@@ -2,9 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 
-use log::info;
 use regex::Regex;
-use reqwest::header;
 use scraper::{Html, Selector};
 
 use super::{
@@ -161,7 +159,7 @@ mod screaper_mobile_bg_test {
 
         let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
         let total_number = mobile_bg.total_number(&html).unwrap();
-        let slink = mobile_bg.slink(&html).await.unwrap();
+        let slink = mobile_bg.slink(&html).unwrap();
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
         params.insert("rub".to_string(), 1.to_string());
@@ -171,7 +169,6 @@ mod screaper_mobile_bg_test {
 
         let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
         let slink_totals = mobile_bg.total_number(&html).unwrap();
-        let slink = mobile_bg.slink(&html).await.unwrap();
 
         info!("total_number: {}", total_number);
         info!("total_number: {}", slink_totals);
@@ -209,9 +206,8 @@ mod screaper_mobile_bg_test {
             "f94".to_string(),
             "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
         );
-        let html = mobile_bg.get_html(None, params, 1).await.unwrap();
-        let slink_totals = mobile_bg.total_number(&html).unwrap();
-        let slink = mobile_bg.slink(&html).await.unwrap();
+        let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
+        let slink = mobile_bg.slink(&html).unwrap();
 
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
@@ -220,7 +216,6 @@ mod screaper_mobile_bg_test {
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink.clone());
 
-        let html = mobile_bg.get_html(None, params, 1).await.unwrap();
         let ids = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         let first = ids.first().unwrap();
         params.clear();
