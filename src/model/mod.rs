@@ -1,3 +1,4 @@
+pub mod AutoUncleVehicle;
 pub mod enums;
 pub mod error;
 pub mod id_list;
