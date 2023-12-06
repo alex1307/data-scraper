@@ -37,8 +37,8 @@ where
     let mut handlers = vec![];
     let mut sum_total_number = 0;
     for search in searches {
-        let url = scraper.search_url(None, search.clone(), 0);
-        let total_number = scraper.total_number(search.clone(), c1).await?.clone();
+        let html = scraper.get_html(None, search.clone(), 1).await?;
+        let total_number = scraper.total_number(&html)?.clone();
         info!(
             "Starting search: {:?}. Found {} vehicles",
             search, total_number
@@ -100,7 +100,7 @@ where
         info!("Processing urls: {}", counter);
         match timeout(Duration::from_secs(300), link_receiver.recv()).await {
             Ok(Some(link)) => {
-                let data = scraper.parse_details(link, headers.clone()).await.unwrap();
+                let data = scraper.parse_details(link).await.unwrap();
                 if !is_valid_data(&data) {
                     continue;
                 }

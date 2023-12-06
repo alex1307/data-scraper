@@ -177,7 +177,7 @@ mod cars_bg_tests {
         params.insert("yearTo".to_owned(), "2011".to_owned());
         let url = cars_bg
             .parent
-            .search_url(Some("/carslist.php?".to_string()), params, 1);
+            .search_url(Some("/carslist.php?".to_string()), params.clone(), 1);
         let html = cars_bg
             .parent
             .html_search(url.as_str(), None)
