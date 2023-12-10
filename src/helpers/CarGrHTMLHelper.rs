@@ -6,8 +6,8 @@ use scraper::{Html, Selector};
 use serde::Deserialize;
 
 use crate::{
-    config::equipment::{get_equipment_as_u64, CAR_GR_EQUIPMENT},
-    scraper::{
+    config::Equipment::get_equipment_as_u64,
+    helpers::{
         CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
         MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, TOP_KEY,
         VIEW_COUNT_KEY, YEAR_KEY,
@@ -215,7 +215,7 @@ pub fn get_equipment(html_page: &str) -> u64 {
                         .replace("name:", "\"name\":");
                     let values = serde_json::from_str::<Vec<KeyValue>>(json_text.trim()).unwrap();
                     let equipment_list = values.into_iter().map(|v| v.name).collect::<Vec<_>>();
-                    let equipment_id = get_equipment_as_u64(equipment_list, &CAR_GR_EQUIPMENT);
+                    let equipment_id = get_equipment_as_u64(equipment_list);
                     return equipment_id;
                 }
             }
@@ -273,7 +273,7 @@ mod car_gr_test_suit {
             vehicle_data,
         },
         model::records::MobileRecord,
-        scraper::{CarGrScraper::CarGrScraper, ScraperTrait::Scraper},
+        scraper::{CarGrScraper::CarGrScraper, Traits::Scraper},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };

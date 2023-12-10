@@ -227,7 +227,7 @@ pub fn extract_ascii_latin(text: &str) -> String {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::scraper::mobile_bg_helpers::{get_pages, slink};
+    use crate::helpers::MobileBgHTMLHelper::{get_pages, slink};
 
     use super::*;
 

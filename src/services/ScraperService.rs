@@ -1,16 +1,19 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 use log::{debug, error, info};
 use rand::Rng;
-use reqwest::header;
+use serde::Serialize;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     time::{sleep, timeout},
 };
 
 use crate::{
-    model::records::MobileRecord,
-    scraper::ScraperTrait::{LinkId, ScraperTrait},
+    model::{
+        traits::{Identity, Transform, URLResource},
+        VehicleDataModel::ScrapedListData,
+    },
+    scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     writer::persistance::{MobileData, MobileDataWriter},
 };
 
@@ -20,24 +23,19 @@ pub struct ScraperService<T: ScraperTrait + Clone> {
     pub file_name: String,
 }
 
-fn is_valid_data(data: &HashMap<String, String>) -> bool {
-    ["id", "make", "engine", "gearbox"]
-        .iter()
-        .all(|&key| data.contains_key(key))
-}
-
-pub async fn start<T: ScraperTrait + Clone>(
-    scraper: Box<T>,
+pub async fn process_list<S, T>(
+    scraper: Box<S>,
     searches: Vec<HashMap<String, String>>,
-    link_producer: &mut Sender<LinkId>,
+    link_producer: &mut Sender<T>,
 ) -> Result<(), String>
 where
-    T: Send + 'static,
+    S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
+    T: Send + Identity + URLResource + Clone + Serialize + Debug + 'static,
 {
     let mut handlers = vec![];
     let mut sum_total_number = 0;
     for search in searches {
-        let html = scraper.get_html(None, search.clone(), 1).await?;
+        let html = scraper.get_html(search.clone(), 1).await?;
         let total_number = scraper.total_number(&html)?.clone();
         info!(
             "Starting search: {:?}. Found {} vehicles",
@@ -50,21 +48,33 @@ where
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
             for page_number in 1..number_of_pages {
-                let ids = cloned_scraper
-                    .get_listed_ids(cloned_params.clone(), page_number)
+                let data = cloned_scraper
+                    .get_listed_ids(cloned_params.clone())
                     .await
                     .unwrap();
-                info!("*** Found ids: {}", ids.len());
-                info!("*** Found ids: {:?}", ids);
-                let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
-                sleep(Duration::from_millis(listing_wait_time as u64)).await;
-                for id in ids {
-                    let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
-                    sleep(Duration::from_millis(advert_wait_time)).await;
-                    if let Err(e) = cloned_producer.send(id.clone()).await {
-                        error!("Error sending id: {}", e);
-                    } else {
-                        info!("Sent id: {}", &id.id);
+                match data {
+                    ScrapedListData::Values(list) => {
+                        info!("*** Found ids: {}", list.len());
+                        let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
+                        sleep(Duration::from_millis(listing_wait_time as u64)).await;
+                        for id in list {
+                            let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
+                            sleep(Duration::from_millis(advert_wait_time)).await;
+                            if let Err(e) = cloned_producer.send(id.clone()).await {
+                                error!("Error sending id: {}", e);
+                            } else {
+                                info!("Sent id: {}", &id.get_id());
+                            }
+                        }
+                    }
+                    ScrapedListData::SingleValue(value) => {
+                        if let Err(_) = cloned_producer.send(value.clone()).await {
+                            error!("Error sending id: {:?}", value);
+                        }
+                    }
+                    ScrapedListData::Error(_) => {
+                        error!("Error getting data for page# : {}", page_number);
+                        continue;
                     }
                 }
             }
@@ -84,14 +94,15 @@ where
     Ok(())
 }
 
-pub async fn process<T: ScraperTrait + Clone + Send>(
-    scraper: T,
-    link_receiver: &mut Receiver<LinkId>,
-    records_producer: &mut Sender<MobileRecord>,
-    headers: HashMap<String, String>,
+pub async fn process_details<S, Req, Res>(
+    scraper: S,
+    link_receiver: &mut Receiver<Req>,
+    records_producer: &mut Sender<Res>,
 ) -> Result<(), String>
 where
-    T: 'static,
+    S: Send + ScraperTrait + RequestResponseTrait<Req, Res> + Clone + 'static,
+    Req: Send + Identity + Clone + Serialize + Debug + URLResource + 'static,
+    Res: Send + Clone + Serialize + Debug + 'static,
 {
     let mut counter = 0;
     let mut wait_counter = 0;
@@ -100,15 +111,19 @@ where
         info!("Processing urls: {}", counter);
         match timeout(Duration::from_secs(300), link_receiver.recv()).await {
             Ok(Some(link)) => {
-                let data = scraper.parse_details(link).await.unwrap();
-                if !is_valid_data(&data) {
-                    continue;
+                match scraper.handle_request(link.clone()).await {
+                    Ok(data) => {
+                        wait_counter = 0;
+                        if let Err(e) = records_producer.send(data).await {
+                            error!("Error sending data: {}", e);
+                        }
+                        counter += 1;
+                    }
+                    Err(e) => {
+                        error!("Error processing url: {}", e);
+                        continue;
+                    }
                 }
-                let record = MobileRecord::from(data);
-                records_producer.send(record).await.unwrap();
-                //sleep for 100 millis
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                debug!("Processed urls: {}", counter);
 
                 if counter % 500 == 0 {
                     info!(">>> Processed urls: {}", counter);
@@ -122,7 +137,7 @@ where
                 wait_counter += 1;
                 if wait_counter == 5 {
                     error!("Timeout receiving link: {}", e);
-                    break;
+                    continue;
                 } else {
                     info!("Waiting for links to process");
                 }
@@ -130,7 +145,6 @@ where
         }
     }
 
-    info!(">>> Processed urls: {}", counter);
     Ok(())
 }
 
@@ -162,4 +176,86 @@ fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
     );
     let new_data = MobileData::Payload(data);
     new_data.write_csv(file_name, false).unwrap();
+}
+
+pub async fn process_and_send<S, T, U>(
+    scraper: Box<S>,
+    searches: Vec<HashMap<String, String>>,
+    input: T,
+    transformers: Vec<Box<dyn Transform<T, U>>>, // U needs to be determined
+    channels: Vec<tokio::sync::mpsc::Sender<U>>, // Same issue with U
+) -> Result<(), String>
+where
+    U: Send + Identity + Serialize + Clone + 'static,
+    T: Send + Identity + Clone + Serialize + Debug + 'static,
+    S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
+{
+    let mut handlers = vec![];
+    let mut sum_total_number = 0;
+    for search in searches {
+        let html = scraper.get_html(search.clone(), 1).await?;
+        let total_number = scraper.total_number(&html)?.clone();
+        info!(
+            "Starting search: {:?}. Found {} vehicles",
+            search, total_number
+        );
+        let cloned_scraper = scraper.clone();
+        let cloned_params = search.clone();
+        sum_total_number += total_number;
+        let handler = tokio::spawn(async move {
+            let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
+            for page_number in 1..number_of_pages {
+                let data = cloned_scraper
+                    .get_listed_ids(cloned_params.clone())
+                    .await
+                    .unwrap();
+                match data {
+                    ScrapedListData::Values(list) => {
+                        info!("*** Found ids: {}", list.len());
+                        let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
+                        sleep(Duration::from_millis(listing_wait_time as u64)).await;
+                        for id in list {
+                            let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
+                            sleep(Duration::from_millis(advert_wait_time)).await;
+                            for (transformer, channel) in transformers.iter().zip(channels.iter()) {
+                                match transformer.transform(input.clone()) {
+                                    Ok(transformed) => {
+                                        channel
+                                            .send(transformed)
+                                            .await
+                                            .map_err(|e| e.to_string())?;
+                                    }
+                                    Err(e) => {
+                                        error!("Error transforming data: {}", e);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ScrapedListData::SingleValue(value) => {
+                        if let Err(_) = cloned_producer.send(value.clone()).await {
+                            error!("Error sending id: {:?}", value);
+                        }
+                    }
+                    ScrapedListData::Error(_) => {
+                        error!("Error getting data for page# : {}", page_number);
+                        continue;
+                    }
+                }
+            }
+        });
+        handlers.push(handler);
+    }
+
+    info!("-------------------------------------------------");
+    info!("Total number of vehicles: {}", sum_total_number);
+    info!("-------------------------------------------------");
+
+    for handler in handlers {
+        info!("Waiting for handler to finish");
+        handler.await.unwrap();
+    }
+    info!("All handlers finished");
+    Ok(())
 }

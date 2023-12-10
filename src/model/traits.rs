@@ -4,6 +4,10 @@ pub trait Identity {
     fn get_id(&self) -> String;
 }
 
+pub trait URLResource {
+    fn get_url(&self) -> String;
+}
+
 pub trait Header {
     fn header() -> Vec<&'static str>;
 }
@@ -14,4 +18,8 @@ pub trait SetIdentity {
 
 pub trait PayloadProcessor<T> {
     fn process(&self, payload: Payload<T>) -> Payload<T>;
+}
+
+pub trait Transform<T, U> {
+    fn transform(&self, input: T) -> Result<U, String>;
 }

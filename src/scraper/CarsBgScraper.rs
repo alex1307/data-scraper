@@ -2,17 +2,24 @@ use std::{collections::HashMap, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{error, info};
 
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
 use crate::{
-    scraper::{cars_bg_helpers::read_carsbg_details, ScraperTrait::LinkId},
+    helpers::{
+        CarsBgHTMLHelper::read_carsbg_details, ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY,
+        PRICE_KEY, YEAR_KEY,
+    },
+    model::{
+        records::MobileRecord,
+        VehicleDataModel::{LinkId, ScrapedListData},
+    },
     BROWSER_USER_AGENT,
 };
 
-use super::ScraperTrait::{Scraper, ScraperTrait};
+use super::Traits::{RequestResponseTrait, ScrapeListTrait, Scraper, ScraperTrait};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -62,14 +69,86 @@ impl CarsBGScraper {
 }
 
 #[async_trait]
-impl ScraperTrait for CarsBGScraper {
-    async fn get_html(
+impl ScrapeListTrait<LinkId> for CarsBGScraper {
+    async fn get_listed_ids(
         &self,
-        path: Option<String>,
         params: HashMap<String, String>,
-        page: u32,
-    ) -> Result<String, String> {
-        let url = self.parent.search_url(path, params, page);
+    ) -> Result<ScrapedListData<LinkId>, String> {
+        let mut ids = vec![];
+        let html = self.get_html(params.clone(), 0).await?;
+        let total_number = self.total_number(&html)?;
+        let number_of_pages = self.get_number_of_pages(total_number)?;
+        for page_number in 1..number_of_pages + 1 {
+            let url = self.parent.search_url(
+                Some("/carslist.php?".to_string()),
+                params.clone(),
+                page_number,
+            );
+            let html = self.parent.html_search(url.as_str(), None).await?;
+            let document = Html::parse_document(&html);
+            let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
+            for element in document.select(&selector) {
+                let html_fragment = Html::parse_fragment(element.inner_html().as_str());
+                let selector = Selector::parse("a").unwrap();
+                for e in html_fragment.select(&selector) {
+                    if let Some(href) = e.value().attr("href") {
+                        if let Some(id) = href.split("/offer/").last() {
+                            ids.push(LinkId {
+                                url: href.to_string(),
+                                id: id.to_owned(),
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(ScrapedListData::Values(ids))
+    }
+}
+
+#[async_trait]
+impl RequestResponseTrait<LinkId, MobileRecord> for CarsBGScraper {
+    async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
+        let html = self.parent.html_search(&link.url, None).await?;
+        let mut result = read_carsbg_details(html);
+        match get_view_count(link.id.clone()).await {
+            Ok(views) => {
+                result.insert("view_count".to_owned(), views.to_string());
+            }
+            Err(e) => {
+                error!(
+                    "Error setting counter for: {}. Error: {}",
+                    link.id,
+                    e.to_string()
+                );
+            }
+        }
+        result.insert("id".to_owned(), link.id.clone());
+        if None == result.get(PRICE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(MAKE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(YEAR_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(MILEAGE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(ENGINE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(GEARBOX_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else {
+            let record = MobileRecord::from(result);
+            Ok(record)
+        }
+    }
+}
+
+#[async_trait]
+impl ScraperTrait for CarsBGScraper {
+    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
+        let url = self.parent.search_url(self.get_search_path(), params, page);
         self.parent.html_search(&url, None).await
     }
 
@@ -92,61 +171,12 @@ impl ScraperTrait for CarsBGScraper {
         Ok(total_number)
     }
 
-    async fn get_listed_ids(
-        &self,
-        params: HashMap<String, String>,
-        page_number: u32,
-    ) -> Result<Vec<LinkId>, String> {
-        let mut ids = vec![];
-        tokio::time::sleep(Duration::from_millis(self.parent.wait_time_ms)).await;
-        let url = self.parent.search_url(
-            Some("/carslist.php?".to_string()),
-            params.clone(),
-            page_number,
-        );
-        let html = self.parent.html_search(url.as_str(), None).await?;
-        let document = Html::parse_document(&html);
-        let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
-        for element in document.select(&selector) {
-            let html_fragment = Html::parse_fragment(element.inner_html().as_str());
-            let selector = Selector::parse("a").unwrap();
-            for e in html_fragment.select(&selector) {
-                if let Some(href) = e.value().attr("href") {
-                    if let Some(id) = href.split("/offer/").last() {
-                        ids.push(LinkId {
-                            url: href.to_string(),
-                            id: id.to_owned(),
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-        debug!("ids: {:?}", ids);
-        Ok(ids)
-    }
-
-    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
-        let html = self.parent.html_search(&link.url, None).await?;
-        let mut result = read_carsbg_details(html);
-        match get_view_count(link.id.clone()).await {
-            Ok(views) => {
-                result.insert("view_count".to_owned(), views.to_string());
-            }
-            Err(e) => {
-                error!(
-                    "Error setting counter for: {}. Error: {}",
-                    link.id,
-                    e.to_string()
-                );
-            }
-        }
-        result.insert("id".to_owned(), link.id);
-        Ok(result)
-    }
-
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         self.parent.get_number_of_pages(total_number)
+    }
+
+    fn get_search_path(&self) -> Option<String> {
+        Some("/carslist.php?".to_string())
     }
 }
 
@@ -157,7 +187,11 @@ mod cars_bg_tests {
     use log::info;
 
     use crate::{
-        scraper::{CarsBgScraper::CarsBGScraper, ScraperTrait::ScraperTrait as _},
+        model::VehicleDataModel::ScrapedListData,
+        scraper::{
+            CarsBgScraper::CarsBGScraper,
+            Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait as _},
+        },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
@@ -186,17 +220,15 @@ mod cars_bg_tests {
         let total_number = cars_bg.total_number(&html).unwrap();
         assert!(total_number > 0);
         info!("total_number: {}", total_number);
-        let number_of_pages = cars_bg.parent.get_number_of_pages(total_number).unwrap();
-        assert_eq!(number_of_pages, total_number / 20 + 1);
-        let mut all = vec![];
-        for page in 1..=number_of_pages + 1 {
-            let ids = cars_bg.get_listed_ids(params.clone(), page).await.unwrap();
-            all.extend(ids);
+        let data = cars_bg.get_listed_ids(params.clone()).await.unwrap();
+        match data {
+            ScrapedListData::Values(ids) => {
+                assert!(ids.len() > 0);
+                info!("ids: {:?}", ids);
+                assert_eq!(ids.len(), total_number as usize);
+            }
+            _ => panic!("Wrong data type"),
         }
-
-        assert!(all.len() > 0);
-        assert_eq!(all.len(), total_number as usize);
-        info!("all: {:?}", all);
     }
 
     #[tokio::test]
@@ -213,16 +245,19 @@ mod cars_bg_tests {
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
 
-        let ids = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
-        let first = ids.first().unwrap();
-        let path = Some(format!("/offer/{:?}", first));
-        let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
-        info!("search_url: {}", search_url);
-        let details = cars_bg.parse_details(first.clone()).await.unwrap();
-        assert!(details.len() > 0);
-        assert_eq!(details.get("id").unwrap(), &first.id);
-        info!("details: {:?}", details);
-        let record = crate::model::records::MobileRecord::from(details);
-        info!("record: {:?}", record);
+        let data = cars_bg.get_listed_ids(params.clone()).await.unwrap();
+        match data {
+            ScrapedListData::Values(ids) => {
+                assert!(ids.len() > 0);
+                info!("ids: {:?}", ids);
+                let first = ids.first().unwrap();
+                let path = Some(format!("/offer/{:?}", first));
+                let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
+                info!("search_url: {}", search_url);
+                let record = cars_bg.handle_request(first.clone()).await.unwrap();
+                info!("record: {:?}", record);
+            }
+            _ => panic!("Wrong data type"),
+        }
     }
 }

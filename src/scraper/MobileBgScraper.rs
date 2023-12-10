@@ -5,11 +5,18 @@ use async_trait::async_trait;
 use regex::Regex;
 use scraper::{Html, Selector};
 
-use super::{
-    mobile_bg_helpers::{details2map, get_url},
-    ScraperTrait::{LinkId, Scraper, ScraperTrait},
+use super::Traits::{RequestResponseTrait, ScrapeListTrait, Scraper, ScraperTrait};
+use crate::{
+    helpers::{
+        MobileBgHTMLHelper::{details2map, get_url, slink},
+        ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, PRICE_KEY, YEAR_KEY,
+    },
+    model::{
+        records::MobileRecord,
+        VehicleDataModel::{LinkId, ScrapedListData},
+    },
+    BROWSER_USER_AGENT,
 };
-use crate::{scraper::mobile_bg_helpers::slink, BROWSER_USER_AGENT};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -43,14 +50,79 @@ impl MobileBGScraper {
 }
 
 #[async_trait]
-impl ScraperTrait for MobileBGScraper {
-    async fn get_html(
+impl ScrapeListTrait<LinkId> for MobileBGScraper {
+    async fn get_listed_ids(
         &self,
-        path: Option<String>,
         params: HashMap<String, String>,
-        page: u32,
-    ) -> Result<String, String> {
-        let url = self.parent.search_url(path, params, page);
+    ) -> Result<ScrapedListData<LinkId>, String> {
+        let html = self.get_html(params.clone(), 0).await?;
+        let total_number = self.total_number(&html)?;
+        let number_of_pages = self.get_number_of_pages(total_number)?;
+        let mut list = vec![];
+        for page_number in 1..number_of_pages + 1 {
+            let url = self.parent.search_url(None, params.clone(), page_number);
+            let html = self
+                .parent
+                .html_search(&url, Some("windows-1251".to_string()))
+                .await?;
+            let document = Html::parse_document(&html);
+            let selector = Selector::parse("table.tablereset").unwrap();
+            let re = Regex::new(r"adv=(\d+)").unwrap();
+            for element in document.select(&selector) {
+                if let Some(url) = get_url(&element) {
+                    let url = if url.contains(r#"https:"#) {
+                        url
+                    } else {
+                        format!("https:{}", url)
+                    };
+                    if let Some(caps) = re.captures(&url) {
+                        if let Some(matched) = caps.get(1) {
+                            list.push(LinkId {
+                                id: matched.as_str().to_owned(),
+                                url,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        Ok(ScrapedListData::Values(list))
+    }
+}
+
+#[async_trait]
+impl RequestResponseTrait<LinkId, MobileRecord> for MobileBGScraper {
+    async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
+        let html = self
+            .parent
+            .html_search(&link.url, Some("windows-1251".to_string()))
+            .await?;
+        let document = Html::parse_document(&html);
+        let mut result = details2map(document);
+        result.insert("id".to_owned(), link.id.clone());
+        if None == result.get(PRICE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(MAKE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(YEAR_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(MILEAGE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(ENGINE_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else if None == result.get(GEARBOX_KEY.to_string().as_str()) {
+            Err(format!("invalid/incompete data for: {}", &link.id))
+        } else {
+            let record = MobileRecord::from(result);
+            Ok(record)
+        }
+    }
+}
+
+#[async_trait]
+impl ScraperTrait for MobileBGScraper {
+    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
+        let url = self.parent.search_url(self.get_search_path(), params, page);
         self.parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await
@@ -77,50 +149,6 @@ impl ScraperTrait for MobileBGScraper {
         Err("Number not found".to_string())
     }
 
-    async fn get_listed_ids(
-        &self,
-        params: HashMap<String, String>,
-        page_number: u32,
-    ) -> Result<Vec<LinkId>, String> {
-        let url = self.parent.search_url(None, params.clone(), page_number);
-        let html = self
-            .parent
-            .html_search(&url, Some("windows-1251".to_string()))
-            .await?;
-        let document = Html::parse_document(&html);
-        let mut links = vec![];
-        let selector = Selector::parse("table.tablereset").unwrap();
-        let re = Regex::new(r"adv=(\d+)").unwrap();
-        for element in document.select(&selector) {
-            if let Some(url) = get_url(&element) {
-                let url = if url.contains(r#"https:"#) {
-                    url
-                } else {
-                    format!("https:{}", url)
-                };
-                if let Some(caps) = re.captures(&url) {
-                    if let Some(matched) = caps.get(1) {
-                        links.push(LinkId {
-                            id: matched.as_str().to_owned(),
-                            url,
-                        });
-                    }
-                }
-            }
-        }
-        Ok(links)
-    }
-
-    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
-        let html = self
-            .parent
-            .html_search(&link.url, Some("windows-1251".to_string()))
-            .await?;
-        let document = Html::parse_document(&html);
-        let mut result = details2map(document);
-        result.insert("id".to_owned(), link.id);
-        Ok(result)
-    }
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         self.parent.get_number_of_pages(total_number)
     }
@@ -131,9 +159,10 @@ mod screaper_mobile_bg_test {
     use std::collections::{HashMap, HashSet};
 
     use crate::{
+        model::VehicleDataModel::{LinkId, ScrapedListData},
         scraper::{
             MobileBgScraper,
-            ScraperTrait::{LinkId, ScraperTrait as _},
+            Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait as _},
         },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -157,7 +186,7 @@ mod screaper_mobile_bg_test {
             "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
         );
 
-        let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
+        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
         let total_number = mobile_bg.total_number(&html).unwrap();
         let slink = mobile_bg.slink(&html).unwrap();
         params.clear();
@@ -167,7 +196,7 @@ mod screaper_mobile_bg_test {
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink);
 
-        let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
+        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
         let slink_totals = mobile_bg.total_number(&html).unwrap();
 
         info!("total_number: {}", total_number);
@@ -178,13 +207,20 @@ mod screaper_mobile_bg_test {
         info!("number_of_pages: {}", number_of_pages);
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
-            let ids = mobile_bg
-                .get_listed_ids(params.clone(), page)
-                .await
-                .unwrap();
-            assert!(ids.len() > 0);
-            info!("ids: {:?}", ids);
-            all.extend(ids);
+            let data = mobile_bg.get_listed_ids(params.clone()).await.unwrap();
+            match data {
+                ScrapedListData::Values(ids) => {
+                    info!("ids: {:?}", ids);
+                    assert!(ids.len() > 0);
+                    all.extend(ids);
+                }
+                ScrapedListData::Error(error) => {
+                    info!("error: {}", error);
+                }
+                ScrapedListData::SingleValue(link) => {
+                    info!("link: {:?}", link);
+                }
+            }
         }
         let unique: HashSet<LinkId> = all.into_iter().collect();
         assert_eq!(unique.len(), total_number as usize);
@@ -206,7 +242,7 @@ mod screaper_mobile_bg_test {
             "f94".to_string(),
             "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
         );
-        let html = mobile_bg.get_html(None, params.clone(), 1).await.unwrap();
+        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
         let slink = mobile_bg.slink(&html).unwrap();
 
         params.clear();
@@ -216,21 +252,37 @@ mod screaper_mobile_bg_test {
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink.clone());
 
-        let ids = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
-        let first = ids.first().unwrap();
+        let data = mobile_bg.get_listed_ids(params.clone()).await.unwrap();
+        let mut id: LinkId = LinkId {
+            id: "".to_owned(),
+            url: "".to_owned(),
+        };
+        match data {
+            ScrapedListData::Values(ids) => {
+                assert!(ids.len() > 0);
+                info!("ids: {:?}", ids);
+                id = ids[0].clone();
+            }
+            ScrapedListData::Error(error) => {
+                info!("error: {}", error);
+            }
+            ScrapedListData::SingleValue(link) => {
+                info!("link: {:?}", link);
+            }
+        }
+
         params.clear();
         params.insert("act".to_owned(), "4".to_owned());
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("submenu".to_string(), "2".to_string());
         params.insert("slink".to_owned(), slink.clone());
-        params.insert("adv".to_owned(), first.id.to_owned());
+        params.insert("adv".to_owned(), id.id.to_owned());
         let url = mobile_bg.parent.search_url(None, params.clone(), 1);
         info!("url: {}", url);
-        info!("first: {:?}", first);
-        let details = mobile_bg.parse_details(first.clone()).await.unwrap();
+        let details = mobile_bg.handle_request(id.clone()).await.unwrap();
         info!("details: {:?}", details);
         let record = crate::model::records::MobileRecord::from(details);
         info!("record: {:?}", record);
-        assert_eq!(record.id, first.id);
+        assert_eq!(record.id, id.id);
     }
 }

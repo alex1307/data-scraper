@@ -13,6 +13,15 @@ struct Cars {
     cars: Vec<AutoUncleVehicle>,
 }
 
+pub fn get_vehicles(html: &str) -> Vec<AutoUncleVehicle> {
+    let scripts = get_scripts(html);
+    for s in scripts {
+        if s.contains("self.__next_f.push") && s.contains("carsPaginated") {
+            return list_vehicles_from_text(&s);
+        }
+    }
+    vec![]
+}
 pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
     let start = txt.find("carsPaginated").unwrap();
     let end = txt.find("pagination").unwrap();
@@ -68,9 +77,14 @@ pub fn get_scripts(html: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod auto_uncle_tests {
-    use std::{collections::HashSet, fs, vec};
+    use std::{
+        collections::{HashMap, HashSet},
+        fs,
+        io::{self, Read},
+        vec,
+    };
 
-    use log::info;
+    use log::{error, info};
 
     use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
 
@@ -161,9 +175,6 @@ mod auto_uncle_tests {
                     }
                 }
             }
-            info!("-------------------");
-            info!("equipment: {:?}", equipment);
-            info!("-------------------");
         }
     }
 
@@ -322,5 +333,35 @@ mod auto_uncle_tests {
         info!("-------------------");
         info!("equipment: {:?}", set);
         info!("-------------------");
+    }
+
+    #[test]
+    fn test_read_yml_equipment() {
+        configure_log4rs(&LOG_CONFIG);
+        let path = "config/car-equipment.yml"; // Replace with the path to your YAML file
+        match read_and_parse_yaml(path) {
+            Ok(data) => {
+                // You can now use 'data' which is a HashMap<i32, Vec<String>>
+                // Example: print the data
+                for (key, values) in data.iter() {
+                    info!("Key: {}", key);
+                    for value in values {
+                        info!("  Value: {:?}", value);
+                    }
+                }
+            }
+            Err(e) => error!("Failed to read or parse YAML file: {}", e),
+        }
+    }
+    type EquipmentDetail = HashMap<i32, Vec<String>>;
+    type EquipmentMap = HashMap<String, EquipmentDetail>;
+
+    fn read_and_parse_yaml<P: AsRef<std::path::Path>>(path: P) -> Result<EquipmentMap, io::Error> {
+        let mut file = fs::File::open(path)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        let data: EquipmentMap =
+            serde_yaml::from_str(&contents).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(data)
     }
 }

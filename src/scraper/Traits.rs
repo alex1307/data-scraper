@@ -1,14 +1,19 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
 
 use log::info;
-use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use serde::Serialize;
 
-use crate::BROWSER_USER_AGENT;
+use crate::{
+    model::{
+        traits::{Identity, URLResource},
+        VehicleDataModel::ScrapedListData,
+    },
+    BROWSER_USER_AGENT,
+};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -17,33 +22,25 @@ lazy_static! {
         .unwrap();
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Default)]
-pub struct LinkId {
-    pub url: String,
-    pub id: String,
+#[async_trait]
+pub trait ScrapeListTrait<T: Identity + Clone + Debug + Serialize> {
+    async fn get_listed_ids(
+        &self,
+        params: HashMap<String, String>,
+    ) -> Result<ScrapedListData<T>, String>;
 }
 
-impl PartialEq for LinkId {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Hash for LinkId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-    }
+#[async_trait]
+pub trait RequestResponseTrait<REQ, RES>
+where
+    REQ: Identity + Clone + Serialize + Debug + URLResource,
+    RES: Serialize + Clone + Debug,
+{
+    async fn handle_request(&self, request: REQ) -> Result<RES, String>;
 }
 
 #[async_trait]
 pub trait ScraperTrait {
-    async fn get_listed_ids(
-        &self,
-        params: HashMap<String, String>,
-        page_number: u32,
-    ) -> Result<Vec<LinkId>, String>;
-    async fn parse_details(&self, link: LinkId) -> Result<HashMap<String, String>, String>;
-
     fn total_number(&self, page: &str) -> Result<u32, String>;
 
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String>;
@@ -52,12 +49,15 @@ pub trait ScraperTrait {
         250
     }
 
-    async fn get_html(
-        &self,
-        path: Option<String>,
-        params: HashMap<String, String>,
-        page: u32,
-    ) -> Result<String, String>;
+    fn get_search_path(&self) -> Option<String> {
+        None
+    }
+
+    fn get_details_path(&self) -> Option<String> {
+        None
+    }
+
+    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String>;
 }
 
 #[derive(Debug, Clone)]

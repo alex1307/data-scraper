@@ -1,24 +1,23 @@
-use crate::config::equipment::get_equipment_as_u64;
-use crate::config::equipment::MOBILE_BG_EQUIPMENT;
+use crate::config::Equipment::get_equipment_as_u64;
+use crate::helpers::CURRENCY_KEY;
+use crate::helpers::DEALER_KEY;
+use crate::helpers::ENGINE_KEY;
+use crate::helpers::EQUIPMENT_KEY;
+use crate::helpers::GEARBOX_KEY;
+use crate::helpers::LOCATION_KEY;
+use crate::helpers::MAKE_KEY;
+use crate::helpers::MILEAGE_KEY;
+use crate::helpers::MODEL_KEY;
+use crate::helpers::PHONE_KEY;
+use crate::helpers::POWER_KEY;
+use crate::helpers::PRICE_KEY;
+use crate::helpers::PUBLISHED_ON_KEY;
+use crate::helpers::SOLD_KEY;
+use crate::helpers::TOP_KEY;
+use crate::helpers::VIEW_COUNT_KEY;
+use crate::helpers::VIP_KEY;
+use crate::helpers::YEAR_KEY;
 use crate::model::enums::Currency;
-use crate::scraper::CURRENCY_KEY;
-use crate::scraper::DEALER_KEY;
-use crate::scraper::ENGINE_KEY;
-use crate::scraper::EQUIPMENT_KEY;
-use crate::scraper::GEARBOX_KEY;
-use crate::scraper::LOCATION_KEY;
-use crate::scraper::MAKE_KEY;
-use crate::scraper::MILEAGE_KEY;
-use crate::scraper::MODEL_KEY;
-use crate::scraper::PHONE_KEY;
-use crate::scraper::POWER_KEY;
-use crate::scraper::PRICE_KEY;
-use crate::scraper::PUBLISHED_ON_KEY;
-use crate::scraper::SOLD_KEY;
-use crate::scraper::TOP_KEY;
-use crate::scraper::VIEW_COUNT_KEY;
-use crate::scraper::VIP_KEY;
-use crate::scraper::YEAR_KEY;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
@@ -205,7 +204,7 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
     if !&extras.is_empty() {
         map.insert(
             EQUIPMENT_KEY.to_string(),
-            get_equipment_as_u64(extras, &MOBILE_BG_EQUIPMENT).to_string(),
+            get_equipment_as_u64(extras).to_string(),
         );
     }
     map
