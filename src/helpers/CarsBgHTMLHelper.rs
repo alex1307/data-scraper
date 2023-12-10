@@ -5,11 +5,11 @@ use log::{debug, info};
 use scraper::{Html, Selector};
 
 use crate::{
-    config::equipment, model::enums::Engine, scraper::PUBLISHED_ON_KEY, CARS_BG_LISTING_URL,
+    config::Equipment, helpers::PUBLISHED_ON_KEY, model::enums::Engine, CARS_BG_LISTING_URL,
 };
 
 use super::{
-    mobile_bg_helpers::get_pages_async, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY,
+    MobileBgHTMLHelper::get_pages_async, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY,
     LOCATION_KEY, MAKE_KEY, MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, YEAR_KEY,
 };
 use lazy_static::lazy_static;
@@ -319,7 +319,7 @@ fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
             data.insert(ENGINE_KEY.to_owned(), eq.to_string());
         }
     }
-    let equipment_id = equipment::get_equipment_as_u64(equipment, &equipment::CARS_BG_EQUIPMENT);
+    let equipment_id = Equipment::get_equipment_as_u64(equipment);
     data.insert(EQUIPMENT_KEY.to_owned(), equipment_id.to_string());
 
     //println!("equipment * : {:?}", equipment);
@@ -333,7 +333,7 @@ mod test_cars_bg {
     use regex::Regex;
 
     use crate::{
-        config::equipment::{get_equipment_as_u64, get_values_by_equipment_id, CARS_BG_EQUIPMENT},
+        config::Equipment::{get_equipment_as_u64, get_values_by_equipment_id},
         model::enums::{Engine, Gearbox},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -382,16 +382,9 @@ mod test_cars_bg {
             "Ел.огледала", "Стерео уредба", "Алуминиеви джанти", "DVD/TV", "Мултифункционален волан", "Сигурност:", "ABS, Airbag, Халогенни фарове, ASR/Тракшън контрол, Парктроник, Аларма, Имобилайзер, Центр. заключване, Застраховка, Старт-Стоп система", "Друго:", 
             "Автопилот", "Бордови компютър", "Навигационна система", "Теглич"];
         let result: Vec<String> = lines.iter().map(|&s| s.to_owned()).collect();
-        debug!("result: {:?}", &CARS_BG_EQUIPMENT.len());
-        let equipment_id = get_equipment_as_u64(result, &CARS_BG_EQUIPMENT);
+        let equipment_id = get_equipment_as_u64(result);
         debug!("equipment_id: {}", equipment_id);
-        for (key, value) in CARS_BG_EQUIPMENT.iter() {
-            let mask = 2_u64.pow(*key as u32);
-            if equipment_id & mask == mask {
-                debug!("value: {}", value);
-            }
-        }
-        let values = get_values_by_equipment_id(equipment_id, &CARS_BG_EQUIPMENT);
+        let values = get_values_by_equipment_id(equipment_id);
         debug!("values: {:?}", values);
     }
 

@@ -1,17 +1,22 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 use log::{error, info};
+use serde::Serialize;
 
 use crate::{
-    model::records::MobileRecord,
+    model::{
+        records::MobileRecord,
+        traits::{Identity, URLResource},
+        VehicleDataModel::LinkId,
+    },
     scraper::{
         CarGrScraper::CarGrScraper,
         CarsBgScraper::CarsBGScraper,
         MobileBgScraper::MobileBGScraper,
-        ScraperTrait::{LinkId, ScraperTrait},
+        Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     },
     services::{
-        ScraperService::{process, save},
+        ScraperService::{process_details, save},
         Searches::car_gr_new_searches,
     },
     utils::helpers::create_empty_csv,
@@ -28,7 +33,7 @@ lazy_static! {
 }
 
 use super::{
-    ScraperService::start,
+    ScraperService::process_list,
     Searches::{
         car_gr_all_searches, cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches,
         mobile_bg_new_searches,
@@ -46,15 +51,9 @@ impl FromStr for Crawlers {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "cars.bg" => Ok(Crawlers::CarsBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
-            "cars_bg" => Ok(Crawlers::CarsBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
-            "cars" => Ok(Crawlers::CarsBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
+            "cars.bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
+            "cars_bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
+            "cars" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile.bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile_bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
@@ -69,7 +68,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
     match crawler {
         Crawlers::CarsBG(_) => {
             let searches = cars_bg_all_searches();
-            scrape_all_vehicles(
+            download_list_data(
                 CARS_BG_CRAWLER.clone(),
                 CARS_BG_ALL_FILE_NAME.to_owned(),
                 searches,
@@ -78,7 +77,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::MobileBG(_) => {
             let searches = mobile_bg_all_searches().await;
-            scrape_all_vehicles(
+            download_list_data(
                 MOBILE_BG_CRAWLER.clone(),
                 MOBILE_BG_ALL_FILE_NAME.to_owned(),
                 searches,
@@ -87,7 +86,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::CarGr(_) => {
             let searches: Vec<HashMap<String, String>> = car_gr_all_searches();
-            scrape_all_vehicles(
+            download_list_data(
                 CAR_GR_CRAWLER.clone(),
                 CAR_GR_ALL_FILE_NAME.to_owned(),
                 searches,
@@ -103,7 +102,10 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
     match crawler {
         Crawlers::CarsBG(_) => {
             let searches = cars_bg_new_searches();
-            scrape_new_vehicles(
+            for s in searches.clone() {
+                info!("search: {:?}", s);
+            }
+            download_details(
                 CARS_BG_CRAWLER.clone(),
                 CARS_BG_INSALE_FILE_NAME.to_owned(),
                 searches,
@@ -112,9 +114,9 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
         }
         Crawlers::MobileBG(_) => {
             let searches = mobile_bg_new_searches().await;
-            scrape_new_vehicles(
-                CAR_GR_CRAWLER.clone(),
-                CAR_GR_FILE_NAME.to_owned(),
+            download_details(
+                MOBILE_BG_CRAWLER.clone(),
+                MOBILE_BG_FILE_NAME.to_owned(),
                 searches,
             )
             .await
@@ -122,7 +124,7 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
         Crawlers::CarGr(_) => {
             let searches: Vec<HashMap<String, String>> = car_gr_new_searches();
             info!("searches: {:?}", searches.len());
-            scrape_new_vehicles(
+            download_details(
                 CAR_GR_CRAWLER.clone(),
                 CAR_GR_FILE_NAME.to_owned(),
                 searches,
@@ -132,30 +134,33 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
     }
 }
 
-pub async fn scrape_new_vehicles<T: ScraperTrait + Clone + Send>(
-    scraper: T,
+pub async fn download_details<S, REQ, RES>(
+    scraper: S,
     file_name: String,
     searches: Vec<HashMap<String, String>>,
 ) -> Result<(), String>
 where
-    T: 'static,
+    S: ScraperTrait
+        + ScrapeListTrait<REQ>
+        + RequestResponseTrait<REQ, RES>
+        + Clone
+        + Send
+        + 'static,
+    REQ: Send + Identity + Clone + Serialize + Debug + URLResource + 'static,
+    RES: Send + Serialize + Clone + Debug + 'static,
 {
-    let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
-    let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<MobileRecord>(250);
+    let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<REQ>(250);
+    let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<RES>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
     let process_scraper = scraper.clone();
     let start_handler =
-        tokio::spawn(async move { start(Box::new(scraper), searches, &mut link_producer).await });
+        tokio::spawn(
+            async move { process_list(Box::new(scraper), searches, &mut link_producer).await },
+        );
     let process_handler = tokio::spawn(async move {
-        process(
-            process_scraper,
-            &mut link_receiver,
-            &mut record_producer,
-            HashMap::new(),
-        )
-        .await
+        process_details(process_scraper, &mut link_receiver, &mut record_producer).await
     });
     let save_to_file = tokio::spawn(async move { save(record_receiver, file_name).await });
 
@@ -168,20 +173,20 @@ where
     }
 }
 
-pub async fn scrape_all_vehicles<T: ScraperTrait + Clone + Send>(
-    scraper: T,
+pub async fn download_list_data<S>(
+    scraper: S,
     file_name: String,
     searches: Vec<HashMap<String, String>>,
 ) -> Result<(), String>
 where
-    T: 'static,
+    S: ScraperTrait + ScrapeListTrait<LinkId> + Clone + Send + 'static,
 {
     let (mut producer, receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
     let start_handler =
-        tokio::spawn(async move { start(Box::new(scraper), searches, &mut producer).await });
+        tokio::spawn(async move { process_list(Box::new(scraper), searches, &mut producer).await });
 
     let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
 
@@ -199,12 +204,11 @@ mod app_test {
     use std::collections::HashMap;
 
     use log::info;
-    use scraper::html;
 
-    use super::scrape_new_vehicles;
+    use super::download_details;
     use crate::scraper::CarsBgScraper::CarsBGScraper;
     use crate::scraper::MobileBgScraper::MobileBGScraper;
-    use crate::scraper::ScraperTrait::ScraperTrait;
+    use crate::scraper::Traits::ScraperTrait;
     use crate::services::ScraperAppService::{CARS_BG_CRAWLER, MOBILE_BG_CRAWLER};
     use crate::services::Searches::{cars_bg_new_searches, mobile_bg_new_searches};
     use crate::utils::helpers::configure_log4rs;
@@ -224,7 +228,7 @@ mod app_test {
         params.insert("yearTo".to_owned(), "2011".to_owned());
         let searches = vec![params];
         let scraper = CarsBGScraper::new("https://www.cars.bg", 250);
-        scrape_new_vehicles(
+        download_details(
             scraper,
             "./resources/test-data/test.csv".to_owned(),
             searches,
@@ -249,7 +253,7 @@ mod app_test {
         );
 
         let scraper = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-        let html = scraper.get_html(None, params.clone(), 1).await.unwrap();
+        let html = scraper.get_html(params.clone(), 1).await.unwrap();
         let slink = scraper.slink(&html).unwrap();
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
@@ -258,7 +262,7 @@ mod app_test {
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink.clone());
         let searches = vec![params];
-        scrape_new_vehicles(
+        download_details(
             scraper,
             "./resources/test-data/test.csv".to_owned(),
             searches,
@@ -273,10 +277,7 @@ mod app_test {
         let searches = cars_bg_new_searches();
         let mut total = 0;
         for search in searches {
-            let html = CARS_BG_CRAWLER
-                .get_html(Some(r#"carslist.php?"#.to_string()), search.clone(), 1)
-                .await
-                .unwrap();
+            let html = CARS_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
             let total_number = CARS_BG_CRAWLER.total_number(&html).unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);
@@ -290,10 +291,7 @@ mod app_test {
         let searches = mobile_bg_new_searches().await;
         let mut total = 0;
         for search in searches {
-            let html = MOBILE_BG_CRAWLER
-                .get_html(None, search.clone(), 1)
-                .await
-                .unwrap();
+            let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
             let total_number = MOBILE_BG_CRAWLER.total_number(&html).unwrap();
             total += total_number;
             info!("total_number: {} for search: {:?}", total_number, search);

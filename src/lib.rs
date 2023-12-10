@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 pub mod config;
 pub mod helpers;
 pub mod model;

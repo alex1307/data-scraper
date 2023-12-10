@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    scraper::{
+    helpers::{
         CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
         MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY,
         TOP_KEY, VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::info;
 
-use crate::{scraper::ScraperTrait::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER};
+use crate::{scraper::Traits::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER};
 
 pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
@@ -55,10 +55,7 @@ pub async fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
     params.insert("pubtype".to_string(), 1.to_string());
     params.insert("topmenu".to_string(), "1".to_string());
     for search in meta_searches.clone() {
-        let html = MOBILE_BG_CRAWLER
-            .get_html(None, search.clone(), 1)
-            .await
-            .unwrap();
+        let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
         let slink = MOBILE_BG_CRAWLER.slink(&html).unwrap();
         params.insert("slink".to_owned(), slink.clone());
         info!("slink: {} for search: {:?}", slink, search);
@@ -89,10 +86,7 @@ pub async fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     params.insert("topmenu".to_string(), "1".to_string());
 
     for search in meta_searches.clone() {
-        let html = MOBILE_BG_CRAWLER
-            .get_html(None, search.clone(), 1)
-            .await
-            .unwrap();
+        let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
         match MOBILE_BG_CRAWLER.slink(&html) {
             Ok(slink) => {
                 params.insert("slink".to_owned(), slink.clone());
@@ -151,6 +145,20 @@ pub fn car_gr_all_searches() -> Vec<HashMap<String, String>> {
         map.insert("registration-from".to_owned(), year.to_string());
         map.insert("registration-to".to_owned(), (year + 1).to_string());
         let price_filter = price_filter("price-from", "price-to", map.clone());
+        searches.extend(price_filter);
+    }
+    searches
+}
+
+pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
+    //https://www.autouncle.ro/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
+    let mut searches = vec![];
+    let mut map = HashMap::new();
+    map.insert("s%5Bnot_damaged%5D".to_owned(), "true".to_owned());
+    for year in 2003..2023 {
+        map.insert("s%5Bmin_year%5D".to_owned(), year.to_string());
+        map.insert("s%5Bmax_year%5D".to_owned(), (year + 1).to_string());
+        let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", map.clone());
         searches.extend(price_filter);
     }
     searches
