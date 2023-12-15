@@ -23,10 +23,13 @@ lazy_static! {
 }
 
 #[async_trait]
-pub trait ScrapeListTrait<T: Identity + Clone + Debug + Serialize> {
+pub trait ScrapeListTrait<T: Identity + Clone + Debug + Serialize>:
+    Clone + Debug + Send + Sync + 'static
+{
     async fn get_listed_ids(
         &self,
         params: HashMap<String, String>,
+        page: u32,
     ) -> Result<ScrapedListData<T>, String>;
 }
 

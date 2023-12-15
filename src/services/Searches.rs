@@ -155,7 +155,7 @@ pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
     let mut searches = vec![];
     let mut map = HashMap::new();
     map.insert("s%5Bnot_damaged%5D".to_owned(), "true".to_owned());
-    for year in 2003..2023 {
+    for year in 2001..2023 {
         map.insert("s%5Bmin_year%5D".to_owned(), year.to_string());
         map.insert("s%5Bmax_year%5D".to_owned(), (year + 1).to_string());
         let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", map.clone());

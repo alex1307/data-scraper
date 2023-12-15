@@ -1,15 +1,20 @@
-use std::{collections::HashMap, fmt::Debug, str::FromStr};
+use std::{collections::HashMap, fmt::Debug, str::FromStr, time::Duration};
 
 use log::{error, info};
 use serde::Serialize;
+use tokio::time::timeout;
 
 use crate::{
     model::{
         records::MobileRecord,
         traits::{Identity, URLResource},
-        VehicleDataModel::LinkId,
+        AutoUncleVehicle::AutoUncleVehicle,
+        VehicleDataModel::{
+            BaseVehicleInfo, DetailedVehicleInfo, LinkId, Price, VehicleChangeLogInfo,
+        },
     },
     scraper::{
+        AutouncleScraper::AutouncleScraper,
         CarGrScraper::CarGrScraper,
         CarsBgScraper::CarsBGScraper,
         MobileBgScraper::MobileBGScraper,
@@ -21,7 +26,7 @@ use crate::{
     },
     utils::helpers::create_empty_csv,
     CARS_BG_ALL_FILE_NAME, CARS_BG_INSALE_FILE_NAME, CAR_GR_ALL_FILE_NAME, CAR_GR_FILE_NAME,
-    MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
+    CONFIG, CREATED_ON, MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
 };
 use lazy_static::lazy_static;
 
@@ -30,13 +35,15 @@ lazy_static! {
         MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
     pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
     pub static ref CAR_GR_CRAWLER: CarGrScraper = CarGrScraper::new("https://www.car.gr", 250);
+    pub static ref AUTOUNCLE_CRAWLER: AutouncleScraper =
+        AutouncleScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
 }
 
 use super::{
-    ScraperService::process_list,
+    ScraperService::{process_list, process_list_and_send},
     Searches::{
-        car_gr_all_searches, cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches,
-        mobile_bg_new_searches,
+        autouncle_all_searches, car_gr_all_searches, cars_bg_all_searches, cars_bg_new_searches,
+        mobile_bg_all_searches, mobile_bg_new_searches,
     },
 };
 #[derive(Debug, Clone)]
@@ -44,6 +51,7 @@ pub enum Crawlers {
     CarsBG(String),
     MobileBG(String),
     CarGr(String),
+    Autouncle(String),
 }
 
 impl FromStr for Crawlers {
@@ -58,6 +66,12 @@ impl FromStr for Crawlers {
             "mobile_bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "car.gr" => Ok(Crawlers::CarGr(r#"https://www.car.gr"#.to_owned())),
+            "autouncle" => Ok(Crawlers::Autouncle(
+                r#"https://www.autouncle.ro"#.to_owned(),
+            )),
+            "autouncle.ro" => Ok(Crawlers::Autouncle(
+                r#"https://www.autouncle.ro"#.to_owned(),
+            )),
             _ => Err("Invalid crawler".into()),
         }
     }
@@ -92,6 +106,10 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
                 searches,
             )
             .await
+        }
+        Crawlers::Autouncle(_) => {
+            let searches: Vec<HashMap<String, String>> = autouncle_all_searches();
+            download_autouncle_data(AUTOUNCLE_CRAWLER.clone(), searches).await
         }
     }
 }
@@ -131,6 +149,7 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
             )
             .await
         }
+        Crawlers::Autouncle(_) => todo!(),
     }
 }
 
@@ -165,6 +184,122 @@ where
     let save_to_file = tokio::spawn(async move { save(record_receiver, file_name).await });
 
     if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(start_handler, process_handler, save_to_file) {
+        info!("All tasks completed successfully");
+        Ok(())
+    } else {
+        error!("One or more tasks failed");
+        Err("One or more tasks failed".into())
+    }
+}
+
+pub async fn download_autouncle_data<S>(
+    scraper: S,
+    searches: Vec<HashMap<String, String>>, // Same issue with U
+) -> Result<(), String>
+where
+    S: ScraperTrait + ScrapeListTrait<AutoUncleVehicle> + Clone + Send + 'static,
+{
+    let (mut data_producer, mut data_receiver) =
+        tokio::sync::mpsc::channel::<AutoUncleVehicle>(1000);
+    let (producer_base_info_producer, base_receiver) =
+        tokio::sync::mpsc::channel::<BaseVehicleInfo>(250);
+    let (producer_details_producer, details_receiver) =
+        tokio::sync::mpsc::channel::<DetailedVehicleInfo>(250);
+    let (producer_change_log_producer, change_log_receiver) =
+        tokio::sync::mpsc::channel::<VehicleChangeLogInfo>(250);
+    let (price_calculator_producer, price_receiver) = tokio::sync::mpsc::channel::<Price>(250);
+
+    let base_file = format!(
+        "{}/vehicle-base-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    let details_file = format!(
+        "{}/vehicle-details-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    let change_log_file = format!(
+        "{}/vehicle-change-log{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+
+    let price_file = format!(
+        "{}/vehicle-prices-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    if create_empty_csv::<VehicleChangeLogInfo>(&change_log_file).is_err() {
+        error!("Failed to create file {}", change_log_file.clone());
+    }
+
+    if create_empty_csv::<BaseVehicleInfo>(&base_file).is_err() {
+        error!("Failed to create file {}", base_file.clone());
+    }
+
+    if create_empty_csv::<DetailedVehicleInfo>(&details_file).is_err() {
+        error!("Failed to create file {}", details_file.clone());
+    }
+
+    if create_empty_csv::<Price>(&price_file).is_err() {
+        error!("Failed to create file {}", price_file.clone());
+    }
+    let start_handler = tokio::spawn(async move {
+        process_list_and_send(Box::new(scraper), searches, &mut data_producer).await
+    });
+    let mut counter = 0;
+    let mut wait_counter = 0;
+    let data_handler = tokio::spawn(async move {
+        loop {
+            counter += 1;
+            info!("Processing urls: {}", counter);
+            match timeout(Duration::from_secs(10), data_receiver.recv()).await {
+                Ok(Some(data)) => {
+                    let base = BaseVehicleInfo::from(data.clone());
+                    let details = DetailedVehicleInfo::from(data.clone());
+                    let change_log = VehicleChangeLogInfo::from(data.clone());
+                    let price = Price::from(data.clone());
+                    _ = producer_base_info_producer.send(base).await;
+                    _ = producer_details_producer.send(details).await;
+                    _ = producer_change_log_producer.send(change_log).await;
+                    _ = price_calculator_producer.send(price).await;
+                    info!("data: {:?}", data);
+                }
+                Ok(None) => {
+                    info!("No more links to process. Total processed: {}", counter);
+                    break;
+                }
+                Err(e) => {
+                    wait_counter += 1;
+                    if wait_counter == 3 {
+                        error!("Timeout receiving link: {}", e);
+                        continue;
+                    } else {
+                        info!("Waiting for links to process");
+                    }
+                }
+            }
+            if counter % 500 == 0 {
+                info!(">>> Processed messages: {}", counter);
+            }
+        }
+    });
+    let save_to_base_file = tokio::spawn(async move { save(base_receiver, base_file).await });
+    let save_to_details_file =
+        tokio::spawn(async move { save(details_receiver, details_file).await });
+    let save_log_change_file =
+        tokio::spawn(async move { save(change_log_receiver, change_log_file).await });
+    let save_to_price_file = tokio::spawn(async move { save(price_receiver, price_file).await });
+
+    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
+        start_handler,
+        data_handler,
+        save_to_base_file,
+        save_to_details_file,
+        save_log_change_file,
+        save_to_price_file
+    ) {
         info!("All tasks completed successfully");
         Ok(())
     } else {

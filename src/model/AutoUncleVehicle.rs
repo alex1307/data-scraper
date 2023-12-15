@@ -1,16 +1,13 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 
-use crate::helpers::{
-    CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, MODEL_KEY, POWER_KEY,
-    PRICE_KEY,
-};
+use crate::config::Equipment::get_equipment_as_u64;
 
 use super::{
     enums::{Currency, Engine, Gearbox},
-    traits::Identity,
-    VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, VehicleChangeLogInfo},
+    traits::{Identity, URLResource},
+    VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -85,7 +82,7 @@ pub struct AutoUncleVehicle {
     pub is_featured: Option<bool>,
 
     #[serde(rename = "km")]
-    pub km: u32,
+    pub km: Option<u32>,
 
     #[serde(rename = "kw")]
     pub kw: Option<u16>,
@@ -109,10 +106,10 @@ pub struct AutoUncleVehicle {
     pub outgoing_path: String,
 
     #[serde(rename = "price")]
-    pub price: u32,
+    pub price: Option<u32>,
 
-    #[serde(rename = "regMonth")]
-    pub reg_month: Option<u8>,
+    //#[serde(rename = "regMonth")]
+    pub reg_month: Option<String>,
 
     #[serde(rename = "sourceName")]
     pub source_name: String,
@@ -127,10 +124,10 @@ pub struct AutoUncleVehicle {
     pub year: Option<u16>,
 
     #[serde(rename = "youSaveDifference")]
-    pub you_save_difference: u32,
+    pub you_save_difference: Option<u32>,
 
     #[serde(rename = "laytime")]
-    pub laytime: u32,
+    pub laytime: Option<u32>,
 
     #[serde(rename = "sellerKind")]
     pub seller_kind: String,
@@ -140,34 +137,15 @@ pub struct AutoUncleVehicle {
 
     #[serde(rename = "priceChange")]
     pub price_change: Option<i32>,
+
+    #[serde(skip)]
+    pub source: String,
 }
 
-impl AutoUncleVehicle {
-    pub fn to_vehicle_details(&self) -> DetailedVehicleInfo {
-        let mut details = DetailedVehicleInfo::new(self.id.clone(), 0);
-        details.location = self.location.clone();
-        if let Some(cc) = self.engine_size {
-            details.cc = cc as u32;
-        }
-        if let Some(fuel_consumption) = self.fuel_economy {
-            details.fuel_consumption = fuel_consumption;
-        }
-        if let Some(electric_drive_range) = self.electric_drive_range {
-            details.electric_drive_range = electric_drive_range;
-        }
-
-        details
-    }
-
-    pub fn to_vehicle_change_log_info(&self) -> VehicleChangeLogInfo {
-        let mut log = VehicleChangeLogInfo::new(self.id.clone(), self.updated_at.clone());
-        log.days_in_sale = self.laytime;
-        log.last_modified_on = self.updated_at.clone();
-        log
-    }
-    pub fn to_base(&self) -> BaseVehicleInfo {
-        let mut base = BaseVehicleInfo::new(self.id.clone());
-        if let Some(is_automatic) = self.has_auto_gear {
+impl From<AutoUncleVehicle> for BaseVehicleInfo {
+    fn from(source: AutoUncleVehicle) -> Self {
+        let mut base = BaseVehicleInfo::new(source.id.clone());
+        if let Some(is_automatic) = source.has_auto_gear {
             base.gearbox = if is_automatic {
                 Gearbox::Automatic
             } else {
@@ -177,112 +155,92 @@ impl AutoUncleVehicle {
             base.gearbox = Gearbox::Manual;
         }
 
-        if let Some(engine_fuel) = self.fuel.clone() {
+        if let Some(engine_fuel) = source.fuel.clone() {
             base.engine = Engine::from_str(&engine_fuel).unwrap();
         } else {
             base.engine = Engine::NotAvailable;
         }
 
-        if let Some(brand) = self.brand.clone() {
+        if let Some(brand) = source.brand.clone() {
             base.make = brand;
-        } else {
-            base.make = "N/A".to_string();
         }
 
-        if let Some(model) = self.car_model.clone() {
+        if let Some(model) = source.car_model.clone() {
             base.model = model;
-        } else {
-            base.model = "N/A".to_string();
         }
 
-        if let Some(year) = self.year {
+        if let Some(year) = source.year {
             base.year = year;
-        } else {
-            base.year = 0;
         }
 
-        if let Some(hp) = self.hp {
+        if let Some(hp) = source.hp {
             base.power = hp;
         } else {
             base.power = 0;
         }
 
-        base.currency = self.currency.unwrap_or(Currency::EUR);
-        base.price = self.price;
-        base.millage = self.km;
+        base.currency = source.currency.unwrap_or(Currency::EUR);
+        base.price = source.price;
+        base.millage = source.km;
+        base.source = "autouncle".to_string();
         base
     }
+}
 
-    pub fn to_map(&self) -> HashMap<String, String> {
-        let mut map = HashMap::new();
-        map.insert("id".to_string(), self.id.clone());
-        let is_automatic = self.has_auto_gear.unwrap_or(false);
-
-        if self.fuel.is_none() {
-            if !self.is_electric {
-                return map;
-            }
-            map.insert(ENGINE_KEY.to_string(), Engine::Electric.to_string());
-        } else {
-            let engine = self.fuel.clone().unwrap();
-            map.insert(ENGINE_KEY.to_string(), engine);
+impl From<AutoUncleVehicle> for DetailedVehicleInfo {
+    fn from(source: AutoUncleVehicle) -> Self {
+        let mut details = DetailedVehicleInfo::new(source.id.clone(), 0);
+        details.location = source.location.clone();
+        if let Some(cc) = source.engine_size {
+            details.cc = (cc * 1000.0) as u32;
         }
-
-        if self.brand.is_none() {
-            return map;
-        } else {
-            let brand = self.brand.clone().unwrap();
-            map.insert(MAKE_KEY.to_string(), brand);
+        if let Some(fuel_consumption) = source.fuel_economy {
+            details.fuel_consumption = fuel_consumption;
         }
-
-        if self.car_model.is_none() {
-            return map;
-        } else {
-            let model = self.car_model.clone().unwrap();
-            map.insert(MODEL_KEY.to_string(), model);
+        if let Some(electric_drive_range) = source.electric_drive_range {
+            details.electric_drive_range = electric_drive_range;
         }
+        details.is_dealer = source.seller_kind.to_lowercase() == "dealer";
+        details.seller_name = source.source_name.clone();
+        details.source = "autouncle".to_string();
 
-        if self.year.is_none() {
-            return map;
-        } else {
-            let year = self.year.clone().unwrap();
-            map.insert("year".to_string(), year.to_string());
-        }
+        let equipment_list = source.featured_attributes_equipment;
+        let equipment = get_equipment_as_u64(equipment_list);
+        details.equipment = equipment;
+        details
+    }
+}
 
-        if is_automatic {
-            map.insert(GEARBOX_KEY.to_owned(), Gearbox::Automatic.to_string());
-        } else {
-            map.insert(GEARBOX_KEY.to_owned(), Gearbox::Manual.to_string());
-        }
+impl From<AutoUncleVehicle> for VehicleChangeLogInfo {
+    fn from(source: AutoUncleVehicle) -> Self {
+        let mut log = VehicleChangeLogInfo::new(source.id.clone(), source.source);
+        log.days_in_sale = source.laytime;
+        log.last_modified_on = source.updated_at.clone();
+        log.source = "autouncle".to_string();
+        log
+    }
+}
 
-        let is_dealer = self.seller_kind.trim().to_lowercase() == "dealer";
-        map.insert(DEALER_KEY.to_string(), is_dealer.to_string());
-
-        if self.currency.is_none() {
-            return map;
-        } else {
-            let currency = self.currency.clone().unwrap();
-            map.insert(CURRENCY_KEY.to_string(), currency.to_string());
-        }
-
-        map.insert(PRICE_KEY.to_string(), self.price.to_string());
-        if self.km > 0 {
-            map.insert(MILEAGE_KEY.to_string(), self.km.to_string());
-        }
-        if let Some(hp) = self.hp {
-            map.insert(POWER_KEY.to_string(), hp.to_string());
-        }
-
-        if self.laytime > 0 {
-            map.insert("laytime".to_string(), self.laytime.to_string());
-        }
-
-        map
+impl From<AutoUncleVehicle> for Price {
+    fn from(source: AutoUncleVehicle) -> Self {
+        let mut price = Price::new(source.id.clone(), source.source);
+        price.currency = source.currency.unwrap_or(Currency::EUR);
+        price.estimated_price = source.estimated_price;
+        price.price = source.price.unwrap_or(0);
+        price.save_difference = source.you_save_difference.unwrap_or(0);
+        price.source = "autouncle".to_string();
+        price
     }
 }
 
 impl Identity for AutoUncleVehicle {
     fn get_id(&self) -> String {
         self.id.clone()
+    }
+}
+
+impl URLResource for AutoUncleVehicle {
+    fn get_url(&self) -> String {
+        format!("https://www.autouncle.dk/en/cars/{}", self.id)
     }
 }

@@ -1,6 +1,12 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
+
+use super::{
+    records::MobileRecord,
+    AutoUncleVehicle::AutoUncleVehicle,
+    VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, LinkId, Price, VehicleChangeLogInfo},
+};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
@@ -131,6 +137,7 @@ impl FromStr for Gearbox {
             "Автоматични скорости" => Ok(Gearbox::Automatic),
             "Automatic" => Ok(Gearbox::Automatic),
             "Ръчна" => Ok(Gearbox::Manual),
+            "Schaltgetriebe" => Ok(Gearbox::Manual),    
             "Manual" => Ok(Gearbox::Manual),
             "Ръчни скорости" => Ok(Gearbox::Manual),
             "Полуавтоматична" => Ok(Gearbox::Semiautomatic),
@@ -148,13 +155,18 @@ impl FromStr for Engine {
             "Бензинов" => Ok(Engine::Petrol),
             "Petrol" => Ok(Engine::Petrol),
             "Бензин" => Ok(Engine::Petrol),
+            "Benzin" => Ok(Engine::Petrol),
             "Газ/Бензин" => Ok(Engine::LPG),
             "Gas/lpg" => Ok(Engine::LPG),
+            "LPG" => Ok(Engine::LPG),
+            "LPG_Hybrid" => Ok(Engine::LPG),
+            "lpg" => Ok(Engine::LPG),
             "Метан/Бензин" => Ok(Engine::CNG),
             "Natural gas(cng)" => Ok(Engine::CNG),
             "Дизелов" => Ok(Engine::Diesel),
             "Дизел" => Ok(Engine::Diesel),
             "Diesel" => Ok(Engine::Diesel),
+            "diesel" => Ok(Engine::Diesel),
             "Plug-in хибрид" => Ok(Engine::PluginHybrid),
             "Electric" => Ok(Engine::Electric),
             "Електрически" => Ok(Engine::Electric),
@@ -214,4 +226,30 @@ impl FromStr for SaleType {
             _ => Ok(SaleType::NONE),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MessageTypes {
+    HashMap(HashMap<String, String>),
+    BasicInfo(BaseVehicleInfo),
+    DetailsInfo(DetailedVehicleInfo),
+    PriceCalculation(Price),
+    ChangeInfo(VehicleChangeLogInfo),
+    AutoUncle(AutoUncleVehicle),
+    Generic(MobileRecord),
+    LinkId(LinkId),
+    Done,
+}
+
+pub enum Message<S: Clone + Serialize + Send + 'static> {
+    Message(S),
+    Done,
+    Error(String),
+}
+
+pub enum MessageType {
+    BaseVehicleInfo(BaseVehicleInfo),
+    DetailedVehicleInfo(DetailedVehicleInfo),
+    PriceCalculator(Price),
+    VehicleChangeLogInfo(VehicleChangeLogInfo),
 }

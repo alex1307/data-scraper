@@ -2,6 +2,7 @@ pub mod AutoUncleHelper;
 pub mod CarGrHTMLHelper;
 pub mod CarsBgHTMLHelper;
 pub mod MobileBgHTMLHelper;
+pub mod MobileDeHelper;
 
 use lazy_static::lazy_static;
 
