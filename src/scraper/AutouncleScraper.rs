@@ -9,6 +9,7 @@ use crate::{
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
+use log::info;
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -37,18 +38,11 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleScraper {
     async fn get_listed_ids(
         &self,
         params: HashMap<String, String>,
+        page_number: u32,
     ) -> Result<ScrapedListData<AutoUncleVehicle>, String> {
-        let html = self.get_html(params.clone(), 0).await?;
-        let total_number = self.total_number(&html)?;
-        let number_of_pages = self.get_number_of_pages(total_number)?;
-        let mut list = vec![];
-        for page_number in 1..number_of_pages + 1 {
-            let html = self.get_html(params.clone(), page_number).await?;
-            let vehicles = get_vehicles(&html);
-            list.extend(vehicles);
-            sleep(Duration::from_secs(self.parent.wait_time_ms));
-        }
-        Ok(ScrapedListData::Values(list))
+        let html = self.get_html(params.clone(), page_number).await?;
+        let vehicles = get_vehicles(&html);
+        Ok(ScrapedListData::Values(vehicles))
     }
 }
 #[async_trait]
@@ -90,7 +84,7 @@ mod autouncle_test {
     #[test]
     fn test_get_number_of_pages() {
         configure_log4rs(&LOG_CONFIG);
-        let autouncle = AutouncleScraper::new("https://autouncle.bg", 0);
+        let autouncle = AutouncleScraper::new("https://www.autouncle.ro/en/cars_search", 0);
         let start = Instant::now();
         let content = fs::read_to_string("resources/test-data/autouncle/2.html").unwrap();
         let number = autouncle.total_number(&content).unwrap();

@@ -1,21 +1,22 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::hash::Hash;
+use std::{collections::HashMap, fmt::Debug};
 
 use super::{
     enums::{Currency, Engine, Gearbox},
-    traits::{Identity, URLResource},
+    traits::{Header, Identity, URLResource},
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct BaseVehicleInfo {
     pub id: String,
+    pub source: String,
     pub make: String,
     pub model: String,
     pub title: String,
     pub currency: Currency,
-    pub price: u32,
-    pub millage: u32,
+    pub price: Option<u32>,
+    pub millage: Option<u32>,
     pub year: u16,
     pub engine: Engine,
     pub gearbox: Gearbox,
@@ -35,6 +36,7 @@ impl BaseVehicleInfo {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DetailedVehicleInfo {
     pub id: String,
+    pub source: String,
     pub phone: String,
     pub location: String,
     pub view_count: u32,
@@ -59,35 +61,101 @@ impl DetailedVehicleInfo {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct VehicleChangeLogInfo {
     pub id: String,
+    pub source: String,
     pub published_on: String,
     pub last_modified_on: String,
     pub last_modified_message: String,
-    pub days_in_sale: u32,
+    pub days_in_sale: Option<u32>,
     pub sold: bool,
     pub promoted: bool,
 }
 
 impl VehicleChangeLogInfo {
-    pub fn new(id: String, last_modified_message: String) -> Self {
+    pub fn new(id: String, source: String) -> Self {
         Self {
             id,
-            last_modified_message,
+            source,
+            ..Default::default()
+        }
+    }
+}
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+pub struct Price {
+    pub id: String,
+    pub source: String,
+    pub estimated_price: Option<u32>,
+    pub price: u32,
+    pub currency: Currency,
+    pub save_difference: u32,
+    pub overpriced_difference: u32,
+    pub ranges: Vec<u32>,
+}
+
+impl Price {
+    pub fn new(id: String, source: String) -> Self {
+        Self {
+            id,
+            source,
             ..Default::default()
         }
     }
 }
 
-pub struct PriceCalculator {
-    pub source: String,
-    pub make: String,
-    pub model: String,
-    pub year: u16,
-    pub millage: u32,
-    pub engine: Engine,
-    pub gearbox: Gearbox,
-    pub equipment: Option<u64>,
-    pub estimated_price: Option<u32>,
-    pub ranges: Vec<u32>,
+impl Header for Price {
+    fn header() -> Vec<&'static str> {
+        vec![
+            "id",
+            "source",
+            "estimated_price",
+            "price",
+            "currency",
+            "save_difference",
+            "overpriced_difference",
+            "ranges",
+        ]
+    }
+}
+
+impl Header for BaseVehicleInfo {
+    fn header() -> Vec<&'static str> {
+        vec![
+            "id", "source", "make", "model", "title", "currency", "price", "millage", "year",
+            "engine", "gearbox", "power",
+        ]
+    }
+}
+
+impl Header for DetailedVehicleInfo {
+    fn header() -> Vec<&'static str> {
+        vec![
+            "id",
+            "source",
+            "phone",
+            "location",
+            "view_count",
+            "cc",
+            "fuel_consumption",
+            "electric_drive_range",
+            "equipment",
+            "is_dealer",
+            "seller_name",
+        ]
+    }
+}
+
+impl Header for VehicleChangeLogInfo {
+    fn header() -> Vec<&'static str> {
+        vec![
+            "id",
+            "source",
+            "published_on",
+            "last_modified_on",
+            "last_modified_message",
+            "days_in_sale",
+            "sold",
+            "promoted",
+        ]
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -129,8 +197,8 @@ impl PartialEq for LinkId {
         self.id == other.id
     }
 }
-
-pub enum ScrapedListData<T: Identity + Clone + Serialize> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ScrapedListData<T: Identity + Clone + Serialize + Debug> {
     SingleValue(T),
     Values(Vec<T>),
     Error(String),

@@ -93,7 +93,7 @@ mod auto_uncle_tests {
     #[test]
     fn test_get_scripts() {
         configure_log4rs(&LOG_CONFIG);
-        let content = fs::read_to_string("resources/test-data/autouncle/5.html").unwrap();
+        let content = fs::read_to_string("resources/test-data/autouncle/1 copy.html").unwrap();
         let scripts = get_scripts(&content);
         info!("Filtered: {:?}", scripts.len());
         for s in scripts {

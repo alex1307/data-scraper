@@ -73,32 +73,28 @@ impl ScrapeListTrait<LinkId> for CarsBGScraper {
     async fn get_listed_ids(
         &self,
         params: HashMap<String, String>,
+        page_number: u32,
     ) -> Result<ScrapedListData<LinkId>, String> {
         let mut ids = vec![];
-        let html = self.get_html(params.clone(), 0).await?;
-        let total_number = self.total_number(&html)?;
-        let number_of_pages = self.get_number_of_pages(total_number)?;
-        for page_number in 1..number_of_pages + 1 {
-            let url = self.parent.search_url(
-                Some("/carslist.php?".to_string()),
-                params.clone(),
-                page_number,
-            );
-            let html = self.parent.html_search(url.as_str(), None).await?;
-            let document = Html::parse_document(&html);
-            let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
-            for element in document.select(&selector) {
-                let html_fragment = Html::parse_fragment(element.inner_html().as_str());
-                let selector = Selector::parse("a").unwrap();
-                for e in html_fragment.select(&selector) {
-                    if let Some(href) = e.value().attr("href") {
-                        if let Some(id) = href.split("/offer/").last() {
-                            ids.push(LinkId {
-                                url: href.to_string(),
-                                id: id.to_owned(),
-                            });
-                            break;
-                        }
+        let url = self.parent.search_url(
+            Some("/carslist.php?".to_string()),
+            params.clone(),
+            page_number,
+        );
+        let html = self.parent.html_search(url.as_str(), None).await?;
+        let document = Html::parse_document(&html);
+        let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
+        for element in document.select(&selector) {
+            let html_fragment = Html::parse_fragment(element.inner_html().as_str());
+            let selector = Selector::parse("a").unwrap();
+            for e in html_fragment.select(&selector) {
+                if let Some(href) = e.value().attr("href") {
+                    if let Some(id) = href.split("/offer/").last() {
+                        ids.push(LinkId {
+                            url: href.to_string(),
+                            id: id.to_owned(),
+                        });
+                        break;
                     }
                 }
             }
@@ -220,7 +216,7 @@ mod cars_bg_tests {
         let total_number = cars_bg.total_number(&html).unwrap();
         assert!(total_number > 0);
         info!("total_number: {}", total_number);
-        let data = cars_bg.get_listed_ids(params.clone()).await.unwrap();
+        let data = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);
@@ -245,7 +241,7 @@ mod cars_bg_tests {
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
 
-        let data = cars_bg.get_listed_ids(params.clone()).await.unwrap();
+        let data = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);

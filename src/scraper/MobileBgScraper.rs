@@ -54,38 +54,36 @@ impl ScrapeListTrait<LinkId> for MobileBGScraper {
     async fn get_listed_ids(
         &self,
         params: HashMap<String, String>,
+        page_number: u32,
     ) -> Result<ScrapedListData<LinkId>, String> {
-        let html = self.get_html(params.clone(), 0).await?;
-        let total_number = self.total_number(&html)?;
-        let number_of_pages = self.get_number_of_pages(total_number)?;
         let mut list = vec![];
-        for page_number in 1..number_of_pages + 1 {
-            let url = self.parent.search_url(None, params.clone(), page_number);
-            let html = self
-                .parent
-                .html_search(&url, Some("windows-1251".to_string()))
-                .await?;
-            let document = Html::parse_document(&html);
-            let selector = Selector::parse("table.tablereset").unwrap();
-            let re = Regex::new(r"adv=(\d+)").unwrap();
-            for element in document.select(&selector) {
-                if let Some(url) = get_url(&element) {
-                    let url = if url.contains(r#"https:"#) {
-                        url
-                    } else {
-                        format!("https:{}", url)
-                    };
-                    if let Some(caps) = re.captures(&url) {
-                        if let Some(matched) = caps.get(1) {
-                            list.push(LinkId {
-                                id: matched.as_str().to_owned(),
-                                url,
-                            });
-                        }
+
+        let url = self.parent.search_url(None, params.clone(), page_number);
+        let html = self
+            .parent
+            .html_search(&url, Some("windows-1251".to_string()))
+            .await?;
+        let document = Html::parse_document(&html);
+        let selector = Selector::parse("table.tablereset").unwrap();
+        let re = Regex::new(r"adv=(\d+)").unwrap();
+        for element in document.select(&selector) {
+            if let Some(url) = get_url(&element) {
+                let url = if url.contains(r#"https:"#) {
+                    url
+                } else {
+                    format!("https:{}", url)
+                };
+                if let Some(caps) = re.captures(&url) {
+                    if let Some(matched) = caps.get(1) {
+                        list.push(LinkId {
+                            id: matched.as_str().to_owned(),
+                            url,
+                        });
                     }
                 }
             }
         }
+
         Ok(ScrapedListData::Values(list))
     }
 }
@@ -207,7 +205,7 @@ mod screaper_mobile_bg_test {
         info!("number_of_pages: {}", number_of_pages);
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
-            let data = mobile_bg.get_listed_ids(params.clone()).await.unwrap();
+            let data = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
             match data {
                 ScrapedListData::Values(ids) => {
                     info!("ids: {:?}", ids);
@@ -252,7 +250,7 @@ mod screaper_mobile_bg_test {
         params.insert("topmenu".to_string(), "1".to_string());
         params.insert("slink".to_owned(), slink.clone());
 
-        let data = mobile_bg.get_listed_ids(params.clone()).await.unwrap();
+        let data = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         let mut id: LinkId = LinkId {
             id: "".to_owned(),
             url: "".to_owned(),

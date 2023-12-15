@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, fs, time::Duration};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 use log::{debug, error, info};
 use rand::Rng;
@@ -10,12 +10,12 @@ use tokio::{
 
 use crate::{
     model::{
-        traits::{Identity, URLResource},
+        enums::MessageType,
+        traits::{Identity, MessageTransform, URLResource},
         VehicleDataModel::ScrapedListData,
     },
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     writer::persistance::{MobileData, MobileDataWriter},
-    CONFIG, CREATED_ON,
 };
 
 #[derive(Debug, Clone)]
@@ -46,17 +46,13 @@ where
         let cloned_params = search.clone();
         let cloned_producer = link_producer.clone();
         sum_total_number += total_number;
-        info!("Total number of vehicles: {}", total_number);
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-            info!("number of pages: {}", number_of_pages);
             for page_number in 1..number_of_pages {
                 let data = cloned_scraper
-                    .get_listed_ids(cloned_params.clone(), page_number)
+                    .get_listed_ids(cloned_params.clone())
                     .await
                     .unwrap();
-                info!("*** Page number: {}", page_number);
-                info!("*** Data: {:?}", data.clone());
                 match data {
                     ScrapedListData::Values(list) => {
                         info!("*** Found ids: {}", list.len());
@@ -114,7 +110,7 @@ where
     loop {
         counter += 1;
         info!("Processing urls: {}", counter);
-        match timeout(Duration::from_secs(1), link_receiver.recv()).await {
+        match timeout(Duration::from_secs(300), link_receiver.recv()).await {
             Ok(Some(link)) => {
                 match scraper.handle_request(link.clone()).await {
                     Ok(data) => {
@@ -153,70 +149,12 @@ where
     Ok(())
 }
 
-pub async fn save<T: Clone + serde::Serialize>(
-    mut receiver: Receiver<T>,
-    file_name: String,
-) -> Result<(), String> {
-    let mut counter = 0;
-    let mut data = vec![];
 
-    while let Some(record) = receiver.recv().await {
-        counter += 1;
-        debug!("Processed data counter: {}", counter);
-        data.push(record.clone());
-        if counter % 50 == 0 {
-            save2file(&file_name, data.clone());
-            data.clear();
-        }
-    }
-    save2file(&file_name, data);
-    Ok(())
-}
-
-fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
-    info!(
-        "Saving data number of records {} to file: {}",
-        &data.len(),
-        file_name
-    );
-    let new_data = MobileData::Payload(data);
-    new_data.write_csv(file_name, false).unwrap();
-}
-
-pub async fn process_list_and_send<S, Source>(
-    scraper: Box<S>,
-    searches: Vec<HashMap<String, String>>, // Same issue with U
-    sender: &mut Sender<Source>,            // Same issue with U
-) -> Result<(), String>
-where
-    S: Send + ScraperTrait + ScrapeListTrait<Source> + Clone + 'static,
-    Source: Send + Identity + Clone + Serialize + Debug + 'static,
-{
-    let mut sum_total_number = 0;
-    for search in searches {
-        match process_search(scraper.clone(), search, sender.clone()).await {
-            Ok(total_number) => {
-                sum_total_number += total_number;
-            }
-            Err(e) => {
-                error!("Error processing search: {}", e);
-                continue;
-            }
-        };
-    }
-
-    info!("-------------------------------------------------");
-    info!("Total number of vehicles: {}", sum_total_number);
-    info!("-------------------------------------------------");
-
-    info!("All handlers finished");
-    Ok(())
-}
 
 async fn process_search<Scraper, Source>(
     scraper: Box<Scraper>,
     search: HashMap<String, String>, // Same issue with U
-    sender: Sender<Source>,
+    senders: Sender<MessageType>,
 ) -> Result<u32, String>
 where
     Scraper: Send + ScraperTrait + ScrapeListTrait<Source> + Clone + 'static,
@@ -230,36 +168,38 @@ where
     );
     let cloned_scraper = scraper.clone();
     let cloned_params = search.clone();
+
     let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-    info!("number of pages: {}", number_of_pages);
-    for page_number in 1..number_of_pages + 1 {
+    for page_number in 1..number_of_pages {
         let data = cloned_scraper
-            .get_listed_ids(cloned_params.clone(), page_number)
+            .get_listed_ids(cloned_params.clone())
             .await
             .unwrap();
         match data {
             ScrapedListData::Values(list) => {
                 info!("*** Found ids: {}", &list.len());
-                for value in list {
-                    if let Err(e) = sender.send(value.clone()).await {
+                let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
+                sleep(Duration::from_millis(listing_wait_time as u64)).await;
+                if let Err(e) = process_and_send(list.clone(), sender.clone()).await {
                         error!("Error sending id: {}", e);
-                    } else {
-                        info!("Sent id: {}", &value.get_id());
+                }
+                
+                
+            }
+            ScrapedListData::SingleValue(value) => {
+                for sender in senders.clone() {
+                    if let Err(e) = process_and_send(vec![value.clone()], sender.clone()).await {
+                        error!("Error sending id: {}", e);
                     }
                 }
             }
-            ScrapedListData::SingleValue(value) => {
-                if let Err(e) = sender.send(value.clone()).await {
-                    error!("Error sending id: {}", e);
-                } else {
-                    info!("Sent id: {}", &value.get_id());
-                }
-            }
             ScrapedListData::Error(_) => {
-                error!("Error getting data for page# : {}", 1);
+                error!("Error getting data for page# : {}", page_number);
+                continue;
             }
         }
-        sleep(Duration::from_secs((page_number % 5) as u64)).await;
     }
     Ok(total_number)
 }
+
+
