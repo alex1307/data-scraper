@@ -9,7 +9,6 @@ use crate::{
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::info;
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()

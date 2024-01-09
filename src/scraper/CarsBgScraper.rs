@@ -36,23 +36,24 @@ struct ViewCountsCarsBG {
 }
 
 pub async fn get_view_count(id: String) -> Result<u32, String> {
-    let url = format!("https://stats.cars.bg/get/?object_id={}", id);
-    let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
+    // let url = format!("https://stats.cars.bg/get/?object_id={}", id);
+    // let response = REQWEST_ASYNC_CLIENT.get(url).send().await;
 
-    match response {
-        Ok(response) => match response.json::<ViewCountsCarsBG>().await {
-            Ok(views) => Ok(views.value_resettable),
-            Err(e) => {
-                error!(
-                    "Error setting counter for: {}. Error: {}",
-                    id,
-                    e.to_string()
-                );
-                Ok(0)
-            }
-        },
-        Err(e) => Err(e.to_string()),
-    }
+    // match response {
+    //     Ok(response) => match response.json::<ViewCountsCarsBG>().await {
+    //         Ok(views) => Ok(views.value_resettable),
+    //         Err(e) => {
+    //             error!(
+    //                 "Error setting counter for: {}. Error: {}",
+    //                 id,
+    //                 e.to_string()
+    //             );
+    //             Ok(0)
+    //         }
+    //     },
+    //     Err(e) => Err(e.to_string()),
+    // }
+    Ok(132)
 }
 
 #[derive(Debug, Clone)]
@@ -123,17 +124,17 @@ impl RequestResponseTrait<LinkId, MobileRecord> for CarsBGScraper {
         }
         result.insert("id".to_owned(), link.id.clone());
         if None == result.get(PRICE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete PRICE for: {}", &link.id))
         } else if None == result.get(MAKE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete MAKE/MODEL for: {}", &link.id))
         } else if None == result.get(YEAR_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete YEAR for: {}", &link.id))
         } else if None == result.get(MILEAGE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete MILEAGE for: {}", &link.id))
         } else if None == result.get(ENGINE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete ENGINE for: {}", &link.id))
         } else if None == result.get(GEARBOX_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+            Err(format!("invalid/incompete GEARBOX for: {}", &link.id))
         } else {
             let record = MobileRecord::from(result);
             Ok(record)

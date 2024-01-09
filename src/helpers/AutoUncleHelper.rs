@@ -1,3 +1,4 @@
+use log::{error, info};
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
@@ -61,7 +62,14 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
     acc[len - 1] = last.to_string();
     acc.push("}\n}".to_string());
     let lines = acc.join("\n");
-    let json = serde_json::from_str::<PaginatedCars>(&lines).unwrap();
+    let json = match serde_json::from_str::<PaginatedCars>(&lines) {
+        Ok(json) => json,
+        Err(e) => {
+            error!("Error: {:?}", e);
+            info!("Lines: {:?}", lines);
+            return vec![];
+        }
+    };
     json.paginated.cars
 }
 

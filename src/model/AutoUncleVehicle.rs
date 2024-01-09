@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::config::Equipment::get_equipment_as_u64;
 
@@ -174,9 +174,9 @@ impl From<AutoUncleVehicle> for BaseVehicleInfo {
         }
 
         if let Some(hp) = source.hp {
-            base.power = hp;
+            base.power_ps = hp as u32;
         } else {
-            base.power = 0;
+            base.power_ps = 0;
         }
 
         base.currency = source.currency.unwrap_or(Currency::EUR);
