@@ -260,10 +260,11 @@ pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
         }
         break;
     }
-
     if strong.len() >= 2 {
         result.insert(YEAR_KEY.to_owned(), strong[0].to_owned());
         result.insert(LOCATION_KEY.to_owned(), strong[1].to_owned());
+    } else if strong.len() == 1 {
+        result.insert(YEAR_KEY.to_owned(), strong[0].to_owned());
     }
     get_vehicle_equipment(&document, &mut result);
     result

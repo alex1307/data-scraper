@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, fs, time::Duration};
+use std::{collections::HashMap, fmt::Debug, sync::Mutex, time::Duration};
 
 use log::{debug, error, info};
 use rand::Rng;
@@ -8,6 +8,8 @@ use tokio::{
     time::{sleep, timeout},
 };
 
+use lazy_static::lazy_static;
+
 use crate::{
     model::{
         traits::{Identity, URLResource},
@@ -15,8 +17,11 @@ use crate::{
     },
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     writer::persistance::{MobileData, MobileDataWriter},
-    CONFIG, CREATED_ON,
 };
+
+lazy_static! {
+    pub static ref TOTAL_COUNT: Mutex<u32> = Mutex::new(0);
+}
 
 #[derive(Debug, Clone)]
 pub struct ScraperService<T: ScraperTrait + Clone> {
@@ -86,9 +91,9 @@ where
         });
         handlers.push(handler);
     }
-
+    TOTAL_COUNT.lock().unwrap().clone_from(&sum_total_number);
     info!("-------------------------------------------------");
-    info!("Total number of vehicles: {}", sum_total_number);
+    info!("Total number of vehicles: {}", TOTAL_COUNT.lock().unwrap());
     info!("-------------------------------------------------");
 
     for handler in handlers {
@@ -111,9 +116,8 @@ where
 {
     let mut counter = 0;
     let mut wait_counter = 0;
+    let mut total_number = TOTAL_COUNT.lock().unwrap().clone();
     loop {
-        counter += 1;
-        info!("Processing urls: {}", counter);
         match timeout(Duration::from_secs(1), link_receiver.recv()).await {
             Ok(Some(link)) => {
                 match scraper.handle_request(link.clone()).await {
@@ -148,6 +152,21 @@ where
                 }
             }
         }
+        if total_number > 0 {
+            let total_number = total_number as f32;
+            let counter = counter as f32;
+            let percent = counter * 100.0/ total_number ;
+            info!(
+                "Processing urls: {} / {}. Remaining: {}% ({})",
+                counter,
+                total_number,
+                percent.round(),
+                total_number - counter,
+            );
+        } else {
+            total_number = TOTAL_COUNT.lock().unwrap().clone();
+            info!("Processing urls: {}", counter);
+        }
     }
 
     Ok(())
@@ -173,7 +192,7 @@ pub async fn save<T: Clone + serde::Serialize>(
     Ok(())
 }
 
-fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
+pub fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
     info!(
         "Saving data number of records {} to file: {}",
         &data.len(),
@@ -193,6 +212,7 @@ where
     Source: Send + Identity + Clone + Serialize + Debug + 'static,
 {
     let mut sum_total_number = 0;
+    info!("Starting list processing. Searches: {}", searches.len());
     for search in searches {
         match process_search(scraper.clone(), search, sender.clone()).await {
             Ok(total_number) => {

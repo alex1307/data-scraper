@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use chrono::Duration;
 use log::info;
@@ -11,6 +11,10 @@ use crate::{
         CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
         MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, TOP_KEY,
         VIEW_COUNT_KEY, YEAR_KEY,
+    },
+    model::{
+        enums::{Currency, Engine, Gearbox},
+        VehicleDataModel::BaseVehicleInfo,
     },
     CREATED_ON, DATE_FORMAT, NOW,
 };
@@ -260,6 +264,158 @@ pub fn get_total_number(source: &str) -> u32 {
     total_number
 }
 
+pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
+    let html = Html::parse_document(source);
+    let div_selector = Selector::parse(r#"div.overlay-content-container"#).unwrap();
+    let li_selector = Selector::parse("li").unwrap();
+    let location_selector = Selector::parse("span.tw-text-grey-700").unwrap();
+    let fuel_selector = Selector::parse("span.key-feature[title='Fuel type']").unwrap();
+    let transimission_selector = Selector::parse("span.key-feature[title='Transmission']").unwrap();
+    let power_selector = Selector::parse("span.key-feature[title='Power']").unwrap();
+    let engine_selector = Selector::parse("span.key-feature[title='Engine']").unwrap();
+    let mieage_selector = Selector::parse("span.key-feature[title='Mileage']").unwrap();
+    let registration_selector = Selector::parse("span.key-feature[title='Registration']").unwrap();
+    let current_price_selector =
+        Selector::parse("div.price-tag.current-price span > span:first-child").unwrap();
+    let title_selector = Selector::parse("h2.title.title").unwrap();
+
+    let old_price_selector = Selector::parse("div.price-tag.old-price").unwrap();
+    let href_selector = Selector::parse("a.row-anchor").unwrap();
+    let mut basic_info = vec![];
+    for div in html.select(&div_selector) {
+        // Now iterate over li elements within the div
+        for li in div.select(&li_selector) {
+            info!("----------------------------------------------");
+            let mut info = BaseVehicleInfo::default();
+            info.source = "car.gr".to_owned();
+            for element in li.select(&href_selector) {
+                // Access the href attribute
+                if let Some(href) = element.value().attr("href") {
+                    info!("Href: {}", href);
+                    info.id = href.to_owned();
+                }
+            }
+            for span in li.select(&title_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("title: {}", text);
+                info.title = text.clone();
+                if text.contains("'") {
+                    let text = text.split("'").collect::<Vec<_>>();
+                    let make_model = text[0].to_owned();
+                    info!("make_model: {}", make_model);
+                    info.make = make_model.split(' ').collect::<Vec<_>>()[0].to_owned();
+                    info.model = make_model.split(' ').collect::<Vec<_>>()[1].to_owned();
+                }
+            }
+            for span in li.select(&location_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                info!("location: {}", text.trim().replace('\n', ""));
+            }
+            for span in li.select(&fuel_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("fuel type: {}", &text);
+                if let Ok(engine) = Engine::from_str(&text) {
+                    info.engine = engine;
+                }
+                info!("Engine: {:?}", info.engine);
+            }
+            for span in li.select(&transimission_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("gear type: {}", text);
+                if let Ok(gearbox) = Gearbox::from_str(&text) {
+                    info.gearbox = gearbox;
+                }
+                info!("Gearbox: {:?}", info.gearbox);
+            }
+
+            for span in li.select(&power_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("Power: {}", &text);
+                let power = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                if info.engine == Engine::Electric {
+                    info.power_kw = power.parse::<u32>().unwrap_or(0);
+                } else {
+                    info.power_ps = power.parse::<u32>().unwrap_or(0);
+                }
+                info!("power: {}", power);
+            }
+
+            for span in li.select(&engine_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("engine: {}", &text);
+                let cc = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                info!("CC: {}", cc);
+                info.cc = cc.parse::<u32>().unwrap_or(0);
+            }
+
+            for span in li.select(&mieage_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("mileage: {}", text.trim().replace('\n', ""));
+                let millage = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                info!("millage: {}", millage);
+                info.millage = millage.parse::<u32>().ok();
+            }
+
+            for span in li.select(&registration_selector) {
+                let text = span.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("registration: {}", text);
+                if text.contains('/') {
+                    let year = text.split('/').collect::<Vec<_>>();
+                    info!("month: {}", year[0]);
+                    info.year = year[1]
+                        .chars()
+                        .filter(|&c| c.is_numeric())
+                        .collect::<String>()
+                        .parse::<u16>()
+                        .unwrap_or(0);
+                    info.month = Some(
+                        year[0]
+                            .chars()
+                            .filter(|&c| c.is_numeric())
+                            .collect::<String>()
+                            .parse::<u16>()
+                            .unwrap_or(0),
+                    );
+                    info!("year: {}", year[1]);
+                } else {
+                    let year = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                    info!("year: {}", year);
+                    info.year = year.parse::<u16>().unwrap_or(0);
+                }
+            }
+
+            for p in li.select(&current_price_selector) {
+                let text = p.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("current price: {}", text);
+                let price = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                info!("price: {}", price);
+                info.currency = Currency::EUR;
+                info.price = price.parse::<u32>().ok();
+            }
+            basic_info.push(info);
+
+            for p in li.select(&old_price_selector) {
+                let text = p.text().collect::<Vec<_>>().join(" ");
+                let text = text.trim().replace('\n', "");
+                info!("old price: {}", &text);
+                let price = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
+                info!("old price: {}", price);
+            }
+
+            info!("----------------------------------------------");
+        }
+    }
+    basic_info
+}
+
 #[cfg(test)]
 mod car_gr_test_suit {
     use std::collections::HashMap;
@@ -270,13 +426,24 @@ mod car_gr_test_suit {
     use crate::{
         helpers::CarGrHTMLHelper::{
             get_dealer_data, get_equipment, get_listed_links, get_specification, get_total_number,
-            vehicle_data,
+            process_listed_links, vehicle_data,
         },
         model::records::MobileRecord,
         scraper::{CarGrScraper::CarGrScraper, Traits::Scraper},
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
+
+    #[tokio::test]
+    async fn parse_file_test() {
+        configure_log4rs(&LOG_CONFIG);
+        let file = std::fs::read_to_string("resources/test-data/car.gr/deals.html").unwrap();
+        let vehicles = process_listed_links(&file);
+        info!("data: {:?}", vehicles.len());
+        for v in vehicles {
+            info!("vehicle: {:?}", v);
+        }
+    }
 
     #[tokio::test]
     async fn get_listes_vehicles_test() {

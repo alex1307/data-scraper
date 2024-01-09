@@ -17,10 +17,13 @@ pub struct BaseVehicleInfo {
     pub currency: Currency,
     pub price: Option<u32>,
     pub millage: Option<u32>,
+    pub month: Option<u16>,
     pub year: u16,
     pub engine: Engine,
     pub gearbox: Gearbox,
-    pub power: u16,
+    pub cc: u32,
+    pub power_ps: u32,
+    pub power_kw: u32,
 }
 
 impl BaseVehicleInfo {
@@ -88,10 +91,36 @@ pub struct Price {
     pub currency: Currency,
     pub save_difference: u32,
     pub overpriced_difference: u32,
-    pub ranges: Vec<u32>,
+    pub ranges: Option<String>,
+    pub rating: Option<String>,
+
+    #[serde(skip_serializing)]
+    pub thresholds: Vec<u32>,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+pub struct Consumption {
+    pub id: String,
+    pub source: String,
+    pub make: String,
+    pub model: String,
+    pub year: u16,
+    pub co2_emission: u32,
+    pub fuel_consumption: Option<f32>,
+    pub kw_consuption: Option<f32>,
 }
 
 impl Price {
+    pub fn new(id: String, source: String) -> Self {
+        Self {
+            id,
+            source,
+            ..Default::default()
+        }
+    }
+}
+
+impl Consumption {
     pub fn new(id: String, source: String) -> Self {
         Self {
             id,
@@ -112,6 +141,22 @@ impl Header for Price {
             "save_difference",
             "overpriced_difference",
             "ranges",
+            "rating",
+        ]
+    }
+}
+
+impl Header for Consumption {
+    fn header() -> Vec<&'static str> {
+        vec![
+            "id",
+            "source",
+            "make",
+            "model",
+            "year",
+            "co2_emission",
+            "fuel_consumption",
+            "kw_consuption",
         ]
     }
 }

@@ -1,36 +1,128 @@
+use crate::model::MobileDe::MobileDeResults;
+
+pub fn from_data(payload_data: &str) -> Result<MobileDeResults, String> {
+    match serde_json::from_str::<MobileDeResults>(payload_data) {
+        Ok(json) => Ok(json),
+        Err(e) => Err(format!("Error parsing mobile.de listing: {:?}", e)),
+    }
+}
+
+pub fn parse_html(html: &str) -> Result<MobileDeResults, String> {
+    let mut content = html.to_string();
+    content = content.replace('\u{2009}', " ");
+    content = content.replace('\u{a0}', "");
+    content = content.replace("\u{003E}strong", "");
+    content = content.replace('\u{003E}', "");
+    content = content.replace('\u{003C}', "");
+
+    if let Some(start_idx) = content.find("window.__INITIAL_STATE__ = ") {
+        let start_idx = start_idx + "window.__INITIAL_STATE__ = ".len();
+        if let Some(end_idx) = content.find("window.__PUBLIC_CONFIG__") {
+            let json = &content[start_idx..end_idx];
+            match serde_json::from_str::<MobileDeResults>(&json) {
+                Ok(json) => Ok(json),
+                Err(e) => Err(format!("Error parsing mobile.de listing: {:?}", e)),
+            }
+        } else {
+            Err("Error parsing mobile.de listing: end_idx not found".to_string())
+        }
+    } else {
+        Err("Error parsing mobile.de listing: start_idx not found".to_string())
+    }
+}
+
 #[cfg(test)]
 mod mobile_de_tests {
     use std::{fs, str::FromStr};
 
     use log::info;
 
-    use crate::{model::{MobileDe::MobileDeResults, enums::{Engine, Gearbox}}, utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{
+        helpers::MobileDeHelper::{from_data, parse_html},
+        model::{
+            enums::{Engine, Gearbox},
+            VehicleDataModel::{self},
+        },
+        utils::helpers::configure_log4rs,
+        LOG_CONFIG,
+    };
 
     #[test]
     fn parse_json() {
         configure_log4rs(&LOG_CONFIG);
-        let content =
-            fs::read_to_string("resources/test-data/mobile.de/mobile_listing.json").unwrap();
-        let json = serde_json::from_str::<MobileDeResults>(&content).unwrap();
+        let content = fs::read_to_string("resources/test-data/mobile.de/mercedes.json").unwrap();
+        let json = from_data(&content).unwrap();
         info!("{:?}", json);
     }
 
     #[test]
     fn get_json_from_html() {
         configure_log4rs(&LOG_CONFIG);
-        let mut content =
-            fs::read_to_string("resources/test-data/mobile.de/my_file_3.html").unwrap();
-        content = content.replace('\u{2009}', " ");
-        content = content.replace('\u{a0}', "");
-        info!("{:?}", content.len());
-        if let Some(start_idx) = content.find("window.__INITIAL_STATE__ = ") {
-            let start_idx = start_idx + "window.__INITIAL_STATE__ = ".len();
-            if let Some(end_idx) = content.find("window.__PUBLIC_CONFIG__") {
-                let json = &content[start_idx..end_idx];
-                let json = serde_json::from_str::<MobileDeResults>(json).unwrap();
-                info!("{:?}", json);
-            }
-        }
+        let content =
+            fs::read_to_string("resources/test-data/mobile.de/my_file_7 copy.html").unwrap();
+        let json = parse_html(&content).unwrap();
+        json.search
+            .srp
+            .data
+            .search_result
+            .items
+            .iter()
+            .for_each(
+                |item| match VehicleDataModel::Price::try_from(item.clone()) {
+                    Ok(price) => {
+                        info!("{:?}", price);
+                    }
+                    Err(e) => {
+                        info!("{:?}", e);
+                    }
+                },
+            );
+
+        json.search
+            .srp
+            .data
+            .search_result
+            .items
+            .iter()
+            .for_each(
+                |item| match VehicleDataModel::BaseVehicleInfo::try_from(item.clone()) {
+                    Ok(base) => {
+                        info!("{:?}", base);
+                    }
+                    Err(e) => {
+                        info!("{:?}", e);
+                    }
+                },
+            );
+
+        json.search
+            .srp
+            .data
+            .search_result
+            .items
+            .iter()
+            .for_each(
+                |item| match VehicleDataModel::Consumption::try_from(item.clone()) {
+                    Ok(base) => {
+                        info!("{:?}", base);
+                    }
+                    Err(e) => {
+                        info!("{:?}", e);
+                    }
+                },
+            );
+        //info!("{:?}", json);
+        // content = content.replace('\u{2009}', " ");
+        // content = content.replace('\u{a0}', "");
+        // info!("{:?}", content.len());
+        // if let Some(start_idx) = content.find("window.__INITIAL_STATE__ = ") {
+        //     let start_idx = start_idx + "window.__INITIAL_STATE__ = ".len();
+        //     if let Some(end_idx) = content.find("window.__PUBLIC_CONFIG__") {
+        //         let json = &content[start_idx..end_idx];
+        //         let json = serde_json::from_str::<MobileDeResults>(json).unwrap();
+        //         info!("{:?}", json);
+        //     }
+        // }
     }
 
     #[test]
@@ -55,7 +147,7 @@ mod mobile_de_tests {
 
     #[test]
     fn parse_attributes() {
-        configure_log4rs(&LOG_CONFIG); 
+        configure_log4rs(&LOG_CONFIG);
         let attr1 = vec![
             "FR 04/2023 • 8,000km • 215kW(292Hp)",
             "Demonstration Vehicle • SUV / Off-road Vehicle / Pickup Truck • Availability: From Apr 30, 2024 • Electric • Automatic • HU 04/2026 • 4/5 Doors",
@@ -73,11 +165,9 @@ mod mobile_de_tests {
             .flat_map(|a| a.split(" • "))
             .map(|s| s.to_string())
             .collect();
-        
+
         info!("{:?}", flattened_attributes);
-        let prod_year = flattened_attributes[0]
-            .split(" ")
-            .collect::<Vec<&str>>()[1]
+        let prod_year = flattened_attributes[0].split(" ").collect::<Vec<&str>>()[1]
             .split("/")
             .collect::<Vec<&str>>();
         info!("{:?}", prod_year);
@@ -88,7 +178,6 @@ mod mobile_de_tests {
             assert_eq!(prod_year[0], "06");
             assert_eq!(prod_year[1], "2018");
         }
-        
 
         let milage = flattened_attributes[1]
             .chars()
@@ -104,11 +193,8 @@ mod mobile_de_tests {
             assert_eq!(milage, 105800);
         }
 
-        
         if flattened_attributes[2].contains("KW") {
-            let kw_ps = flattened_attributes[2]
-                .split("KW")
-                .collect::<Vec<&str>>();
+            let kw_ps = flattened_attributes[2].split("KW").collect::<Vec<&str>>();
             let mut power = vec![];
             for s in kw_ps {
                 let number = s
@@ -129,38 +215,34 @@ mod mobile_de_tests {
         }
         let mut engine: Engine = Engine::NotAvailable;
         let mut gearbox: Gearbox = Gearbox::NotAvailable;
-        for attr in &flattened_attributes{
+        for attr in &flattened_attributes {
             engine = Engine::from_str(attr.as_str()).unwrap();
             if Engine::NotAvailable == engine {
                 continue;
-            }else {
+            } else {
                 break;
             }
         }
 
-
-        for attr in &flattened_attributes{
+        for attr in &flattened_attributes {
             gearbox = Gearbox::from_str(attr.as_str()).unwrap();
             if Gearbox::NotAvailable == gearbox {
                 continue;
-            }else {
+            } else {
                 break;
             }
         }
 
         if attributes == attr1 {
             assert_eq!(engine, Engine::Electric);
-        }else {
+        } else {
             assert_eq!(engine, Engine::Diesel);
         }
 
         if attributes == attr1 {
             assert_eq!(gearbox, Gearbox::Automatic);
-        }else {
+        } else {
             assert_eq!(gearbox, Gearbox::Manual);
         }
-        
-
-        
     }
 }
