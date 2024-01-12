@@ -16,6 +16,7 @@ use crate::{
         VehicleDataModel::ScrapedListData,
     },
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
+    services::Searches,
     writer::persistance::{MobileData, MobileDataWriter},
 };
 
@@ -33,6 +34,7 @@ pub async fn process_list<S, T>(
     scraper: Box<S>,
     searches: Vec<HashMap<String, String>>,
     link_producer: &mut Sender<T>,
+    search_producer: &mut Sender<HashMap<String, String>>,
 ) -> Result<(), String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
@@ -42,7 +44,7 @@ where
     let mut sum_total_number = 0;
     for search in searches {
         let html = scraper.get_html(search.clone(), 1).await?;
-        let total_number = scraper.total_number(&html)?.clone();
+        let total_number = scraper.total_number(&html)?;
         info!(
             "Starting search: {:?}. Found {} vehicles",
             search, total_number
@@ -50,6 +52,7 @@ where
         let cloned_scraper = scraper.clone();
         let cloned_params = search.clone();
         let cloned_producer = link_producer.clone();
+        let cloned_search_producer = search_producer.clone();
         sum_total_number += total_number;
         info!("Total number of vehicles: {}", total_number);
         let handler = tokio::spawn(async move {
@@ -78,7 +81,7 @@ where
                         }
                     }
                     ScrapedListData::SingleValue(value) => {
-                        if let Err(_) = cloned_producer.send(value.clone()).await {
+                        if (cloned_producer.send(value.clone()).await).is_err() {
                             error!("Error sending id: {:?}", value);
                         }
                     }
@@ -87,6 +90,10 @@ where
                         continue;
                     }
                 }
+            }
+
+            if let Err(e) = cloned_search_producer.send(cloned_params.clone()).await {
+                error!("Error sending search: {}", e);
             }
         });
         handlers.push(handler);
@@ -116,7 +123,7 @@ where
 {
     let mut counter = 0;
     let mut wait_counter = 0;
-    let mut total_number = TOTAL_COUNT.lock().unwrap().clone();
+    let mut total_number = *TOTAL_COUNT.lock().unwrap();
     loop {
         match timeout(Duration::from_secs(1), link_receiver.recv()).await {
             Ok(Some(link)) => {
@@ -155,7 +162,7 @@ where
         if total_number > 0 {
             let total_number = total_number as f32;
             let counter = counter as f32;
-            let percent = counter * 100.0/ total_number ;
+            let percent = counter * 100.0 / total_number;
             info!(
                 "Processing urls: {} / {}. Remaining: {}% ({})",
                 counter,
@@ -164,7 +171,7 @@ where
                 total_number - counter,
             );
         } else {
-            total_number = TOTAL_COUNT.lock().unwrap().clone();
+            total_number = *TOTAL_COUNT.lock().unwrap();
             info!("Processing urls: {}", counter);
         }
     }
@@ -175,6 +182,7 @@ where
 pub async fn save<T: Clone + serde::Serialize>(
     mut receiver: Receiver<T>,
     file_name: String,
+    threshold: u32,
 ) -> Result<(), String> {
     let mut counter = 0;
     let mut data = vec![];
@@ -183,12 +191,25 @@ pub async fn save<T: Clone + serde::Serialize>(
         counter += 1;
         debug!("Processed data counter: {}", counter);
         data.push(record.clone());
-        if counter % 50 == 0 {
+        if counter % threshold == 0 {
             save2file(&file_name, data.clone());
             data.clear();
         }
     }
     save2file(&file_name, data);
+    Ok(())
+}
+
+pub async fn log_search(
+    mut receiver: Receiver<HashMap<String, String>>,
+    file_name: String,
+) -> Result<(), String> {
+    let mut counter = 0;
+    while let Some(record) = receiver.recv().await {
+        counter += 1;
+        debug!("Processed searches: {}", counter);
+        Searches::save_searches(&file_name, vec![record.clone()]);
+    }
     Ok(())
 }
 
@@ -205,7 +226,8 @@ pub fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
 pub async fn process_list_and_send<S, Source>(
     scraper: Box<S>,
     searches: Vec<HashMap<String, String>>, // Same issue with U
-    sender: &mut Sender<Source>,            // Same issue with U
+    sender: &mut Sender<Source>,
+    search_producer: Sender<HashMap<String, String>>, // Same issue with U
 ) -> Result<(), String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<Source> + Clone + 'static,
@@ -214,9 +236,12 @@ where
     let mut sum_total_number = 0;
     info!("Starting list processing. Searches: {}", searches.len());
     for search in searches {
-        match process_search(scraper.clone(), search, sender.clone()).await {
+        match process_search(scraper.clone(), search.clone(), sender.clone()).await {
             Ok(total_number) => {
                 sum_total_number += total_number;
+                if let Err(e) = search_producer.send(search).await {
+                    error!("Error sending search: {}", e);
+                }
             }
             Err(e) => {
                 error!("Error processing search: {}", e);
@@ -243,7 +268,7 @@ where
     Source: Send + Identity + Clone + Serialize + Debug + 'static,
 {
     let html = scraper.get_html(search.clone(), 1).await?;
-    let total_number = scraper.total_number(&html)?.clone();
+    let total_number = scraper.total_number(&html)?;
     info!(
         "Starting search: {:?}. Found {} vehicles",
         search, total_number

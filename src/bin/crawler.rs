@@ -1,4 +1,5 @@
 use data_scraper::services::ScraperAppService::{download_all, download_new_vehicles};
+use data_scraper::services::Searches::init_searches;
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 
@@ -22,6 +23,7 @@ struct CrawlerArgs {
 enum Commands {
     ScrapeAll(CrawlerArgs),
     ScrapeNew(CrawlerArgs),
+    InitSearch(CrawlerArgs),
 }
 
 #[tokio::main]
@@ -50,6 +52,10 @@ async fn main() {
                 return;
             }
             download_new_vehicles(&args.source).await
+        }
+        Commands::InitSearch(_args) => {
+            info!("Starting crawler: {:?}", command);
+            init_searches()
         }
     };
 

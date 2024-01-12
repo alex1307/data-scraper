@@ -16,7 +16,7 @@ deploy:
 	strip $(DEST_RELEASE_DIR)/crawler
 
 copy-config:
-	mkdir -p $(DEST_CONFIG_DIR)
+	mkdir -p $(DEST_RELEASE_DIR)/resources/searches
 	cp -r $(CONFIG_DIR)/* $(DEST_CONFIG_DIR)/
 
 test:

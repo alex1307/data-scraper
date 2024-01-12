@@ -50,7 +50,7 @@ pub fn get_models(make: &str) -> Vec<String> {
             .collect(),
         None => {
             info!("No models found for make {}", make);
-            return vec![];
+            vec![]
         }
     }
 }

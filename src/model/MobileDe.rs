@@ -36,34 +36,34 @@ pub struct SRPData {
     pub search_result: SearchResult,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct MetaData {
-    title: String,
-    headline: String,
-    description: String,
-    keywords: String,
-    breadcrumbs: Vec<Breadcrumb>,
+pub struct MetaData {
+    pub(crate) title: String,
+    pub(crate) headline: String,
+    pub(crate) description: String,
+    pub(crate) keywords: String,
+    pub(crate) breadcrumbs: Vec<Breadcrumb>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Aggregations {
-    pub st: Vec<KeyCount>,
-    pub clim: Vec<KeyCount>,
-    pub fe: Vec<KeyCount>,
+pub struct Aggregations {
+    pub(crate) st: Vec<KeyCount>,
+    pub(crate) clim: Vec<KeyCount>,
+    pub(crate) fe: Vec<KeyCount>,
     // Assuming `dm` is similar in structure to `st`, `clim`, etc.
-    pub dm: Vec<KeyCount>,
-    pub sr: Vec<KeyCount>,
+    pub(crate) dm: Vec<KeyCount>,
+    pub(crate) sr: Vec<KeyCount>,
     // Add other fields if needed
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct KeyCount {
-    key: String,
-    count: u64,
+pub struct KeyCount {
+    pub(crate) key: String,
+    pub(crate) count: u64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Breadcrumb {
-    label: String,
-    href: Option<String>,
+pub struct Breadcrumb {
+    pub(crate) label: String,
+    pub(crate) href: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -157,11 +157,11 @@ struct FinanceLocalized {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct PriceRating {
-    rating: String,
-    ratingLabel: String,
-    thresholdLabels: Option<Vec<String>>,
-    vehiclePriceOffset: Option<u32>,
+pub struct PriceRating {
+    pub(crate) rating: String,
+    pub(crate) ratingLabel: String,
+    pub(crate) thresholdLabels: Option<Vec<String>>,
+    pub(crate) vehiclePriceOffset: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -196,21 +196,21 @@ struct Image {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Price {
-    gross: String,
+pub struct Price {
+    pub(crate) gross: String,
 
     #[serde(rename = "grossAmount")]
-    gross_amount: f64,
+    pub(crate) gross_amount: f64,
 
     #[serde(rename = "grossCurrency")]
-    currency: String,
+    pub(crate) currency: String,
 
-    net: Option<String>,
+    pub(crate) net: Option<String>,
 
     #[serde(rename = "netAmount")]
-    net_amount: Option<f64>,
+    pub(crate) net_amount: Option<f64>,
 
-    vat: Option<String>,
+    pub(crate) vat: Option<String>,
 }
 
 impl TryFrom<SearchItem> for VehicleDataModel::Price {
@@ -227,7 +227,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::Price {
                 if let Some(threshold_labels) = rating.thresholdLabels {
                     let mut thresholds = vec![];
                     for s in &threshold_labels {
-                        let number = s.chars().filter(|c| c.is_digit(10)).collect::<String>();
+                        let number = s.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
                         match number.parse::<u32>() {
                             Ok(number) => thresholds.push(number),
                             Err(e) => {
@@ -296,7 +296,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
 
                 let milage = match flattened_attributes[1]
                     .chars()
-                    .filter(|c| c.is_digit(10))
+                    .filter(|c| c.is_ascii_digit())
                     .collect::<String>()
                     .parse::<u32>()
                 {
@@ -316,7 +316,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
                     for s in kw_ps {
                         let number = match s
                             .chars()
-                            .filter(|c| c.is_digit(10))
+                            .filter(|c| c.is_ascii_digit())
                             .collect::<String>()
                             .parse::<u32>()
                         {
@@ -429,7 +429,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
                         let l = l.replace("ca.", "ca:");
                         let l = l
                             .chars()
-                            .filter(|c| c.is_digit(10) || *c == ',' || *c == '.')
+                            .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
                             .collect::<String>();
                         if l.contains('.') {
                             consumption.fuel_consumption = match l.parse::<f32>() {
@@ -452,7 +452,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
                     } else if attr.contains("CO₂/km") {
                         consumption.co2_emission = match attr
                             .chars()
-                            .filter(|c| c.is_digit(10))
+                            .filter(|c| c.is_ascii_digit())
                             .collect::<String>()
                             .parse::<u32>()
                         {
@@ -477,10 +477,10 @@ fn get_year(year: &str) -> u16 {
         return 2024;
     }
 
-    if year.contains("/") {
-        let month_year = year.split(" ").collect::<Vec<&str>>();
+    if year.contains('/') {
+        let month_year = year.split(' ').collect::<Vec<&str>>();
         if month_year.len() > 1 {
-            let prod_year = month_year[1].split("/").collect::<Vec<&str>>();
+            let prod_year = month_year[1].split('/').collect::<Vec<&str>>();
             if prod_year.len() == 1 {
                 return match prod_year[0].parse::<u16>() {
                     Ok(year) => year,

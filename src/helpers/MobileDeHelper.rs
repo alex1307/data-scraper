@@ -19,7 +19,7 @@ pub fn parse_html(html: &str) -> Result<MobileDeResults, String> {
         let start_idx = start_idx + "window.__INITIAL_STATE__ = ".len();
         if let Some(end_idx) = content.find("window.__PUBLIC_CONFIG__") {
             let json = &content[start_idx..end_idx];
-            match serde_json::from_str::<MobileDeResults>(&json) {
+            match serde_json::from_str::<MobileDeResults>(json) {
                 Ok(json) => Ok(json),
                 Err(e) => Err(format!("Error parsing mobile.de listing: {:?}", e)),
             }

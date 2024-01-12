@@ -20,13 +20,11 @@ use crate::{
         MobileBgScraper::MobileBGScraper,
         Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     },
-    services::{
-        ScraperService::{process_details, save},
-        Searches::car_gr_new_searches,
-    },
+    services::ScraperService::{process_details, save},
     utils::helpers::create_empty_csv,
-    CARS_BG_ALL_FILE_NAME, CARS_BG_INSALE_FILE_NAME, CAR_GR_ALL_FILE_NAME, CAR_GR_FILE_NAME,
-    CONFIG, CREATED_ON, MOBILE_BG_ALL_FILE_NAME, MOBILE_BG_FILE_NAME,
+    AUTOUNCLE_ALL_SEARCHES_LOG, CARS_BG_ALL_FILE_NAME, CARS_BG_ALL_SEARCHES_LOG,
+    CARS_BG_NEW_FILE_NAME, CARS_BG_NEW_SEARCHES_LOG, CONFIG, CREATED_ON, MOBILE_BG_ALL_FILE_NAME,
+    MOBILE_BG_ALL_SEARCHES_LOG, MOBILE_BG_FILE_NAME, MOBILE_BG_NEW_SEARCHES_LOG,
 };
 use lazy_static::lazy_static;
 
@@ -40,17 +38,16 @@ lazy_static! {
 }
 
 use super::{
-    ScraperService::{process_list, process_list_and_send},
+    ScraperService::{log_search, process_list, process_list_and_send},
     Searches::{
-        autouncle_all_searches, car_gr_all_searches, cars_bg_all_searches, cars_bg_new_searches,
-        mobile_bg_all_searches, mobile_bg_new_searches,
+        autouncle_all_searches, cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches,
+        mobile_bg_new_searches, to_slink_searches,
     },
 };
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),
     MobileBG(String),
-    CarGr(String),
     Autouncle(String),
 }
 
@@ -65,7 +62,6 @@ impl FromStr for Crawlers {
             "mobile.bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile_bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
             "mobile" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
-            "car.gr" => Ok(Crawlers::CarGr(r#"https://www.car.gr"#.to_owned())),
             "autouncle" => Ok(Crawlers::Autouncle(
                 r#"https://www.autouncle.ro"#.to_owned(),
             )),
@@ -85,25 +81,19 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             download_list_data(
                 CARS_BG_CRAWLER.clone(),
                 CARS_BG_ALL_FILE_NAME.to_owned(),
+                CARS_BG_ALL_SEARCHES_LOG.to_owned(),
                 searches,
             )
             .await
         }
         Crawlers::MobileBG(_) => {
-            let searches = mobile_bg_all_searches().await;
+            let searches = mobile_bg_all_searches();
+            let slink_searches = to_slink_searches(searches).await;
             download_list_data(
                 MOBILE_BG_CRAWLER.clone(),
                 MOBILE_BG_ALL_FILE_NAME.to_owned(),
-                searches,
-            )
-            .await
-        }
-        Crawlers::CarGr(_) => {
-            let searches: Vec<HashMap<String, String>> = car_gr_all_searches();
-            download_list_data(
-                CAR_GR_CRAWLER.clone(),
-                CAR_GR_ALL_FILE_NAME.to_owned(),
-                searches,
+                MOBILE_BG_ALL_SEARCHES_LOG.to_owned(),
+                slink_searches,
             )
             .await
         }
@@ -125,27 +115,20 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
             }
             download_details(
                 CARS_BG_CRAWLER.clone(),
-                CARS_BG_INSALE_FILE_NAME.to_owned(),
+                CARS_BG_NEW_FILE_NAME.to_owned(),
+                CARS_BG_NEW_SEARCHES_LOG.to_owned(),
                 searches,
             )
             .await
         }
         Crawlers::MobileBG(_) => {
-            let searches = mobile_bg_new_searches().await;
+            let searches = mobile_bg_new_searches();
+            let slink_searches = to_slink_searches(searches).await;
             download_details(
                 MOBILE_BG_CRAWLER.clone(),
                 MOBILE_BG_FILE_NAME.to_owned(),
-                searches,
-            )
-            .await
-        }
-        Crawlers::CarGr(_) => {
-            let searches: Vec<HashMap<String, String>> = car_gr_new_searches();
-            info!("searches: {:?}", searches.len());
-            download_details(
-                CAR_GR_CRAWLER.clone(),
-                CAR_GR_FILE_NAME.to_owned(),
-                searches,
+                MOBILE_BG_NEW_SEARCHES_LOG.to_owned(),
+                slink_searches,
             )
             .await
         }
@@ -156,6 +139,7 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
 pub async fn download_details<S, REQ, RES>(
     scraper: S,
     file_name: String,
+    file_search_name: String,
     searches: Vec<HashMap<String, String>>,
 ) -> Result<(), String>
 where
@@ -170,20 +154,31 @@ where
 {
     let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<REQ>(250);
     let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<RES>(250);
+    let (mut search_producer, search_receiver) =
+        tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
     let process_scraper = scraper.clone();
-    let start_handler =
-        tokio::spawn(
-            async move { process_list(Box::new(scraper), searches, &mut link_producer).await },
-        );
+    let start_handler = tokio::spawn(async move {
+        process_list(
+            Box::new(scraper),
+            searches,
+            &mut link_producer,
+            &mut search_producer,
+        )
+        .await
+    });
     let process_handler = tokio::spawn(async move {
         process_details(process_scraper, &mut link_receiver, &mut record_producer).await
     });
-    let save_to_file = tokio::spawn(async move { save(record_receiver, file_name).await });
+    let save_to_file = tokio::spawn(async move { save(record_receiver, file_name, 100).await });
+    let save_searches =
+        tokio::spawn(async move { save(search_receiver, file_search_name, 1).await });
 
-    if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(start_handler, process_handler, save_to_file) {
+    if let (Ok(_), Ok(_), Ok(_), Ok(_)) =
+        tokio::join!(start_handler, process_handler, save_to_file, save_searches)
+    {
         info!("All tasks completed successfully");
         Ok(())
     } else {
@@ -208,6 +203,8 @@ where
     let (producer_change_log_producer, change_log_receiver) =
         tokio::sync::mpsc::channel::<VehicleChangeLogInfo>(250);
     let (price_calculator_producer, price_receiver) = tokio::sync::mpsc::channel::<Price>(250);
+    let (search_producer, search_receiver) =
+        tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
 
     let base_file = format!(
         "{}/vehicle-base-{}.csv",
@@ -246,7 +243,13 @@ where
         error!("Failed to create file {}", price_file.clone());
     }
     let start_handler = tokio::spawn(async move {
-        process_list_and_send(Box::new(scraper), searches, &mut data_producer).await
+        process_list_and_send(
+            Box::new(scraper),
+            searches,
+            &mut data_producer,
+            search_producer,
+        )
+        .await
     });
     let mut counter = 0;
     let mut wait_counter = 0;
@@ -285,20 +288,24 @@ where
             }
         }
     });
-    let save_to_base_file = tokio::spawn(async move { save(base_receiver, base_file).await });
+    let save_to_base_file = tokio::spawn(async move { save(base_receiver, base_file, 100).await });
     let save_to_details_file =
-        tokio::spawn(async move { save(details_receiver, details_file).await });
+        tokio::spawn(async move { save(details_receiver, details_file, 100).await });
     let save_log_change_file =
-        tokio::spawn(async move { save(change_log_receiver, change_log_file).await });
-    let save_to_price_file = tokio::spawn(async move { save(price_receiver, price_file).await });
-
-    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
+        tokio::spawn(async move { save(change_log_receiver, change_log_file, 100).await });
+    let save_to_price_file =
+        tokio::spawn(async move { save(price_receiver, price_file, 100).await });
+    let save_searches = tokio::spawn(async move {
+        log_search(search_receiver, AUTOUNCLE_ALL_SEARCHES_LOG.to_owned()).await
+    });
+    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
         start_handler,
         data_handler,
         save_to_base_file,
         save_to_details_file,
         save_log_change_file,
-        save_to_price_file
+        save_to_price_file,
+        save_searches
     ) {
         info!("All tasks completed successfully");
         Ok(())
@@ -311,21 +318,36 @@ where
 pub async fn download_list_data<S>(
     scraper: S,
     file_name: String,
+    search_file_name: String,
     searches: Vec<HashMap<String, String>>,
 ) -> Result<(), String>
 where
     S: ScraperTrait + ScrapeListTrait<LinkId> + Clone + Send + 'static,
 {
     let (mut producer, receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (mut search_producer, search_receiver) =
+        tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
         error!("Failed to create file {}", file_name.clone());
     }
-    let start_handler =
-        tokio::spawn(async move { process_list(Box::new(scraper), searches, &mut producer).await });
 
-    let save_to_file = tokio::spawn(async move { save(receiver, file_name).await });
+    if create_empty_csv::<MobileRecord>(&search_file_name).is_err() {
+        error!("Failed to create file {}", search_file_name.clone());
+    }
+    let start_handler = tokio::spawn(async move {
+        process_list(
+            Box::new(scraper),
+            searches,
+            &mut producer,
+            &mut search_producer,
+        )
+        .await
+    });
 
-    if let (Ok(_), Ok(_)) = tokio::join!(start_handler, save_to_file) {
+    let save_to_file = tokio::spawn(async move { save(receiver, file_name, 100).await });
+    let save_to_search_file =
+        tokio::spawn(async move { save(search_receiver, search_file_name, 1).await });
+    if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(start_handler, save_to_file, save_to_search_file) {
         info!("All tasks completed successfully");
         Ok(())
     } else {
@@ -366,6 +388,7 @@ mod app_test {
         download_details(
             scraper,
             "./resources/test-data/test.csv".to_owned(),
+            "./resources/test-data/test_search.json".to_owned(),
             searches,
         )
         .await
@@ -400,6 +423,7 @@ mod app_test {
         download_details(
             scraper,
             "./resources/test-data/test.csv".to_owned(),
+            "./resources/test-data/test-search.json".to_owned(),
             searches,
         )
         .await
@@ -423,9 +447,10 @@ mod app_test {
     #[tokio::test]
     async fn test_mobile_bg_searches() {
         configure_log4rs(&LOG_CONFIG);
-        let searches = mobile_bg_new_searches().await;
+        let searches = mobile_bg_new_searches();
+        let slink_searches = super::to_slink_searches(searches).await;
         let mut total = 0;
-        for search in searches {
+        for search in slink_searches {
             let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
             let total_number = MOBILE_BG_CRAWLER.total_number(&html).unwrap();
             total += total_number;

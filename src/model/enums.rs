@@ -1,12 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    records::MobileRecord,
-    AutoUncleVehicle::AutoUncleVehicle,
-    VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, LinkId, Price, VehicleChangeLogInfo},
-};
+use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
@@ -172,7 +168,7 @@ impl FromStr for Engine {
             "електрически" => Ok(Engine::Electric),
             "електричество" => Ok(Engine::Electric),
             "хибриден" => Ok(Engine::Hybrid),
-            "Hybrid" => Ok(Engine::Hybrid),
+            "hybrid" => Ok(Engine::Hybrid),
             "хибрид" => Ok(Engine::Hybrid),
             "hybrid petrol" => Ok(Engine::HybridPetrol),
             "hybrid diesel" => Ok(Engine::HybridDiesel),
@@ -226,19 +222,6 @@ impl FromStr for SaleType {
             _ => Ok(SaleType::NONE),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MessageTypes {
-    HashMap(HashMap<String, String>),
-    BasicInfo(BaseVehicleInfo),
-    DetailsInfo(DetailedVehicleInfo),
-    PriceCalculation(Price),
-    ChangeInfo(VehicleChangeLogInfo),
-    AutoUncle(AutoUncleVehicle),
-    Generic(MobileRecord),
-    LinkId(LinkId),
-    Done,
 }
 
 pub enum Message<S: Clone + Serialize + Send + 'static> {
