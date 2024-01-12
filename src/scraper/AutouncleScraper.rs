@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread::sleep, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use crate::{
     helpers::AutoUncleHelper::get_vehicles,
@@ -55,7 +55,7 @@ impl ScraperTrait for AutouncleScraper {
         let number_of_cars = match html.find(r#"\"numberOfCars\":"#) {
             Some(index) => {
                 let index = index + r#"\"numberOfCars\":"#.len();
-                let end_index = html[index..].find(",").unwrap();
+                let end_index = html[index..].find(',').unwrap();
                 html[index..index + end_index].parse::<u32>().unwrap()
             }
             None => return Err("Not found".to_string()),

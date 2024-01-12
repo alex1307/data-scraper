@@ -98,18 +98,18 @@ impl RequestResponseTrait<LinkId, MobileRecord> for MobileBGScraper {
         let document = Html::parse_document(&html);
         let mut result = details2map(document);
         result.insert("id".to_owned(), link.id.clone());
-        if None == result.get(PRICE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
-        } else if None == result.get(MAKE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
-        } else if None == result.get(YEAR_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
-        } else if None == result.get(MILEAGE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
-        } else if None == result.get(ENGINE_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
-        } else if None == result.get(GEARBOX_KEY.to_string().as_str()) {
-            Err(format!("invalid/incompete data for: {}", &link.id))
+        if result.get(PRICE_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete price data for: {}", &link.id))
+        } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete make data for: {}", &link.id))
+        } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete year data for: {}", &link.id))
+        } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete mileage data for: {}", &link.id))
+        } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete engine data for: {}", &link.id))
+        } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
+            Err(format!("invalid/incompete gearbox data for: {}", &link.id))
         } else {
             let record = MobileRecord::from(result);
             Ok(record)
@@ -127,7 +127,7 @@ impl ScraperTrait for MobileBGScraper {
     }
 
     fn total_number(&self, html: &str) -> Result<u32, String> {
-        let document = Html::parse_document(&html);
+        let document = Html::parse_document(html);
         let selector = Selector::parse(r#"meta[name="description"]"#).unwrap();
 
         if let Some(element) = document.select(&selector).next() {
@@ -205,7 +205,10 @@ mod screaper_mobile_bg_test {
         info!("number_of_pages: {}", number_of_pages);
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
-            let data = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
+            let data = mobile_bg
+                .get_listed_ids(params.clone(), page)
+                .await
+                .unwrap();
             match data {
                 ScrapedListData::Values(ids) => {
                     info!("ids: {:?}", ids);

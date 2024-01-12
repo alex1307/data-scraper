@@ -51,12 +51,12 @@ impl ScrapeListTrait<LinkId> for CarGrScraper {
         let source = self.parent.html_search(url.as_str(), None).await?;
         let links = get_listed_links(&source);
         for link in links {
-            let mut id = match link.split("/").last() {
+            let mut id = match link.split('/').last() {
                 Some(id) => id.to_owned(),
                 None => continue,
             };
-            if id.contains("?") {
-                id = id.split("?").collect::<Vec<_>>()[0].to_owned();
+            if id.contains('?') {
+                id = id.split('?').collect::<Vec<_>>()[0].to_owned();
             }
             list.push(LinkId {
                 id,
@@ -94,7 +94,7 @@ impl ScraperTrait for CarGrScraper {
     }
 
     fn total_number(&self, html: &str) -> Result<u32, String> {
-        let count = get_total_number(&html);
+        let count = get_total_number(html);
         Ok(count)
     }
 

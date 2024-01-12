@@ -28,7 +28,7 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
     let end = txt.find("pagination").unwrap();
     let paginated = txt[start - 1..end - 1].to_string();
     let processed = paginated.replace(r#"\""#, r#"""#);
-    let processed = processed.replace("\\", "");
+    let processed = processed.replace('\\', "");
     let processed = processed.replace(r#"\\"#, r#"\"#);
     let processed = processed.replace(r#"\n"#, r#""#);
     let processed = processed.replace(r#"\t"#, r#""#);
@@ -37,7 +37,7 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
     let processed = processed.replace("}],", "}],\n");
     let processed = processed.replace("},", "},\n");
     let processed = processed.replace("],", "],\n");
-    let processed = processed.replace("{", "{\n");
+    let processed = processed.replace('{', "{\n");
     let mut show_it = false;
 
     let mut acc = vec!["{".to_string()];
@@ -74,7 +74,7 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
 }
 
 pub fn get_scripts(html: &str) -> Vec<String> {
-    let document = Html::parse_document(&html);
+    let document = Html::parse_document(html);
     let script_selector = Selector::parse("script").unwrap();
     let scripts = document
         .select(&script_selector)

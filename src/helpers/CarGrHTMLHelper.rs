@@ -39,7 +39,7 @@ pub fn vehicle_data(html_page: &str) -> HashMap<String, String> {
 
 pub fn get_specification(html_page: &str) -> HashMap<String, String> {
     let mut data = HashMap::new();
-    let document = Html::parse_document(&html_page);
+    let document = Html::parse_document(html_page);
     let row_selector = Selector::parse("tr.c-table-row").unwrap();
     let td_selector = Selector::parse("td").unwrap();
     for row in document.select(&row_selector) {
@@ -49,14 +49,10 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
             let value = tds[1].text().collect::<String>();
             let key = key
                 .trim()
-                .replace(":", "")
-                .replace(" ", "")
-                .replace("\t", "")
-                .replace("\n", "")
-                .replace("\r", "")
+                .replace([':', ' ', '\t', '\n', '\r'], "")
                 .trim()
                 .to_lowercase();
-            let value = value.replace("\n", "").replace("\r", "").trim().to_string();
+            let value = value.replace(['\n', '\r'], "").trim().to_string();
             if PRICE_KEY.to_owned() == key {
                 let value = value
                     .chars()
@@ -65,7 +61,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                     .parse::<u32>()
                     .unwrap_or(0);
                 data.insert(PRICE_KEY.to_owned(), value.to_string());
-            } else if "fueltype".to_owned() == key {
+            } else if *"fueltype" == key {
                 data.insert(ENGINE_KEY.to_owned(), value.to_string());
             } else if POWER_KEY.to_owned() == key {
                 let value = value
@@ -100,7 +96,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                         .unwrap_or(0)
                 };
                 data.insert(YEAR_KEY.to_owned(), value.to_string());
-            } else if "transmission".to_owned() == key {
+            } else if *"transmission" == key {
                 data.insert(GEARBOX_KEY.to_owned(), value.to_string());
             } else if "engine" == key {
                 let value = value
@@ -174,7 +170,7 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
 }
 
 pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
-    let document = Html::parse_document(&html_page);
+    let document = Html::parse_document(html_page);
     let selector = Selector::parse("div.main-seller-info a").unwrap();
     let mut data = HashMap::new();
     for element in document.select(&selector) {
@@ -195,11 +191,10 @@ pub fn get_dealer_data(html_page: &str) -> HashMap<String, String> {
     }
 
     let selector = Selector::parse("div.main-seller-info span").unwrap();
-    for element in document.select(&selector) {
+    if let Some(element) = document.select(&selector).next() {
         let text = element.text().collect::<Vec<_>>().join(" ");
-        let trimmed = text.replace("\n", "").replace("\r", "");
-        data.insert(LOCATION_KEY.to_owned(), trimmed.trim().to_owned());
-        break;
+        let text = text.trim().replace('\n', "");
+        data.insert(LOCATION_KEY.to_owned(), text.trim().to_owned());
     }
     data
 }
@@ -232,7 +227,7 @@ pub fn get_equipment(html_page: &str) -> u64 {
 
 pub fn get_listed_links(source: &str) -> Vec<String> {
     let mut links = vec![];
-    let document = Html::parse_document(&source);
+    let document = Html::parse_document(source);
     let vehicle_selector = Selector::parse("li > div.search-row > a").unwrap();
     for element in document.select(&vehicle_selector) {
         let href = match element.value().attr("href") {
@@ -245,7 +240,7 @@ pub fn get_listed_links(source: &str) -> Vec<String> {
 }
 
 pub fn get_total_number(source: &str) -> u32 {
-    let document = Html::parse_document(&source);
+    let document = Html::parse_document(source);
     let selector = Selector::parse("li.c-breadcrumb").unwrap();
     let mut total_number = 0;
     for element in document.select(&selector) {
@@ -286,8 +281,11 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
         // Now iterate over li elements within the div
         for li in div.select(&li_selector) {
             info!("----------------------------------------------");
-            let mut info = BaseVehicleInfo::default();
-            info.source = "car.gr".to_owned();
+            let mut info = BaseVehicleInfo {
+                source: "car.gr".to_owned(),
+                ..Default::default()
+            };
+
             for element in li.select(&href_selector) {
                 // Access the href attribute
                 if let Some(href) = element.value().attr("href") {
@@ -300,8 +298,8 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
                 let text = text.trim().replace('\n', "");
                 info!("title: {}", text);
                 info.title = text.clone();
-                if text.contains("'") {
-                    let text = text.split("'").collect::<Vec<_>>();
+                if text.contains('\'') {
+                    let text = text.split('\'').collect::<Vec<_>>();
                     let make_model = text[0].to_owned();
                     info!("make_model: {}", make_model);
                     info.make = make_model.split(' ').collect::<Vec<_>>()[0].to_owned();

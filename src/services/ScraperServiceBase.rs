@@ -44,7 +44,6 @@ where
         );
         let cloned_scraper = scraper.clone();
         let cloned_params = search.clone();
-        let cloned_producer = link_producer.clone();
         sum_total_number += total_number;
         let handler = tokio::spawn(async move {
             let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
@@ -61,7 +60,7 @@ where
                         for id in list {
                             let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
                             sleep(Duration::from_millis(advert_wait_time)).await;
-                            if let Err(e) = cloned_producer.send(id.clone()).await {
+                            if let Err(e) = link_producer.send(id.clone()).await {
                                 error!("Error sending id: {}", e);
                             } else {
                                 info!("Sent id: {}", &id.get_id());
@@ -69,7 +68,7 @@ where
                         }
                     }
                     ScrapedListData::SingleValue(value) => {
-                        if let Err(_) = cloned_producer.send(value.clone()).await {
+                        if let Err(_) = link_producer.send(value.clone()).await {
                             error!("Error sending id: {:?}", value);
                         }
                     }

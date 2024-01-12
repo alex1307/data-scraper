@@ -47,31 +47,49 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
+    pub static ref MOBILE_BG_SEARCH_FILE_NAME: String = format!(
+        "{}/mobile-bg-vehicle-search{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
     pub static ref UPDATED_VEHICLES_FILE_NAME: String = format!(
         "{}/updated-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
     pub static ref METADATA_FILE_NAME: String = format!("{}/meta-data.csv", CONFIG.get_data_dir());
-    pub static ref FOR_UPDATE_FILE_NAME: String =
-        format!("{}/ids-for-update.csv", CONFIG.get_data_dir());
-    pub static ref DELETED_FILE_NAME: String = format!(
-        "{}/not-found-ids-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_INSALE_FILE_NAME: String = format!(
+    pub static ref CARS_BG_NEW_FILE_NAME: String = format!(
         "{}/cars-bg-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
-        "{}/cars-bg-updated-vehicle-{}.csv",
+    pub static ref CARS_BG_NEW_SEARCH_FILE_NAME: String = format!(
+        "{}/cars-bg-vehicle-search{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CAR_GR_FILE_NAME: String = format!(
-        "{}/carg-gr-vehicle-{}.csv",
+    pub static ref MOBILE_BG_NEW_SEARCHES_LOG: String = format!(
+        "resources/searches/mobile_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/mobile_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_NEW_SEARCHES_LOG: String = format!(
+        "resources/searches/cars_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/cars_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref AUTOUNCLE_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/autouncle_all_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
+        "{}/cars-bg-updated-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
@@ -80,20 +98,13 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CAR_GR_ALL_FILE_NAME: String = format!(
-        "{}/car-gr-all-data-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
     pub static ref MOBILE_BG_ALL_FILE_NAME: String = format!(
         "{}/mobile-bg-all-data-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CARS_BG_FOR_UPDATE_FILE_NAME: String =
-        format!("{}/cars-bg-ids-for-update.csv", CONFIG.get_data_dir());
-    pub static ref CARS_BG_DELETED_FILE_NAME: String = format!(
-        "{}/not-found-ids-{}.csv",
+    pub static ref MOBILE_BG_ALL_SEARCH_FILE_NAME: String = format!(
+        "{}/mobile-bg-all-search-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );

@@ -116,7 +116,16 @@ impl Scraper {
         }
 
         for (key, value) in params.iter() {
-            url = format!("{}{}={}&", url, key, value);
+            if value.contains('[') && value.contains(']') {
+                let value = value.replace(['[', ']'], "");
+                let values: Vec<&str> = value.split(',').collect();
+                for value in values {
+                    url = format!("{}{}={}&", url, key, value);
+                }
+                continue;
+            } else {
+                url = format!("{}{}={}&", url, key, value);
+            }
         }
         if page == 0 {
             return url.trim_end_matches('&').to_owned();
@@ -163,6 +172,6 @@ impl Scraper {
                 return Ok(html);
             }
         }
-        return Err(format!("Failed to get html from {}", url));
+        Err(format!("Failed to get html from {}", url))
     }
 }
