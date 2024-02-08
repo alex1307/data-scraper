@@ -1,11 +1,11 @@
-use data_scraper::services::ScraperAppService::{download_new_vehicles, Crawlers, download_all};
+use data_scraper::services::ScraperAppService::{download_all, download_new_vehicles};
+use data_scraper::services::Searches::init_searches;
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 
 use log::info;
 
-use clap::{Args, Parser, Subcommand, command};
-
+use clap::{command, Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -14,19 +14,17 @@ struct Cli {
     command: Commands,
 }
 
-
 #[derive(Args, Debug)]
 struct CrawlerArgs {
     source: String,
 }
 
-
 #[derive(Subcommand, Debug)]
 enum Commands {
     ScrapeAll(CrawlerArgs),
     ScrapeNew(CrawlerArgs),
+    InitSearch(CrawlerArgs),
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -44,7 +42,7 @@ async fn main() {
                 return;
             }
             download_all(&args.source).await
-        },
+        }
         Commands::ScrapeNew(args) => {
             info!("Starting crawler: {:?}", command);
             info!("cmd: {:?}", cmd);
@@ -54,7 +52,11 @@ async fn main() {
                 return;
             }
             download_new_vehicles(&args.source).await
-        },
+        }
+        Commands::InitSearch(_args) => {
+            info!("Starting crawler: {:?}", command);
+            init_searches()
+        }
     };
 
     if let Ok(()) = crawler {

@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo};
+
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
     #[default]
@@ -43,10 +45,28 @@ pub enum Engine {
     Diesel,
     #[serde(rename = "Hybrid")]
     Hybrid,
+    #[serde(rename = "LPG")]
+    LPG,
+    #[serde(rename = "CNG")]
+    CNG,
+    #[serde(rename = "HybridPetrol")]
+    HybridPetrol,
+
+    #[serde(rename = "HybridDiesel")]
+    HybridDiesel,
+
     #[serde(rename = "Electric")]
     Electric,
 
+    #[serde(rename = "PlugInHybridPetrol")]
+    PlugInHybridPetrol,
+
+    #[serde(rename = "PlugInHybridDiesel")]
+    PlugInHybridDiesel,
+
+    #[serde(rename = "PluginHybrid")]
     PluginHybrid,
+
     #[default]
     #[serde(rename = "N/A")]
     NotAvailable,
@@ -88,12 +108,18 @@ impl ToString for Gearbox {
 impl ToString for Engine {
     fn to_string(&self) -> String {
         match self {
-            Engine::Petrol => "Бензинов".to_string(),
-            Engine::Diesel => "Дизелов".to_string(),
-            Engine::PluginHybrid => "Plug-in хибрид".to_string(),
-            Engine::Electric => "Електрически".to_string(),
-            Engine::Hybrid => "Хибриден".to_string(),
-            Engine::NotAvailable => "NotFound".to_string(),
+            Engine::Petrol => "Petrol".to_string(),
+            Engine::Diesel => "Diesel".to_string(),
+            Engine::PluginHybrid => "Plug-in-hybrid".to_string(),
+            Engine::Electric => "Electric".to_string(),
+            Engine::Hybrid => "Hybrid".to_string(),
+            Engine::LPG => "LPG".to_string(),
+            Engine::CNG => "CNG".to_string(),
+            Engine::HybridPetrol => "Hybrid-petrol".to_string(),
+            Engine::HybridDiesel => "Hybrid-diesel".to_string(),
+            Engine::PlugInHybridPetrol => "Plug-in-hybrid-petrol".to_string(),
+            Engine::PlugInHybridDiesel => "Plug-in-hybrid-diesel".to_string(),
+            _ => "NotFound".to_string(),
         }
     }
 }
@@ -102,12 +128,18 @@ impl FromStr for Gearbox {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Автоматична" => Ok(Gearbox::Automatic),
-            "Автоматични скорости" => Ok(Gearbox::Automatic),
-            "Ръчна" => Ok(Gearbox::Manual),
-            "Ръчни скорости" => Ok(Gearbox::Manual),
-            "Полуавтоматична" => Ok(Gearbox::Semiautomatic),
+        match s.to_lowercase().trim() {
+            "автоматична" => Ok(Gearbox::Automatic),
+            "автоматични скорости" => Ok(Gearbox::Automatic),
+            "automatic" => Ok(Gearbox::Automatic),
+            "automatik" => Ok(Gearbox::Automatic),
+            "ръчна" => Ok(Gearbox::Manual),
+            "schaltgetriebe" => Ok(Gearbox::Manual),
+            "manual gearbox" => Ok(Gearbox::Manual),
+            "manual" => Ok(Gearbox::Manual),
+            "ръчни скорости" => Ok(Gearbox::Manual),
+            "полуавтоматична" => Ok(Gearbox::Semiautomatic),
+            "semiauto" => Ok(Gearbox::Semiautomatic),
             _ => Ok(Gearbox::NotAvailable),
         }
     }
@@ -117,18 +149,31 @@ impl FromStr for Engine {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Бензинов" => Ok(Engine::Petrol),
-            "Бензин" => Ok(Engine::Petrol),
-            "Газ/Бензин" => Ok(Engine::Petrol),
-            "Метан/Бензин" => Ok(Engine::Petrol),
-            "Дизелов" => Ok(Engine::Diesel),
-            "Дизел" => Ok(Engine::Diesel),
-            "Plug-in хибрид" => Ok(Engine::PluginHybrid),
-            "Електрически" => Ok(Engine::Electric),
-            "Електричество" => Ok(Engine::Electric),
-            "Хибриден" => Ok(Engine::Hybrid),
-            "Хибрид" => Ok(Engine::Hybrid),
+        match s.to_lowercase().trim() {
+            "бензинов" => Ok(Engine::Petrol),
+            "petrol" => Ok(Engine::Petrol),
+            "бензин" => Ok(Engine::Petrol),
+            "benzin" => Ok(Engine::Petrol),
+            "газ/бензин" => Ok(Engine::LPG),
+            "gas/lpg" => Ok(Engine::LPG),
+            "lpg" => Ok(Engine::LPG),
+            "lpg_hybrid" => Ok(Engine::LPG),
+            "метан/бензин" => Ok(Engine::CNG),
+            "natural gas(cng)" => Ok(Engine::CNG),
+            "дизелов" => Ok(Engine::Diesel),
+            "дизел" => Ok(Engine::Diesel),
+            "diesel" => Ok(Engine::Diesel),
+            "plug-in хибрид" => Ok(Engine::PluginHybrid),
+            "electric" => Ok(Engine::Electric),
+            "електрически" => Ok(Engine::Electric),
+            "електричество" => Ok(Engine::Electric),
+            "хибриден" => Ok(Engine::Hybrid),
+            "hybrid" => Ok(Engine::Hybrid),
+            "хибрид" => Ok(Engine::Hybrid),
+            "hybrid petrol" => Ok(Engine::HybridPetrol),
+            "hybrid diesel" => Ok(Engine::HybridDiesel),
+            "plug-in hybrid petrol" => Ok(Engine::PlugInHybridPetrol),
+            "plug-in hybrid diesel" => Ok(Engine::PlugInHybridDiesel),
             _ => Ok(Engine::NotAvailable),
         }
     }
@@ -177,4 +222,17 @@ impl FromStr for SaleType {
             _ => Ok(SaleType::NONE),
         }
     }
+}
+
+pub enum Message<S: Clone + Serialize + Send + 'static> {
+    Message(S),
+    Done,
+    Error(String),
+}
+
+pub enum MessageType {
+    BaseVehicleInfo(BaseVehicleInfo),
+    DetailedVehicleInfo(DetailedVehicleInfo),
+    PriceCalculator(Price),
+    VehicleChangeLogInfo(VehicleChangeLogInfo),
 }

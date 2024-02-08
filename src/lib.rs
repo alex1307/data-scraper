@@ -1,10 +1,15 @@
+#![allow(non_snake_case)]
 pub mod config;
+pub mod helpers;
+pub mod kafka;
 pub mod model;
+pub mod protos;
 pub mod scraper;
 pub mod services;
 pub mod utils;
 pub mod writer;
 
+use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 
 use std::sync::Once;
@@ -32,14 +37,20 @@ pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_1
 
 lazy_static! {
     static ref INIT_LOGGER: Once = Once::new();
-    pub static ref TIMESTAMP: i64 = chrono::Local::now().timestamp();
+    pub static ref NOW: DateTime<Utc> = chrono::Utc::now();
+    pub static ref TIMESTAMP: i64 = NOW.timestamp();
     pub static ref CONFIG: AppConfig = AppConfig::from_file("config/config.yml");
     pub static ref LOG_CONFIG: String = format!("{}/meta_log4rs.yml", CONFIG.get_log4rs_config());
-    pub static ref CREATED_ON: String = chrono::Utc::now().format(DATE_FORMAT).to_string();
+    pub static ref CREATED_ON: String = NOW.format(DATE_FORMAT).to_string();
     pub static ref ARCHIVE_FILE_NAME: String =
         format!("{}/vehicle.archive.csv", CONFIG.get_data_dir());
     pub static ref MOBILE_BG_FILE_NAME: String = format!(
         "{}/mobile-bg-vehicle-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_SEARCH_FILE_NAME: String = format!(
+        "{}/mobile-bg-vehicle-search{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
@@ -49,16 +60,34 @@ lazy_static! {
         CREATED_ON.clone()
     );
     pub static ref METADATA_FILE_NAME: String = format!("{}/meta-data.csv", CONFIG.get_data_dir());
-    pub static ref FOR_UPDATE_FILE_NAME: String =
-        format!("{}/ids-for-update.csv", CONFIG.get_data_dir());
-    pub static ref DELETED_FILE_NAME: String = format!(
-        "{}/not-found-ids-{}.csv",
+    pub static ref CARS_BG_NEW_FILE_NAME: String = format!(
+        "{}/cars-bg-vehicle-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CARS_BG_INSALE_FILE_NAME: String = format!(
-        "{}/cars-bg-vehicle-{}.csv",
+    pub static ref CARS_BG_NEW_SEARCH_FILE_NAME: String = format!(
+        "{}/cars-bg-vehicle-search{}.csv",
         CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_NEW_SEARCHES_LOG: String = format!(
+        "resources/searches/mobile_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/mobile_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_NEW_SEARCHES_LOG: String = format!(
+        "resources/searches/cars_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref CARS_BG_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/cars_bg_new_search_log_{}.json",
+        CREATED_ON.clone()
+    );
+    pub static ref AUTOUNCLE_ALL_SEARCHES_LOG: String = format!(
+        "resources/searches/autouncle_all_search_log_{}.json",
         CREATED_ON.clone()
     );
     pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
@@ -66,12 +95,18 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref CARS_BG_METADATA_FILE_NAME: String =
-        format!("{}/cars-meta-data.csv", CONFIG.get_data_dir());
-    pub static ref CARS_BG_FOR_UPDATE_FILE_NAME: String =
-        format!("{}/cars-bg-ids-for-update.csv", CONFIG.get_data_dir());
-    pub static ref CARS_BG_DELETED_FILE_NAME: String = format!(
-        "{}/not-found-ids-{}.csv",
+    pub static ref CARS_BG_ALL_FILE_NAME: String = format!(
+        "{}/cars-bg-all-data-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_ALL_FILE_NAME: String = format!(
+        "{}/mobile-bg-all-data-{}.csv",
+        CONFIG.get_data_dir(),
+        CREATED_ON.clone()
+    );
+    pub static ref MOBILE_BG_ALL_SEARCH_FILE_NAME: String = format!(
+        "{}/mobile-bg-all-search-{}.csv",
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
