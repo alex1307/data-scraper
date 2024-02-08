@@ -1,5 +1,7 @@
+pub mod CrawlerTrait;
 pub mod ScraperAppService;
 pub mod ScraperService;
+pub mod SearchBuilder;
 pub mod Searches;
 
 use std::sync::Arc;

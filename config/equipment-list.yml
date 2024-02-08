@@ -1,0 +1,90 @@
+equipment:
+  9: 
+    - Парктроник
+    - parktronic
+    - has_parking
+  10: 
+    - Система за контрол на дистанцията
+  11: 
+    - DVD/TV
+    - DVD, TV
+    - tv_camera
+  12: 
+    - Застраховка
+    - Каско
+  13: 
+    - Подгряване на седалки
+    - heated_seats
+    - Подгряване на седалките
+    - has_seat_heat
+  14: 
+    - Адаптивно въздушно окачване"
+  15: 
+    - "-"
+  16: 
+    - С регистрация
+  17: 
+    - imported
+  18: 
+    - leather_seats
+    - Кожен салон
+    - has_full_leather
+  19: 
+    - Панорамен покрив
+    - panoramic_roof
+    - Шибедах
+    - has_sunroof
+  20: 
+    - Лизинг
+  21: 
+    - Възможност за лизинг
+  22: 
+    - 4x4
+    - 4x4 (4WD)
+    - has_4wd
+  23: 
+    - "-"
+    - Газова уредба
+  24: 
+    - Автопилот
+    - cruise_control
+    - Система за контрол на скоростта (автопилот)
+    - has_pilot
+  25: 
+    - ABC
+    - abs
+    - has_abs
+  26: 
+    - ESP
+    - esp
+    - has_esp
+  27: 
+    - Климатик
+    - aircondition(a_c)
+    - has_climate_control
+  28: 
+    - Климатроник
+    - automatic_air_conditioning
+    - has_aircondition
+  29: 
+    - Гаранция
+    - warranty
+  30: 
+    - Навигационна система
+    - gps
+    - has_gps
+  31: 
+    - ASR/Тракшън контрол
+    - tcs_asr
+    - has_anti_spin
+  32: 
+    - Безключово палене
+    - keyless
+  33: 
+    - Старт-Стоп система
+    - eco_start_stop
+    - has_stop_and_go
+  34:
+    - has_headup_display
+  35:
+    - has_lane_warning

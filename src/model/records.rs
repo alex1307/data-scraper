@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    scraper::{
+    helpers::{
         CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
         MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY,
         TOP_KEY, VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,
@@ -19,6 +19,8 @@ use super::{
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct MobileRecord {
     pub id: String,
+    pub title: String,
+    pub source: String,
     pub make: String,
     pub model: String,
     pub currency: Currency,
@@ -27,7 +29,7 @@ pub struct MobileRecord {
     pub year: u16,
     pub engine: Engine,
     pub gearbox: Gearbox,
-    pub power: u16,
+    pub power: u32,
     pub phone: String,
     pub location: String,
     pub view_count: u32,
@@ -99,7 +101,7 @@ impl From<HashMap<String, String>> for MobileRecord {
         let power = map
             .get(&POWER_KEY.to_owned())
             .unwrap_or(default_0)
-            .parse::<u16>()
+            .parse::<u32>()
             .unwrap_or(0);
         let view_count = map
             .get(&VIEW_COUNT_KEY.to_owned())
@@ -146,7 +148,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             .get(&DEALER_KEY.to_owned())
             .unwrap_or(&"false".to_string())
             .parse::<bool>()
-            .unwrap();
+            .unwrap_or(false);
         let sold = map
             .get(&SOLD_KEY.to_owned())
             .unwrap_or(&"false".to_string())
