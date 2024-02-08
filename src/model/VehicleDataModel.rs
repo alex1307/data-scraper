@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
+use super::records::MobileRecord;
 use super::{
     enums::{Currency, Engine, Gearbox},
     traits::{Header, Identity, URLResource},
@@ -217,6 +218,7 @@ pub struct CarMake {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Default)]
 pub struct LinkId {
     pub url: String,
+    pub source: String,
     pub id: String,
 }
 
@@ -252,6 +254,78 @@ pub enum ScrapedListData<T: Identity + Clone + Serialize + Debug> {
 impl Hash for LinkId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+impl From<MobileRecord> for BaseVehicleInfo {
+    fn from(record: MobileRecord) -> Self {
+        Self {
+            id: record.id,
+            source: record.source,
+            title: record.title,
+            make: record.make,
+            model: record.model,
+            currency: record.currency,
+            price: Some(record.price),
+            millage: Some(record.millage),
+            year: record.year,
+            engine: record.engine,
+            gearbox: record.gearbox,
+            cc: 0,
+            power_ps: record.power,
+            power_kw: record.power,
+            month: None,
+        }
+    }
+}
+
+impl From<MobileRecord> for DetailedVehicleInfo {
+    fn from(record: MobileRecord) -> Self {
+        Self {
+            id: record.id,
+            source: record.source,
+            phone: record.phone,
+            location: record.location,
+            view_count: record.view_count,
+            cc: 0,
+            fuel_consumption: 0.0,
+            electric_drive_range: 0.0,
+            equipment: record.equipment,
+            is_dealer: record.dealer,
+            seller_name: "".to_string(),
+        }
+    }
+}
+
+impl From<MobileRecord> for VehicleChangeLogInfo {
+    fn from(record: MobileRecord) -> Self {
+        Self {
+            id: record.id,
+            source: record.source,
+            published_on: record.created_on,
+            last_modified_on: record.updated_on,
+            last_modified_message: "".to_string(),
+            days_in_sale: None,
+            sold: record.sold,
+            promoted: record.vip,
+        }
+    }
+}
+
+impl From<MobileRecord> for Price {
+    fn from(value: MobileRecord) -> Self {
+        Self {
+            id: value.id,
+            source: value.source,
+            estimated_price: None,
+            price: value.price,
+            currency: value.currency,
+            save_difference: 0,
+            overpriced_difference: 0,
+            ranges: None,
+            rating: None,
+            thresholds: vec![],
+        }
     }
 }
 

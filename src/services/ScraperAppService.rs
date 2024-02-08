@@ -1,13 +1,13 @@
 use std::{collections::HashMap, fmt::Debug, str::FromStr, time::Duration};
 
 use log::{error, info};
-use serde::Serialize;
+
 use tokio::time::timeout;
 
 use crate::{
+    kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons},
     model::{
         records::MobileRecord,
-        traits::{Identity, URLResource},
         AutoUncleVehicle::AutoUncleVehicle,
         VehicleDataModel::{
             BaseVehicleInfo, DetailedVehicleInfo, LinkId, Price, VehicleChangeLogInfo,
@@ -38,7 +38,10 @@ lazy_static! {
 }
 
 use super::{
-    ScraperService::{log_search, process_list, process_list_and_send},
+    ScraperService::{
+        log_search, process_list, process_list_and_send, send_autonucle_kafka, send_links_to_kafka,
+        send_mobile_record_to_kafka,
+    },
     Searches::{
         autouncle_all_searches, cars_bg_all_searches, cars_bg_new_searches, mobile_bg_all_searches,
         mobile_bg_new_searches, to_slink_searches,
@@ -49,6 +52,8 @@ pub enum Crawlers {
     CarsBG(String),
     MobileBG(String),
     Autouncle(String),
+    GarGr(String),
+    MobileDe(String),
 }
 
 impl FromStr for Crawlers {
@@ -68,6 +73,11 @@ impl FromStr for Crawlers {
             "autouncle.ro" => Ok(Crawlers::Autouncle(
                 r#"https://www.autouncle.ro"#.to_owned(),
             )),
+            "car.gr" => Ok(Crawlers::GarGr(r#"https://www.car.gr"#.to_owned())),
+            "car_gr" => Ok(Crawlers::GarGr(r#"https://www.car.gr"#.to_owned())),
+            "mobile.de" => Ok(Crawlers::MobileDe(r#"https://www.mobile.de"#.to_owned())),
+            "mobile_de" => Ok(Crawlers::MobileDe(r#"https://www.mobile.de"#.to_owned())),
+            "de" => Ok(Crawlers::GarGr(r#"https://www.mobile.de"#.to_owned())),
             _ => Err("Invalid crawler".into()),
         }
     }
@@ -101,6 +111,15 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             let searches: Vec<HashMap<String, String>> = autouncle_all_searches();
             download_autouncle_data(AUTOUNCLE_CRAWLER.clone(), searches).await
         }
+        Crawlers::GarGr(_) => {
+            consumeCarGrHtmlPages("localhost:9094", "car.gr.crawler2", "car_gr").await;
+            Ok(())
+        }
+        Crawlers::MobileDe(_) => {
+            info!("Consuming mobile.de jsons");
+            consumeMobileDeJsons("localhost:9094", "mobile.de.crawler2", "mobile_de").await;
+            Ok(())
+        }
     }
 }
 
@@ -133,10 +152,14 @@ pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
             .await
         }
         Crawlers::Autouncle(_) => todo!(),
+        Crawlers::GarGr(_) => {
+            todo!()
+        }
+        Crawlers::MobileDe(_) => todo!(),
     }
 }
 
-pub async fn download_details<S, REQ, RES>(
+pub async fn download_details<S>(
     scraper: S,
     file_name: String,
     file_search_name: String,
@@ -144,16 +167,15 @@ pub async fn download_details<S, REQ, RES>(
 ) -> Result<(), String>
 where
     S: ScraperTrait
-        + ScrapeListTrait<REQ>
-        + RequestResponseTrait<REQ, RES>
+        + ScrapeListTrait<LinkId>
+        + RequestResponseTrait<LinkId, MobileRecord>
         + Clone
         + Send
         + 'static,
-    REQ: Send + Identity + Clone + Serialize + Debug + URLResource + 'static,
-    RES: Send + Serialize + Clone + Debug + 'static,
 {
-    let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<REQ>(250);
-    let (mut record_producer, record_receiver) = tokio::sync::mpsc::channel::<RES>(250);
+    let (mut link_producer, mut link_receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (mut record_producer, mut record_receiver) =
+        tokio::sync::mpsc::channel::<MobileRecord>(250);
     let (mut search_producer, search_receiver) =
         tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
@@ -172,9 +194,10 @@ where
     let process_handler = tokio::spawn(async move {
         process_details(process_scraper, &mut link_receiver, &mut record_producer).await
     });
-    let save_to_file = tokio::spawn(async move { save(record_receiver, file_name, 100).await });
+    let save_to_file =
+        tokio::spawn(async move { send_mobile_record_to_kafka(&mut record_receiver).await });
     let save_searches =
-        tokio::spawn(async move { save(search_receiver, file_search_name, 1).await });
+        tokio::spawn(async move { log_search(search_receiver, file_search_name).await });
 
     if let (Ok(_), Ok(_), Ok(_), Ok(_)) =
         tokio::join!(start_handler, process_handler, save_to_file, save_searches)
@@ -196,6 +219,8 @@ where
 {
     let (mut data_producer, mut data_receiver) =
         tokio::sync::mpsc::channel::<AutoUncleVehicle>(1000);
+    let (kafka_producer, mut kafka_receiver) = tokio::sync::mpsc::channel::<AutoUncleVehicle>(1000);
+
     let (producer_base_info_producer, base_receiver) =
         tokio::sync::mpsc::channel::<BaseVehicleInfo>(250);
     let (producer_details_producer, details_receiver) =
@@ -251,13 +276,15 @@ where
         )
         .await
     });
+    let kafka_handler =
+        tokio::spawn(async move { send_autonucle_kafka(&mut data_receiver, kafka_producer).await });
     let mut counter = 0;
     let mut wait_counter = 0;
     let data_handler = tokio::spawn(async move {
         loop {
             counter += 1;
             info!("Processing urls: {}", counter);
-            match timeout(Duration::from_secs(10), data_receiver.recv()).await {
+            match timeout(Duration::from_secs(10), kafka_receiver.recv()).await {
                 Ok(Some(data)) => {
                     let base = BaseVehicleInfo::from(data.clone());
                     let details = DetailedVehicleInfo::from(data.clone());
@@ -298,9 +325,10 @@ where
     let save_searches = tokio::spawn(async move {
         log_search(search_receiver, AUTOUNCLE_ALL_SEARCHES_LOG.to_owned()).await
     });
-    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
+    if let (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
         start_handler,
         data_handler,
+        kafka_handler,
         save_to_base_file,
         save_to_details_file,
         save_log_change_file,
@@ -324,7 +352,8 @@ pub async fn download_list_data<S>(
 where
     S: ScraperTrait + ScrapeListTrait<LinkId> + Clone + Send + 'static,
 {
-    let (mut producer, receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (kafka_producer, kafka_receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
     let (mut search_producer, search_receiver) =
         tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
     if create_empty_csv::<MobileRecord>(&file_name).is_err() {
@@ -343,11 +372,18 @@ where
         )
         .await
     });
+    let send_to_kafka =
+        tokio::spawn(async move { send_links_to_kafka(&mut receiver, kafka_producer).await });
+    let save_to_file = tokio::spawn(async move { save(kafka_receiver, file_name, 250).await });
 
-    let save_to_file = tokio::spawn(async move { save(receiver, file_name, 100).await });
     let save_to_search_file =
-        tokio::spawn(async move { save(search_receiver, search_file_name, 1).await });
-    if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(start_handler, save_to_file, save_to_search_file) {
+        tokio::spawn(async move { log_search(search_receiver, search_file_name).await });
+    if let (Ok(_), Ok(_), Ok(_), Ok(_)) = tokio::join!(
+        start_handler,
+        send_to_kafka,
+        save_to_file,
+        save_to_search_file
+    ) {
         info!("All tasks completed successfully");
         Ok(())
     } else {

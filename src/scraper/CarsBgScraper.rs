@@ -91,6 +91,7 @@ impl ScrapeListTrait<LinkId> for CarsBGScraper {
                 if let Some(href) = e.value().attr("href") {
                     if let Some(id) = href.split("/offer/").last() {
                         ids.push(LinkId {
+                            source: "cars.bg".to_owned(),
                             url: href.to_string(),
                             id: id.to_owned(),
                         });

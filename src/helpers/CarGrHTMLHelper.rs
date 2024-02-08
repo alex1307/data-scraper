@@ -289,8 +289,13 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
             for element in li.select(&href_selector) {
                 // Access the href attribute
                 if let Some(href) = element.value().attr("href") {
-                    info!("Href: {}", href);
-                    info.id = href.to_owned();
+                    let id = href
+                        .to_owned()
+                        .chars()
+                        .filter(|&c| c.is_numeric())
+                        .collect::<String>();
+                    info!("ID: {}", id);
+                    info.id = id;
                 }
             }
             for span in li.select(&title_selector) {
