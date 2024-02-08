@@ -11,10 +11,17 @@ use tokio::{
 use lazy_static::lazy_static;
 
 use crate::{
+    kafka::KafkaProducer::{encode_message, send_message},
     model::{
+        records::MobileRecord,
         traits::{Identity, URLResource},
-        VehicleDataModel::ScrapedListData,
+        AutoUncleVehicle,
+        VehicleDataModel::{
+            BaseVehicleInfo, DetailedVehicleInfo, LinkId, Price, ScrapedListData,
+            VehicleChangeLogInfo,
+        },
     },
+    protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     services::Searches,
     writer::persistance::{MobileData, MobileDataWriter},
@@ -173,6 +180,180 @@ where
         } else {
             total_number = *TOTAL_COUNT.lock().unwrap();
             info!("Processing urls: {}", counter);
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn send_links_to_kafka(
+    data_receiver: &mut Receiver<LinkId>,
+    forward: Sender<LinkId>,
+) -> Result<(), String> {
+    let mut counter = 0;
+    let mut wait_counter = 0;
+    let id_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    loop {
+        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
+            Ok(Some(data)) => {
+                wait_counter = 0;
+                let id_data = protos::vehicle_model::Id::from(data.clone());
+                let endcoded = encode_message(&id_data).unwrap();
+                send_message(&id_producer, "ids", endcoded).await;
+                if let Err(e) = forward.send(data).await {
+                    error!("Error forwarding id: {}", e);
+                }
+                counter += 1;
+                if counter % 500 == 0 {
+                    info!(">>> Processed IDs: {}", counter);
+                }
+            }
+
+            Ok(None) => {
+                info!("No more ids to process. Total : {}", counter);
+                break;
+            }
+            Err(e) => {
+                wait_counter += 1;
+                if wait_counter == 5 {
+                    error!("Timeout receiving link: {}", e);
+                    continue;
+                } else {
+                    info!("Waiting for links to process");
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn send_mobile_record_to_kafka(
+    data_receiver: &mut Receiver<MobileRecord>,
+) -> Result<(), String> {
+    let mut counter = 0;
+    let mut wait_counter = 0;
+    let basic_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let details_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let price_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let change_log_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    loop {
+        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
+            Ok(Some(data)) => {
+                wait_counter = 0;
+                let basic_info = BaseVehicleInfo::from(data.clone());
+                let detais_info = DetailedVehicleInfo::from(data.clone());
+                let price_info = Price::from(data.clone());
+                let log_change_info = VehicleChangeLogInfo::from(data.clone());
+
+                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
+                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
+                let price_data = protos::vehicle_model::Price::from(price_info);
+                let log_change_data =
+                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
+
+                let basic_encoded_message = encode_message(&basic_data).unwrap();
+                let details_encoded_message = encode_message(&details_data).unwrap();
+                let price_encoded_message = encode_message(&price_data).unwrap();
+                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
+
+                send_message(&basic_producer, "base_info", basic_encoded_message).await;
+                send_message(&details_producer, "details_info", details_encoded_message).await;
+                send_message(&price_producer, "price_info", price_encoded_message).await;
+                send_message(
+                    &change_log_producer,
+                    "change_log",
+                    log_change_encoded_message,
+                )
+                .await;
+
+                counter += 1;
+                if counter % 500 == 0 {
+                    info!(">>> Processed urls: {}", counter);
+                }
+            }
+
+            Ok(None) => {
+                info!("No more records to process. Total processed: {}", counter);
+                break;
+            }
+            Err(e) => {
+                wait_counter += 1;
+                if wait_counter == 5 {
+                    error!("Timeout receiving link: {}", e);
+                    continue;
+                } else {
+                    info!("Waiting for links to process");
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn send_autonucle_kafka(
+    data_receiver: &mut Receiver<AutoUncleVehicle::AutoUncleVehicle>,
+    forward: Sender<AutoUncleVehicle::AutoUncleVehicle>,
+) -> Result<(), String> {
+    let mut counter = 0;
+    let mut wait_counter = 0;
+    let basic_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let details_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let price_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let change_log_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    loop {
+        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
+            Ok(Some(data)) => {
+                wait_counter = 0;
+                let basic_info = BaseVehicleInfo::from(data.clone());
+                let detais_info = DetailedVehicleInfo::from(data.clone());
+                let price_info = Price::from(data.clone());
+                let log_change_info = VehicleChangeLogInfo::from(data.clone());
+
+                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
+                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
+                let price_data = protos::vehicle_model::Price::from(price_info);
+                let log_change_data =
+                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
+
+                let basic_encoded_message = encode_message(&basic_data).unwrap();
+                let details_encoded_message = encode_message(&details_data).unwrap();
+                let price_encoded_message = encode_message(&price_data).unwrap();
+                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
+
+                send_message(&basic_producer, "base_info", basic_encoded_message).await;
+                send_message(&details_producer, "details_info", details_encoded_message).await;
+                send_message(&price_producer, "price_info", price_encoded_message).await;
+                send_message(
+                    &change_log_producer,
+                    "change_log",
+                    log_change_encoded_message,
+                )
+                .await;
+                if let Err(e) = forward.send(data).await {
+                    error!("Error forwarding id: {}", e);
+                }
+
+                counter += 1;
+                if counter % 500 == 0 {
+                    info!(">>> Processed urls: {}", counter);
+                }
+            }
+
+            Ok(None) => {
+                info!("No more records to process. Total processed: {}", counter);
+                break;
+            }
+            Err(e) => {
+                wait_counter += 1;
+                if wait_counter == 5 {
+                    error!("Timeout receiving link: {}", e);
+                    continue;
+                } else {
+                    info!("Waiting for links to process");
+                }
+            }
         }
     }
 

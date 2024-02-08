@@ -1,0 +1,76 @@
+syntax = "proto3";
+package vehicle_model;
+
+message BaseVehicleInfo {
+    string id = 1;
+    string source = 2;
+    string make = 3;
+    string model = 4;
+    string title = 5;
+    string currency = 6;       // Assuming Currency is a defined enum or message
+    uint32 price = 7;            // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 millage = 8;          // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 month = 9;            // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 year = 10;
+    string engine = 11;          // Assuming Engine is a defined message
+    string gearbox = 12;        // Assuming Gearbox is a defined message
+    uint32 cc = 13;
+    uint32 power_ps = 14;
+    uint32 power_kw = 15;
+}
+
+message VehicleChangeLogInfo {
+    string id = 1;
+    string source = 2;
+    string published_on = 3;
+    string last_modified_on = 4;
+    string last_modified_message = 5;
+    uint32 days_in_sale = 6;  // Optional in Rust, so no 'optional' keyword needed in proto3
+    bool sold = 7;
+    bool promoted = 8;
+}
+
+message DetailedVehicleInfo {
+    string id = 1;
+    string source = 2;
+    string phone = 3;
+    string location = 4;
+    uint32 view_count = 5;
+    uint32 cc = 6;
+    double fuel_consumption = 7;
+    double electric_drive_range = 8;
+    uint64 equipment = 9;
+    bool is_dealer = 10;
+    string seller_name = 11;
+}
+
+message Price {
+    string id = 1;
+    string source = 2;
+    uint32 estimated_price = 3;  // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 price = 4;
+    string currency = 5;  // Assuming Currency is defined in enums.proto
+    uint32 save_difference = 6;
+    uint32 overpriced_difference = 7;
+    string ranges = 8;  // Optional in Rust, so no 'optional' keyword needed in proto3
+    string rating = 9;  // Optional in Rust, so no 'optional' keyword needed in proto3
+
+    // For 'thresholds', protobuf doesn't support Vec directly. You might consider using repeated field.
+    repeated uint32 thresholds = 10;
+}
+
+message Consumption {
+    string id = 1;
+    string source = 2;
+    string make = 3;
+    string model = 4;
+    uint32 year = 5;
+    uint32 co2_emission = 6;
+    float fuel_consumption = 7;  // Optional in Rust, so no 'optional' keyword needed in proto3
+    float kw_consuption = 8;     // Optional in Rust, so no 'optional' keyword needed in proto3
+}
+
+message ID {
+    string id = 1;
+    string source = 2;
+}

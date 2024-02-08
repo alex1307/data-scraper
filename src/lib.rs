@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 pub mod config;
 pub mod helpers;
+pub mod kafka;
 pub mod model;
+pub mod protos;
 pub mod scraper;
 pub mod services;
 pub mod utils;

@@ -60,6 +60,7 @@ impl ScrapeListTrait<LinkId> for CarGrScraper {
             }
             list.push(LinkId {
                 id,
+                source: "car.gr".to_owned(),
                 url: format!("{}{}&lang=en?lang=en", &self.parent.url, link),
             });
         }

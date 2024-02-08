@@ -77,6 +77,7 @@ impl ScrapeListTrait<LinkId> for MobileBGScraper {
                     if let Some(matched) = caps.get(1) {
                         list.push(LinkId {
                             id: matched.as_str().to_owned(),
+                            source: "mobile.bg".to_owned(),
                             url,
                         });
                     }
@@ -256,6 +257,7 @@ mod screaper_mobile_bg_test {
         let data = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
         let mut id: LinkId = LinkId {
             id: "".to_owned(),
+            source: "mobile.bg".to_owned(),
             url: "".to_owned(),
         };
         match data {
