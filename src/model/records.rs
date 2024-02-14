@@ -170,6 +170,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             .get(&PUBLISHED_ON_KEY.to_string())
             .unwrap_or(default_str)
             .to_string();
+        let source = map.get("source").unwrap_or(default_str).to_string();
         MobileRecord {
             id,
             engine,
@@ -191,6 +192,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             model,
             created_on: CREATED_ON.to_string(),
             updated_on,
+            source,
             ..Default::default()
         }
     }

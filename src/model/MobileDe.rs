@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::str::FromStr;
 
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -214,7 +214,7 @@ pub struct Price {
 }
 
 impl TryFrom<SearchItem> for VehicleDataModel::Price {
-    type Error = Box<dyn Error>;
+    type Error = String;
 
     fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
         if let Some(id) = item.id {
@@ -280,7 +280,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::Price {
 }
 
 impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
-    type Error = Box<dyn Error>;
+    type Error = String;
 
     fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
         if let Some(id) = item.id {
@@ -382,7 +382,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
 }
 
 impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
-    type Error = Box<dyn Error>;
+    type Error = String;
 
     fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
         if let Some(id) = item.id {

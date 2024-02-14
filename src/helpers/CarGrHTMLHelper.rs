@@ -21,8 +21,6 @@ use crate::{
 
 #[derive(Debug, Deserialize, Clone)]
 struct KeyValue {
-    key: i32,
-    value: String,
     name: String,
 }
 

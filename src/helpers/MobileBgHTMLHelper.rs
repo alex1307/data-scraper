@@ -61,7 +61,7 @@ lazy_static! {
 
 pub fn details2map(document: Html) -> HashMap<String, String> {
     let mut map = HashMap::new();
-
+    map.insert("source".to_owned(), "mobile.bg".to_owned());
     let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
         txt.text().collect::<Vec<_>>().join("")
     } else {
@@ -88,10 +88,9 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
         }
         if values.len() < 2 {
             return HashMap::new();
-        } else {
-            map.insert(MAKE_KEY.to_string(), values[0].to_string());
-            map.insert(MODEL_KEY.to_string(), values[1].to_string());
         }
+        map.insert(MAKE_KEY.to_string(), values[0].to_string());
+        map.insert(MODEL_KEY.to_string(), values[1].to_string());
     }
 
     if document.select(&KAPARO_SELECTOR).count() > 0 {
@@ -242,9 +241,8 @@ pub fn get_metadata_links(html: &str) -> Result<Vec<String>, Box<dyn std::error:
         let txt = element.value().attr("href").unwrap_or("");
         if links.contains(&txt.to_string()) {
             continue;
-        } else {
-            links.push(txt.to_string());
         }
+        links.push(txt.to_string());
     }
     Ok(links)
 }

@@ -123,9 +123,8 @@ impl Scraper {
                     url = format!("{}{}={}&", url, key, value);
                 }
                 continue;
-            } else {
-                url = format!("{}{}={}&", url, key, value);
             }
+            url = format!("{}{}={}&", url, key, value);
         }
         if page == 0 {
             return url.trim_end_matches('&').to_owned();
@@ -168,7 +167,8 @@ impl Scraper {
                 let utf8_html = UTF_8.encode(&decoded).0;
                 let response = String::from_utf8_lossy(&utf8_html);
                 return Ok(response.to_string());
-            } else if let Ok(html) = response.text().await {
+            }
+            if let Ok(html) = response.text().await {
                 return Ok(html);
             }
         }

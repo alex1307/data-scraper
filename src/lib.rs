@@ -54,17 +54,6 @@ lazy_static! {
         CONFIG.get_data_dir(),
         CREATED_ON.clone()
     );
-    pub static ref UPDATED_VEHICLES_FILE_NAME: String = format!(
-        "{}/updated-vehicle-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref METADATA_FILE_NAME: String = format!("{}/meta-data.csv", CONFIG.get_data_dir());
-    pub static ref CARS_BG_NEW_FILE_NAME: String = format!(
-        "{}/cars-bg-vehicle-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
     pub static ref CARS_BG_NEW_SEARCH_FILE_NAME: String = format!(
         "{}/cars-bg-vehicle-search{}.csv",
         CONFIG.get_data_dir(),

@@ -11,7 +11,11 @@ use tokio::{
 use lazy_static::lazy_static;
 
 use crate::{
-    kafka::KafkaProducer::{encode_message, send_message},
+    kafka::{
+        broker,
+        KafkaProducer::{encode_message, send_message},
+        BASE_INFO_TOPIC, CHANGE_LOG_TOPIC, DETAILS_TOPIC, PRICE_TOPIC,
+    },
     model::{
         records::MobileRecord,
         traits::{Identity, URLResource},
@@ -161,8 +165,6 @@ where
                 if wait_counter == 5 {
                     error!("Timeout receiving link: {}", e);
                     continue;
-                } else {
-                    info!("Waiting for links to process");
                 }
             }
         }
@@ -186,13 +188,11 @@ where
     Ok(())
 }
 
-pub async fn send_links_to_kafka(
-    data_receiver: &mut Receiver<LinkId>,
-    forward: Sender<LinkId>,
-) -> Result<(), String> {
+pub async fn send_links_to_kafka(data_receiver: &mut Receiver<LinkId>) -> Result<(), String> {
     let mut counter = 0;
     let mut wait_counter = 0;
-    let id_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let broker = broker();
+    let id_producer = crate::kafka::KafkaProducer::create_producer(&broker);
     loop {
         match timeout(Duration::from_secs(1), data_receiver.recv()).await {
             Ok(Some(data)) => {
@@ -200,9 +200,6 @@ pub async fn send_links_to_kafka(
                 let id_data = protos::vehicle_model::Id::from(data.clone());
                 let endcoded = encode_message(&id_data).unwrap();
                 send_message(&id_producer, "ids", endcoded).await;
-                if let Err(e) = forward.send(data).await {
-                    error!("Error forwarding id: {}", e);
-                }
                 counter += 1;
                 if counter % 500 == 0 {
                     info!(">>> Processed IDs: {}", counter);
@@ -218,8 +215,6 @@ pub async fn send_links_to_kafka(
                 if wait_counter == 5 {
                     error!("Timeout receiving link: {}", e);
                     continue;
-                } else {
-                    info!("Waiting for links to process");
                 }
             }
         }
@@ -233,10 +228,7 @@ pub async fn send_mobile_record_to_kafka(
 ) -> Result<(), String> {
     let mut counter = 0;
     let mut wait_counter = 0;
-    let basic_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let details_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let price_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let change_log_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let producer = crate::kafka::KafkaProducer::create_producer(&broker());
     loop {
         match timeout(Duration::from_secs(1), data_receiver.recv()).await {
             Ok(Some(data)) => {
@@ -257,15 +249,10 @@ pub async fn send_mobile_record_to_kafka(
                 let price_encoded_message = encode_message(&price_data).unwrap();
                 let log_change_encoded_message = encode_message(&log_change_data).unwrap();
 
-                send_message(&basic_producer, "base_info", basic_encoded_message).await;
-                send_message(&details_producer, "details_info", details_encoded_message).await;
-                send_message(&price_producer, "price_info", price_encoded_message).await;
-                send_message(
-                    &change_log_producer,
-                    "change_log",
-                    log_change_encoded_message,
-                )
-                .await;
+                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
+                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
+                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
+                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
 
                 counter += 1;
                 if counter % 500 == 0 {
@@ -294,14 +281,11 @@ pub async fn send_mobile_record_to_kafka(
 
 pub async fn send_autonucle_kafka(
     data_receiver: &mut Receiver<AutoUncleVehicle::AutoUncleVehicle>,
-    forward: Sender<AutoUncleVehicle::AutoUncleVehicle>,
 ) -> Result<(), String> {
     let mut counter = 0;
     let mut wait_counter = 0;
-    let basic_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let details_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let price_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
-    let change_log_producer = crate::kafka::KafkaProducer::create_producer("localhost:9094");
+    let broker = broker();
+    let producer = crate::kafka::KafkaProducer::create_producer(&broker);
     loop {
         match timeout(Duration::from_secs(1), data_receiver.recv()).await {
             Ok(Some(data)) => {
@@ -322,18 +306,10 @@ pub async fn send_autonucle_kafka(
                 let price_encoded_message = encode_message(&price_data).unwrap();
                 let log_change_encoded_message = encode_message(&log_change_data).unwrap();
 
-                send_message(&basic_producer, "base_info", basic_encoded_message).await;
-                send_message(&details_producer, "details_info", details_encoded_message).await;
-                send_message(&price_producer, "price_info", price_encoded_message).await;
-                send_message(
-                    &change_log_producer,
-                    "change_log",
-                    log_change_encoded_message,
-                )
-                .await;
-                if let Err(e) = forward.send(data).await {
-                    error!("Error forwarding id: {}", e);
-                }
+                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
+                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
+                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
+                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
 
                 counter += 1;
                 if counter % 500 == 0 {
