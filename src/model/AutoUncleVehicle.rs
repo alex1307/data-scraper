@@ -115,7 +115,7 @@ pub struct AutoUncleVehicle {
     pub source_name: String,
 
     #[serde(rename = "updatedAt")]
-    pub updated_at: String,
+    pub updated_at: Option<String>,
 
     #[serde(rename = "vdpPath")]
     pub vdp_path: String,
@@ -215,7 +215,9 @@ impl From<AutoUncleVehicle> for VehicleChangeLogInfo {
     fn from(source: AutoUncleVehicle) -> Self {
         let mut log = VehicleChangeLogInfo::new(source.id.clone(), source.source);
         log.days_in_sale = source.laytime;
-        log.last_modified_on = source.updated_at.clone();
+        if let Some(last_modified) = source.updated_at {
+            log.last_modified_on = last_modified;
+        }
         log.source = "autouncle".to_string();
         log
     }

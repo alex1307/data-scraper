@@ -3,11 +3,12 @@ use log::{error, info};
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
     message::BorrowedMessage,
-    producer, ClientConfig, Message,
+    ClientConfig, Message,
 };
 
 use crate::{
     helpers::CarGrHTMLHelper::process_listed_links,
+    kafka::{CONSUPTION_TOPIC, PRICE_TOPIC},
     model::{
         MobileDe::{MobileDeResults, SearchItem},
         VehicleDataModel::{self, Price},
@@ -15,7 +16,10 @@ use crate::{
     protos,
 };
 
-use super::KafkaProducer::{create_producer, encode_message, send_message};
+use super::{
+    KafkaProducer::{create_producer, encode_message, send_message},
+    BASE_INFO_TOPIC,
+};
 
 pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
     let consumer: StreamConsumer = ClientConfig::new()
@@ -41,7 +45,7 @@ pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
                 for item in list {
                     let proto_message = protos::vehicle_model::BaseVehicleInfo::from(item);
                     let message = encode_message(&proto_message).unwrap();
-                    send_message(&producer, "base_info", message).await;
+                    send_message(&producer, BASE_INFO_TOPIC, message).await;
                 }
             }
             Err(e) => error!("Kafka error: {}", e),
@@ -75,33 +79,23 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
                 let list = handle_mobile_de_json(&borrowed_message);
                 info!("Mobile.de search items: {:?}", list.len());
                 for item in list {
-                    match Price::try_from(item.clone()) {
-                        Ok(price) => {
-                            let proto_message = protos::vehicle_model::Price::from(price);
-                            let message = encode_message(&proto_message).unwrap();
-                            send_message(&producer, "price_info", message).await;
-                            price_info_counter += 1;
-                        }
-                        Err(_) => (),
+                    if let Ok(price) = Price::try_from(item.clone()) {
+                        let proto_message = protos::vehicle_model::Price::from(price);
+                        let message = encode_message(&proto_message).unwrap();
+                        send_message(&producer, PRICE_TOPIC, message).await;
+                        price_info_counter += 1;
                     };
-                    match VehicleDataModel::Consumption::try_from(item.clone()) {
-                        Ok(consumption) => {
-                            let proto_message =
-                                protos::vehicle_model::Consumption::from(consumption);
-                            let message = encode_message(&proto_message).unwrap();
-                            send_message(&producer, "consumption_info", message).await;
-                            consumption_info_counter += 1;
-                        }
-                        Err(_) => (),
+                    if let Ok(consumption) = VehicleDataModel::Consumption::try_from(item.clone()) {
+                        let proto_message = protos::vehicle_model::Consumption::from(consumption);
+                        let message = encode_message(&proto_message).unwrap();
+                        send_message(&producer, CONSUPTION_TOPIC, message).await;
+                        consumption_info_counter += 1;
                     };
-                    match VehicleDataModel::BaseVehicleInfo::try_from(item.clone()) {
-                        Ok(base) => {
-                            let proto_message = protos::vehicle_model::BaseVehicleInfo::from(base);
-                            let message = encode_message(&proto_message).unwrap();
-                            send_message(&producer, "base_info", message).await;
-                            base_info_counter += 1;
-                        }
-                        Err(_) => (),
+                    if let Ok(base) = VehicleDataModel::BaseVehicleInfo::try_from(item.clone()) {
+                        let proto_message = protos::vehicle_model::BaseVehicleInfo::from(base);
+                        let message = encode_message(&proto_message).unwrap();
+                        send_message(&producer, BASE_INFO_TOPIC, message).await;
+                        base_info_counter += 1;
                     };
                 }
             }

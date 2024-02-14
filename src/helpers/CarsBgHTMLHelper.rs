@@ -76,7 +76,7 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
     let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
     for element in document.select(&selector) {
         let mut map = HashMap::new();
-
+        map.insert("source".to_owned(), "cars.bg".to_owned());
         let html_fragment = Html::parse_fragment(element.inner_html().as_str());
         let selector = Selector::parse("a").unwrap();
         for e in html_fragment.select(&selector) {
@@ -182,6 +182,7 @@ pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
 
 pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
     let mut result = HashMap::new();
+    result.insert("source".to_owned(), "cars.bg".to_owned());
     if html.contains(r#"Частно лице"#) {
         result.insert(DEALER_KEY.to_owned(), "false".to_owned());
     } else {

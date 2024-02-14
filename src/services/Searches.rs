@@ -63,9 +63,8 @@ pub fn load_searches(file_name: &str, log_file_name: &str) -> Vec<HashMap<String
                 .any(|x| x.get("id").is_some() && x.get("id").unwrap() == id)
             {
                 continue;
-            } else {
-                result.push(search.clone());
             }
+            result.push(search.clone());
         }
     }
     info!("Total searches: {}", result.len());
