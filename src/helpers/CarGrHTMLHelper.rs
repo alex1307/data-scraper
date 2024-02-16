@@ -14,6 +14,7 @@ use crate::{
     },
     model::{
         enums::{Currency, Engine, Gearbox},
+        records::MobileRecord,
         VehicleDataModel::BaseVehicleInfo,
     },
     CREATED_ON, DATE_FORMAT, NOW,
@@ -257,7 +258,7 @@ pub fn get_total_number(source: &str) -> u32 {
     total_number
 }
 
-pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
+pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
     let html = Html::parse_document(source);
     let div_selector = Selector::parse(r#"div.overlay-content-container"#).unwrap();
     let li_selector = Selector::parse("li").unwrap();
@@ -279,10 +280,7 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
         // Now iterate over li elements within the div
         for li in div.select(&li_selector) {
             info!("----------------------------------------------");
-            let mut info = BaseVehicleInfo {
-                source: "car.gr".to_owned(),
-                ..Default::default()
-            };
+            let mut info = MobileRecord::default();
 
             for element in li.select(&href_selector) {
                 // Access the href attribute
@@ -337,11 +335,7 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
                 let text = text.trim().replace('\n', "");
                 info!("Power: {}", &text);
                 let power = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                if info.engine == Engine::Electric {
-                    info.power_kw = power.parse::<u32>().unwrap_or(0);
-                } else {
-                    info.power_ps = power.parse::<u32>().unwrap_or(0);
-                }
+                info.power = power.parse::<u32>().unwrap_or(0);
                 info!("power: {}", power);
             }
 
@@ -360,7 +354,7 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
                 info!("mileage: {}", text.trim().replace('\n', ""));
                 let millage = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
                 info!("millage: {}", millage);
-                info.millage = millage.parse::<u32>().ok();
+                info.mileage = millage.parse::<u32>().unwrap_or(0);
             }
 
             for span in li.select(&registration_selector) {
@@ -376,14 +370,12 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
                         .collect::<String>()
                         .parse::<u16>()
                         .unwrap_or(0);
-                    info.month = Some(
-                        year[0]
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u16>()
-                            .unwrap_or(0),
-                    );
+                    info.month = year[0]
+                        .chars()
+                        .filter(|&c| c.is_numeric())
+                        .collect::<String>()
+                        .parse::<u16>()
+                        .unwrap_or(0);
                     info!("year: {}", year[1]);
                 } else {
                     let year = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
@@ -399,7 +391,7 @@ pub fn process_listed_links(source: &str) -> Vec<BaseVehicleInfo> {
                 let price = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
                 info!("price: {}", price);
                 info.currency = Currency::EUR;
-                info.price = price.parse::<u32>().ok();
+                info.price = price.parse::<u32>().unwrap_or(0);
             }
             basic_info.push(info);
 

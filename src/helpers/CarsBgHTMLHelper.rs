@@ -56,39 +56,65 @@ pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<HashMap<Stri
     let number_of_pages = list_pages(&url).await;
     let html = get_pages_async(&url, false).await.unwrap();
     if number_of_pages == 1 {
-        read_listing(&html, false)
+        read_listing(&html)
     } else {
-        let mut result = read_listing(&html, false);
+        let mut result = read_listing(&html);
         for i in 2..number_of_pages {
             sleep(Duration::from_secs(1));
             info!("page: {}", i);
             let url = search_cars_bg_url(&params, i);
             let html = get_pages_async(&url, false).await.unwrap();
-            result.extend(read_listing(&html, false));
+            result.extend(read_listing(&html));
         }
         result
     }
 }
 
-fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
+fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
     let mut result = vec![];
     let document = Html::parse_document(html);
-    let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
-    for element in document.select(&selector) {
-        let mut map = HashMap::new();
-        map.insert("source".to_owned(), "cars.bg".to_owned());
-        let html_fragment = Html::parse_fragment(element.inner_html().as_str());
-        let selector = Selector::parse("a").unwrap();
-        for e in html_fragment.select(&selector) {
-            let href = e.value().attr("href").unwrap();
-            let id = href.split("/offer/").last().unwrap();
-            map.insert("id".to_owned(), id.to_owned());
-        }
+    let selector = Selector::parse("div.mdc-card.offer-item").unwrap();
+    let modelSelector = Selector::parse("div.card__primary > h5").unwrap();
 
-        if !parse {
-            result.push(map);
+    // Find the <h5> element with the specified classes within <div class="card__primary">
+    for element in document.select(&selector) {
+        let txt = element.inner_html();
+
+        let id = element
+            .value()
+            .attr("data-reference")
+            .map(|s| s.to_string());
+        info!("id: {:?}", id);
+        if id.is_none() {
             continue;
         }
+        let mut map = HashMap::new();
+        if txt.to_lowercase().contains("частно лице") {
+            map.insert("dealer".to_owned(), "false".to_owned());
+        } else {
+            map.insert("dealer".to_owned(), "true".to_owned());
+        }
+        map.insert("id".to_owned(), id.unwrap());
+        map.insert("source".to_owned(), "cars.bg".to_owned());
+        let make_model = element
+            .select(&modelSelector)
+            .filter_map(|element| {
+                // Extract the text content, which contains the make and model
+                Some(
+                    element
+                        .text()
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .trim()
+                        .to_string(),
+                )
+            })
+            .next();
+        if make_model.is_none() {
+            continue;
+        }
+        map.insert("make".to_owned(), make_model.unwrap());
+        let html_fragment = Html::parse_fragment(element.inner_html().as_str());
 
         let h6_selector = Selector::parse("h6").unwrap();
         let mut fragment_counter = 1;
@@ -118,7 +144,6 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
                     .parse::<i32>()
                     .unwrap_or(0);
                 map.insert(PRICE_KEY.to_owned(), price.to_string());
-                break;
             }
             fragment_counter += 1;
         }
@@ -148,7 +173,6 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
             }
             map.insert(YEAR_KEY.to_owned(), year.to_string());
             map.insert(MILEAGE_KEY.to_owned(), millage.to_string());
-            break;
         }
 
         let card_footer_selector = Selector::parse("div.card__footer").unwrap();
@@ -159,7 +183,12 @@ fn read_listing(html: &str, parse: bool) -> Vec<HashMap<String, String>> {
                 .split(',')
                 .map(|s| s.trim().to_owned())
                 .collect::<Vec<String>>();
-            let location = holder[1].to_owned();
+            let location = holder[1]
+                .to_owned()
+                .replace("</a>", "")
+                .replace("</strong>", "")
+                .trim()
+                .to_owned();
             map.insert(LOCATION_KEY.to_owned(), location);
         }
         result.push(map);
@@ -440,9 +469,12 @@ mod test_cars_bg {
         assert!(listing > 0);
         info!("Pages found: {}", listing);
         let html = get_pages_async(&url, false).await.unwrap();
-        let result = read_listing(&html, false);
+        let result = read_listing(&html);
         assert!(result.len() > 0);
         assert_eq!(20, result.len());
+        for m in result {
+            info!("m: {:?}", m);
+        }
     }
 
     #[tokio::test]
