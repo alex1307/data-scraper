@@ -10,6 +10,7 @@ use crate::{
     helpers::CarGrHTMLHelper::process_listed_links,
     kafka::{CONSUPTION_TOPIC, PRICE_TOPIC},
     model::{
+        records::MobileRecord,
         MobileDe::{MobileDeResults, SearchItem},
         VehicleDataModel::{self, Price},
     },
@@ -18,7 +19,7 @@ use crate::{
 
 use super::{
     KafkaProducer::{create_producer, encode_message, send_message},
-    BASE_INFO_TOPIC,
+    BASE_INFO_TOPIC, CHANGE_LOG_TOPIC,
 };
 
 pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
@@ -43,9 +44,21 @@ pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
             Ok(borrowed_message) => {
                 let list = handle_carg_gr_html(&borrowed_message);
                 for item in list {
-                    let proto_message = protos::vehicle_model::BaseVehicleInfo::from(item);
-                    let message = encode_message(&proto_message).unwrap();
+                    let basic_info = VehicleDataModel::BaseVehicleInfo::from(item.clone());
+                    let price_info = VehicleDataModel::Price::from(item.clone());
+                    let change_log_info =
+                        VehicleDataModel::VehicleChangeLogInfo::from(item.clone());
+
+                    let basic_message = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
+                    let price_message = protos::vehicle_model::Price::from(price_info);
+                    let change_log_message =
+                        protos::vehicle_model::VehicleChangeLogInfo::from(change_log_info);
+                    let message = encode_message(&basic_message).unwrap();
                     send_message(&producer, BASE_INFO_TOPIC, message).await;
+                    let message = encode_message(&price_message).unwrap();
+                    send_message(&producer, PRICE_TOPIC, message).await;
+                    let message = encode_message(&change_log_message).unwrap();
+                    send_message(&producer, CHANGE_LOG_TOPIC, message).await;
                 }
             }
             Err(e) => error!("Kafka error: {}", e),
@@ -113,7 +126,7 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
     }
 }
 
-fn handle_carg_gr_html(message: &BorrowedMessage) -> Vec<VehicleDataModel::BaseVehicleInfo> {
+fn handle_carg_gr_html(message: &BorrowedMessage) -> Vec<MobileRecord> {
     match message.payload_view::<str>() {
         Some(Ok(payload)) => {
             let list = process_listed_links(payload);

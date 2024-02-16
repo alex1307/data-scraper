@@ -215,11 +215,27 @@ pub struct CarMake {
     pub models: HashMap<String, CarModel>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Eq)]
 pub struct LinkId {
     pub url: String,
     pub source: String,
     pub id: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Resume {
+    pub id: String,
+    pub source: String,
+    pub title: String,
+    pub make: String,
+    pub model: String,
+    pub modification: String,
+    pub currency: Currency,
+    pub price: u32,
+    pub mileage: u32,
+    pub year: u16,
+    pub engine: Engine,
+    pub gearbox: Gearbox,
+    pub promoted: bool,
 }
 
 impl Identity for LinkId {
@@ -267,7 +283,7 @@ impl From<MobileRecord> for BaseVehicleInfo {
             model: record.model,
             currency: record.currency,
             price: Some(record.price),
-            millage: Some(record.millage),
+            millage: Some(record.mileage),
             year: record.year,
             engine: record.engine,
             gearbox: record.gearbox,

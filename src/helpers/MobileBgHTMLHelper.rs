@@ -18,6 +18,8 @@ use crate::helpers::VIEW_COUNT_KEY;
 use crate::helpers::VIP_KEY;
 use crate::helpers::YEAR_KEY;
 use crate::model::enums::Currency;
+use crate::model::records::MobileRecord;
+use crate::model::VehicleDataModel::Resume;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
@@ -207,18 +209,6 @@ pub fn details2map(document: Html) -> HashMap<String, String> {
         );
     }
     map
-}
-
-pub async fn get_links(url: &str) -> Vec<String> {
-    let html = get_pages_async(url, true).await.unwrap();
-    let document = Html::parse_document(&html);
-    let mut links = vec![];
-    for element in document.select(&TABLERESET_SELECTOR) {
-        if let Some(url) = get_url(&element) {
-            links.push(format!("https:{}", url));
-        }
-    }
-    links
 }
 
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -419,4 +409,133 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
     let k = numbers[1];
 
     (n, k)
+}
+pub fn resume_info(html_content: &str) -> Vec<MobileRecord> {
+    let document = Html::parse_document(&html_content);
+    // Selector to find the price
+    let price_selector = Selector::parse("span.price").unwrap();
+    // Selector to find the description
+    let desc_selector = Selector::parse("td[colspan='3']").unwrap();
+    let rows_selector = Selector::parse("tr").unwrap();
+    let make_model_selector = Selector::parse("td.valgtop > a.mmm").unwrap(); // Adjusted to be mo
+    let a_selector = Selector::parse("a.mmm").unwrap();
+    let href_regex = Regex::new(r"adv=(\d+)").unwrap(); // Extract make and model
+    let mut resumes = vec![];
+    let mut counter = 0;
+    for element in document.select(&rows_selector) {
+        let id: Option<String> = element.select(&a_selector).find_map(|element| {
+            element.value().attr("href").and_then(|href| {
+                // Extract the numeric value from the href attribute
+                href_regex
+                    .captures(href)
+                    .and_then(|caps| caps.get(1).map(|match_| match_.as_str().to_string()))
+            })
+        });
+        if id.is_none() {
+            continue;
+        }
+
+        let mut resume = MobileRecord {
+            id: id.unwrap(),
+            source: "mobile.bg".to_string(),
+            ..Default::default()
+        };
+
+        if counter > 20 {
+            break;
+        }
+
+        if let Some(make_model_element) = element.select(&make_model_selector).next() {
+            counter += 1;
+            let d = make_model_element.text().collect::<Vec<_>>().join(" ");
+            resume.title = d.clone();
+            let make_model = d.split(" ").collect::<Vec<&str>>();
+            if make_model.is_empty() || make_model.len() < 2 {
+                continue;
+            }
+
+            if make_model.len() == 2 {
+                resume.make = make_model[0].to_string();
+                resume.model = make_model[1].to_string();
+            } else if make_model.len() == 3 {
+                resume.make = make_model[0].to_string();
+                resume.model = make_model[1].to_string();
+                resume.modification = make_model[2].to_string();
+            } else {
+                resume.make = make_model[0].to_string();
+                resume.model = make_model[1].to_string();
+                resume.modification = format!("{} {}", make_model[2], make_model[3]);
+            }
+        }
+        if let Some(price_element) = element.select(&price_selector).next() {
+            let price_text = price_element.text().collect::<Vec<_>>().join("");
+            if price_text.contains("лв.") {
+                resume.currency = Currency::BGN;
+            } else if price_text.contains("EUR") {
+                resume.currency = Currency::EUR;
+            } else if price_text.contains("USD") {
+                resume.currency = Currency::USD;
+            }
+            let mut price = price_text.replace(" лв.", "").replace(" ", ""); // Remove currency and spaces
+            price = price.replace("EUR", "").replace(" ", ""); // Remove currency and spaces
+            price = price.replace("USD", "").replace(" ", ""); // Remove currency and spaces
+            resume.price = price.trim().parse::<u32>().unwrap_or(0);
+        }
+
+        // Extract description
+        if let Some(desc_element) = element.select(&desc_selector).next() {
+            let desc_text = desc_element.text().collect::<Vec<_>>().join(" ");
+            let year_mileage = extract_year_and_mileage(&desc_text);
+            if let Some((year, mileage)) = year_mileage {
+                resume.year = year.parse::<u16>().unwrap_or(0);
+                resume.mileage = mileage.parse::<u32>().unwrap_or(0);
+            }
+        }
+        resumes.push(resume.clone());
+    }
+    resumes
+}
+
+fn extract_year_and_mileage(text: &str) -> Option<(String, String)> {
+    let year_regex = Regex::new(r"(\d{4}) г\.").unwrap();
+    let mileage_regex = Regex::new(r"пробег - (\d+) км").unwrap();
+
+    let year = year_regex
+        .captures(text)
+        .and_then(|cap| cap.get(1))
+        .map(|match_| match_.as_str().to_string());
+
+    let mileage = mileage_regex
+        .captures(text)
+        .and_then(|cap| cap.get(1))
+        .map(|match_| match_.as_str().to_string());
+
+    match (year, mileage) {
+        (Some(year), Some(mileage)) => Some((year, mileage)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod test_listing {
+    use encoding_rs::Encoding;
+    use log::info;
+
+    use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
+
+    use super::*;
+
+    #[test]
+    fn test_get_pages() {
+        configure_log4rs(&LOG_CONFIG);
+        let file = std::fs::read("resources/test-data/mobile.bg/test.html").unwrap();
+
+        //"windows-1251"
+        let encoding = Encoding::for_label("windows-1251".as_bytes()).unwrap();
+        let (decoded, _, _) = encoding.decode(&file);
+        let utf8_html = UTF_8.encode(&decoded).0;
+        let content = String::from_utf8_lossy(&utf8_html);
+        let data = resume_info(content.to_string().as_str());
+        info!("data: {:?}", data);
+    }
 }
