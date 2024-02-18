@@ -18,6 +18,8 @@ use crate::helpers::VIEW_COUNT_KEY;
 use crate::helpers::VIP_KEY;
 use crate::helpers::YEAR_KEY;
 use crate::model::enums::Currency;
+use crate::model::enums::Engine;
+use crate::model::enums::Gearbox;
 use crate::model::records::MobileRecord;
 use crate::model::VehicleDataModel::Resume;
 use crate::utils::helpers::extract_ascii_latin;
@@ -29,6 +31,7 @@ use crate::POWER_TXT;
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
+use log::info;
 use log::{debug, error};
 
 use regex::Regex;
@@ -36,6 +39,7 @@ use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::ops::Index;
 
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
@@ -410,15 +414,21 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 
     (n, k)
 }
-pub fn resume_info(html_content: &str) -> Vec<MobileRecord> {
+pub fn resume_info(
+    html_content: &str,
+    gearbox: Gearbox,
+    engine: Engine,
+    power: u32,
+    dealer: bool,
+) -> Vec<MobileRecord> {
     let document = Html::parse_document(&html_content);
     // Selector to find the price
     let price_selector = Selector::parse("span.price").unwrap();
     // Selector to find the description
-    let desc_selector = Selector::parse("td[colspan='3']").unwrap();
-    let rows_selector = Selector::parse("tr").unwrap();
+    let rows_selector = Selector::parse("table.tablereset").unwrap();
     let make_model_selector = Selector::parse("td.valgtop > a.mmm").unwrap(); // Adjusted to be mo
     let a_selector = Selector::parse("a.mmm").unwrap();
+    let logo_selector = Selector::parse("a.logoLink").unwrap();
     let href_regex = Regex::new(r"adv=(\d+)").unwrap(); // Extract make and model
     let mut resumes = vec![];
     let mut counter = 0;
@@ -438,6 +448,10 @@ pub fn resume_info(html_content: &str) -> Vec<MobileRecord> {
         let mut resume = MobileRecord {
             id: id.unwrap(),
             source: "mobile.bg".to_string(),
+            engine: engine.clone(),
+            gearbox: gearbox.clone(),
+            power,
+            dealer,
             ..Default::default()
         };
 
@@ -467,6 +481,7 @@ pub fn resume_info(html_content: &str) -> Vec<MobileRecord> {
                 resume.modification = format!("{} {}", make_model[2], make_model[3]);
             }
         }
+
         if let Some(price_element) = element.select(&price_selector).next() {
             let price_text = price_element.text().collect::<Vec<_>>().join("");
             if price_text.contains("лв.") {
@@ -482,21 +497,41 @@ pub fn resume_info(html_content: &str) -> Vec<MobileRecord> {
             resume.price = price.trim().parse::<u32>().unwrap_or(0);
         }
 
-        // Extract description
-        if let Some(desc_element) = element.select(&desc_selector).next() {
-            let desc_text = desc_element.text().collect::<Vec<_>>().join(" ");
-            let year_mileage = extract_year_and_mileage(&desc_text);
-            if let Some((year, mileage)) = year_mileage {
-                resume.year = year.parse::<u16>().unwrap_or(0);
-                resume.mileage = mileage.parse::<u32>().unwrap_or(0);
-            }
+        let txt = element.inner_html();
+        let start = txt.find(r#"дата на произв."#).unwrap();
+        let substr = &txt[start..];
+        let end = substr.find(r#"</td>"#).unwrap();
+        let desc = &substr[..end];
+        let (y, m) = extract_year_and_mileage(&desc);
+
+        resume.year = y.parse::<u16>().unwrap_or(0);
+        resume.mileage = m.parse::<u32>().unwrap_or(0);
+        resume.location = extract_region(&desc).trim().to_string();
+
+        if let Some(link) = element.select(&logo_selector).next() {
+            info!("##### link: {:?}", link.attr("href").unwrap().to_string());
+            resume.name = link.value().attr("href").unwrap().to_string();
         }
+
         resumes.push(resume.clone());
     }
     resumes
 }
 
-fn extract_year_and_mileage(text: &str) -> Option<(String, String)> {
+fn is_4_4(text: &str) -> bool {
+    text.contains("4x4")
+}
+
+fn extract_region(text: &str) -> String {
+    let region_regex = Regex::new(r"Регион: (.+?)\s").unwrap();
+    region_regex
+        .captures(text)
+        .and_then(|cap| cap.get(1))
+        .map(|match_| match_.as_str().to_string())
+        .unwrap_or(String::default())
+}
+
+fn extract_year_and_mileage(text: &str) -> (String, String) {
     let year_regex = Regex::new(r"(\d{4}) г\.").unwrap();
     let mileage_regex = Regex::new(r"пробег - (\d+) км").unwrap();
 
@@ -510,10 +545,10 @@ fn extract_year_and_mileage(text: &str) -> Option<(String, String)> {
         .and_then(|cap| cap.get(1))
         .map(|match_| match_.as_str().to_string());
 
-    match (year, mileage) {
-        (Some(year), Some(mileage)) => Some((year, mileage)),
-        _ => None,
-    }
+    (
+        year.unwrap_or("0".to_string()),
+        mileage.unwrap_or("0".to_string()),
+    )
 }
 
 #[cfg(test)]
@@ -535,7 +570,13 @@ mod test_listing {
         let (decoded, _, _) = encoding.decode(&file);
         let utf8_html = UTF_8.encode(&decoded).0;
         let content = String::from_utf8_lossy(&utf8_html);
-        let data = resume_info(content.to_string().as_str());
+        let data = resume_info(
+            content.to_string().as_str(),
+            Gearbox::Manual,
+            Engine::Petrol,
+            0,
+            false,
+        );
         info!("data: {:?}", data);
     }
 }

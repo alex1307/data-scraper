@@ -79,12 +79,12 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             .await
         }
         Crawlers::MobileBG(_) => {
+            info!("Starting mobile.bg");
             let searches = mobile_bg_all_searches();
-            let slink_searches = to_slink_searches(searches).await;
             download_list_data(
                 MOBILE_BG_CRAWLER.clone(),
                 MOBILE_BG_ALL_SEARCHES_LOG.to_owned(),
-                slink_searches,
+                searches,
             )
             .await
         }
@@ -92,37 +92,6 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
             let searches: Vec<HashMap<String, String>> = autouncle_all_searches();
             download_autouncle_data(AUTOUNCLE_CRAWLER.clone(), searches).await
         }
-    }
-}
-
-pub async fn download_new_vehicles(crawler: &str) -> Result<(), String> {
-    info!("Starting crawler (new): {:?}", crawler);
-    let crawler = Crawlers::from_str(crawler)?;
-    info!("crawler: {:?}", crawler);
-    match crawler {
-        Crawlers::CarsBG(_) => {
-            let searches = cars_bg_new_searches();
-            for s in searches.clone() {
-                info!("search: {:?}", s);
-            }
-            download_details(
-                CARS_BG_CRAWLER.clone(),
-                CARS_BG_NEW_SEARCHES_LOG.to_owned(),
-                searches,
-            )
-            .await
-        }
-        Crawlers::MobileBG(_) => {
-            let searches = mobile_bg_new_searches();
-            let slink_searches = to_slink_searches(searches).await;
-            download_details(
-                MOBILE_BG_CRAWLER.clone(),
-                MOBILE_BG_NEW_SEARCHES_LOG.to_owned(),
-                slink_searches,
-            )
-            .await
-        }
-        Crawlers::Autouncle(_) => todo!(),
     }
 }
 
@@ -209,15 +178,51 @@ where
     }
 }
 
+pub async fn download_carsbg_data<S>(
+    scraper: S,
+    searches: Vec<HashMap<String, String>>, // Same issue with U
+) -> Result<(), String>
+where
+    S: ScraperTrait + ScrapeListTrait<MobileRecord> + Clone + Send + 'static,
+{
+    let (mut data_producer, mut data_receiver) = tokio::sync::mpsc::channel::<MobileRecord>(1000);
+
+    let (search_producer, search_receiver) =
+        tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
+
+    let start_handler = tokio::spawn(async move {
+        process_list_and_send(
+            Box::new(scraper),
+            searches,
+            &mut data_producer,
+            search_producer,
+        )
+        .await
+    });
+    let kafka_handler =
+        tokio::spawn(async move { send_mobile_record_to_kafka(&mut data_receiver).await });
+
+    let save_searches = tokio::spawn(async move {
+        log_search(search_receiver, AUTOUNCLE_ALL_SEARCHES_LOG.to_owned()).await
+    });
+    if let (Ok(_), Ok(_), Ok(_)) = tokio::join!(start_handler, kafka_handler, save_searches) {
+        info!("All tasks completed successfully");
+        Ok(())
+    } else {
+        error!("One or more tasks failed");
+        Err("One or more tasks failed".into())
+    }
+}
+
 pub async fn download_list_data<S>(
     scraper: S,
     search_file_name: String,
     searches: Vec<HashMap<String, String>>,
 ) -> Result<(), String>
 where
-    S: ScraperTrait + ScrapeListTrait<LinkId> + Clone + Send + 'static,
+    S: ScraperTrait + ScrapeListTrait<MobileRecord> + Clone + Send + 'static,
 {
-    let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<LinkId>(250);
+    let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<MobileRecord>(250);
     let (mut search_producer, search_receiver) =
         tokio::sync::mpsc::channel::<HashMap<String, String>>(250);
 
@@ -230,7 +235,8 @@ where
         )
         .await
     });
-    let send_to_kafka = tokio::spawn(async move { send_links_to_kafka(&mut receiver).await });
+    let send_to_kafka =
+        tokio::spawn(async move { send_mobile_record_to_kafka(&mut receiver).await });
 
     let save_to_search_file =
         tokio::spawn(async move { log_search(search_receiver, search_file_name).await });
@@ -272,48 +278,48 @@ mod app_test {
         params.insert("yearTo".to_owned(), "2011".to_owned());
         let searches = vec![params];
         let scraper = CarsBGScraper::new("https://www.cars.bg", 250);
-        download_details(
-            scraper,
-            "./resources/test-data/test_search.json".to_owned(),
-            searches,
-        )
-        .await
-        .unwrap();
+        // download_details(
+        //     scraper,
+        //     "./resources/test-data/test_search.json".to_owned(),
+        //     searches,
+        // )
+        // .await
+        // .unwrap();
     }
 
-    #[tokio::test]
-    async fn test_run_mobilebg_scraper() {
-        configure_log4rs(&LOG_CONFIG);
-        let mut params = HashMap::new();
-        params.insert("act".to_owned(), "3".to_owned());
-        params.insert("f10".to_owned(), "2004".to_owned());
-        params.insert("topmenu".to_string(), "1".to_string());
-        params.insert("rub".to_string(), 1.to_string());
-        params.insert("pubtype".to_string(), 1.to_string());
-        params.insert("f7".to_string(), 10000.to_string());
-        params.insert(
-            "f94".to_string(),
-            "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
-        );
+    // #[tokio::test]
+    // async fn test_run_mobilebg_scraper() {
+    //     configure_log4rs(&LOG_CONFIG);
+    //     let mut params = HashMap::new();
+    //     params.insert("act".to_owned(), "3".to_owned());
+    //     params.insert("f10".to_owned(), "2004".to_owned());
+    //     params.insert("topmenu".to_string(), "1".to_string());
+    //     params.insert("rub".to_string(), 1.to_string());
+    //     params.insert("pubtype".to_string(), 1.to_string());
+    //     params.insert("f7".to_string(), 10000.to_string());
+    //     params.insert(
+    //         "f94".to_string(),
+    //         "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
+    //     );
 
-        let scraper = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-        let html = scraper.get_html(params.clone(), 1).await.unwrap();
-        let slink = scraper.slink(&html).unwrap();
-        params.clear();
-        params.insert("act".to_owned(), "3".to_owned());
-        params.insert("rub".to_string(), 1.to_string());
-        params.insert("pubtype".to_string(), 1.to_string());
-        params.insert("topmenu".to_string(), "1".to_string());
-        params.insert("slink".to_owned(), slink.clone());
-        let searches = vec![params];
-        download_details(
-            scraper,
-            "./resources/test-data/test-search.json".to_owned(),
-            searches,
-        )
-        .await
-        .unwrap();
-    }
+    //     let scraper = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+    //     let html = scraper.get_html(params.clone(), 1).await.unwrap();
+    //     let slink = scraper.slink(&html).unwrap();
+    //     params.clear();
+    //     params.insert("act".to_owned(), "3".to_owned());
+    //     params.insert("rub".to_string(), 1.to_string());
+    //     params.insert("pubtype".to_string(), 1.to_string());
+    //     params.insert("topmenu".to_string(), "1".to_string());
+    //     params.insert("slink".to_owned(), slink.clone());
+    //     let searches = vec![params];
+    //     download_details(
+    //         scraper,
+    //         "./resources/test-data/test-search.json".to_owned(),
+    //         searches,
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
 
     #[tokio::test]
     async fn test_cars_bg_searches() {

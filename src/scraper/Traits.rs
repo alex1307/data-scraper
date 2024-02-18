@@ -12,6 +12,7 @@ use crate::{
         traits::{Identity, URLResource},
         VehicleDataModel::ScrapedListData,
     },
+    services::SearchBuilder::EXCLUED,
     BROWSER_USER_AGENT,
 };
 
@@ -26,7 +27,7 @@ lazy_static! {
 pub trait ScrapeListTrait<T: Identity + Clone + Debug + Serialize>:
     Clone + Debug + Send + Sync + 'static
 {
-    async fn get_listed_ids(
+    async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page: u32,
@@ -116,6 +117,9 @@ impl Scraper {
         }
 
         for (key, value) in params.iter() {
+            if EXCLUED.contains(&key.as_str()) {
+                continue;
+            }
             if value.contains('[') && value.contains(']') {
                 let value = value.replace(['[', ']'], "");
                 let values: Vec<&str> = value.split(',').collect();
@@ -131,6 +135,7 @@ impl Scraper {
         }
 
         url = format!("{}{}={}", url, self.page, page);
+        info!("Search URL: {}", url);
         url
     }
 

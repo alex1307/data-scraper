@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use data_scraper::kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons};
 use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
 use data_scraper::services::ScraperAppService::{
-    download_all, download_autouncle_data, download_new_vehicles, AUTOUNCLE_CRAWLER,
+    download_all, download_autouncle_data, AUTOUNCLE_CRAWLER,
 };
 use data_scraper::services::Searches::autouncle_all_searches;
 use data_scraper::utils::helpers::configure_log4rs;
@@ -67,9 +67,7 @@ async fn run_scrapers() {
             AUTOUNCLE_CRAWLER.clone(),
             searches.clone(),
         ));
-        let task4 = tokio::spawn(download_new_vehicles("cars.bg"));
-        let task5 = tokio::spawn(download_new_vehicles("mobile.bg"));
-        let (r1, r2, r3, r4, r5) = tokio::join!(task1, task2, task3, task4, task5);
+        let (r1, r2, r3) = tokio::join!(task1, task2, task3);
         if r1.is_ok() {
             info!("cars.bg finished");
         } else {
@@ -84,16 +82,6 @@ async fn run_scrapers() {
             info!("autouncle.ro finished");
         } else {
             info!("autouncle.ro failed");
-        }
-        if r4.is_ok() {
-            info!("cars.bg new vehicles finished");
-        } else {
-            info!("cars.bg new vehicles failed");
-        }
-        if r5.is_ok() {
-            info!("mobile.bg new vehicles finished");
-        } else {
-            info!("mobile.bg new vehicles failed");
         }
         info!("All scrapers finished. Waiting for 24 hours....");
         tokio::time::sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;

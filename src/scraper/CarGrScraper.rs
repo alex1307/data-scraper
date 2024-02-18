@@ -37,7 +37,7 @@ impl CarGrScraper {
 
 #[async_trait]
 impl ScrapeListTrait<LinkId> for CarGrScraper {
-    async fn get_listed_ids(
+    async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page_number: u32,
@@ -157,7 +157,7 @@ mod car_gr_test_suit {
         params.insert("registration-from".to_owned(), "2010".to_owned());
         params.insert("registration-to".to_owned(), "2011".to_owned());
         let scraper = CarGrScraper::new(url, 250);
-        let ids = scraper.get_listed_ids(params, 1).await.unwrap();
+        let ids = scraper.process_listed_results(params, 1).await.unwrap();
         if let ScrapedListData::Values(ids) = ids {
             info!("ids: {:?}", ids);
             assert_eq!(25, ids.len());

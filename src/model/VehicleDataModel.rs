@@ -301,6 +301,7 @@ impl From<MobileRecord> for DetailedVehicleInfo {
             id: record.id,
             source: record.source,
             phone: record.phone,
+            seller_name: record.name,
             location: record.location,
             view_count: record.view_count,
             cc: 0,
@@ -308,7 +309,6 @@ impl From<MobileRecord> for DetailedVehicleInfo {
             electric_drive_range: 0.0,
             equipment: record.equipment,
             is_dealer: record.dealer,
-            seller_name: "".to_string(),
         }
     }
 }

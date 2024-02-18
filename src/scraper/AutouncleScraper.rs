@@ -34,7 +34,7 @@ impl AutouncleScraper {
 
 #[async_trait]
 impl ScrapeListTrait<AutoUncleVehicle> for AutouncleScraper {
-    async fn get_listed_ids(
+    async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page_number: u32,

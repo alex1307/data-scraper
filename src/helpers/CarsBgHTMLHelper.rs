@@ -1,11 +1,17 @@
-use std::{collections::HashMap, thread::sleep, time::Duration, vec};
+use std::{collections::HashMap, str::FromStr, thread::sleep, time::Duration, vec};
 
 use chrono::{naive, Local};
 use log::{debug, info};
 use scraper::{Html, Selector};
 
 use crate::{
-    config::Equipment, helpers::PUBLISHED_ON_KEY, model::enums::Engine, CARS_BG_LISTING_URL,
+    config::Equipment,
+    helpers::PUBLISHED_ON_KEY,
+    model::{
+        enums::{Engine, Gearbox},
+        records::MobileRecord,
+    },
+    CARS_BG_LISTING_URL,
 };
 
 use super::{
@@ -27,11 +33,10 @@ fn search_cars_bg_url(params: &HashMap<String, String>, page: u32) -> String {
         url = format!("{}{}={}&", url, key, value);
     }
     if page == 0 {
-        return url.trim_end_matches('&').to_owned();
+        url.trim_end_matches('&').to_owned()
+    } else {
+        format!("{}page={}", url, page)
     }
-
-    url = format!("{}page={}", url, page);
-    url
 }
 
 async fn list_pages(url: &str) -> u32 {
@@ -51,26 +56,28 @@ async fn list_pages(url: &str) -> u32 {
     number_of_pages
 }
 
-pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<HashMap<String, String>> {
+pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<MobileRecord> {
     let url = search_cars_bg_url(&params, 1);
     let number_of_pages = list_pages(&url).await;
     let html = get_pages_async(&url, false).await.unwrap();
+    let gearbox = Gearbox::from_str(params.get("gearbox").unwrap()).unwrap();
+    let power = params.get("power").unwrap().parse::<u32>().unwrap_or(0);
     if number_of_pages == 1 {
-        read_listing(&html)
+        read_listing(&html, gearbox, power)
     } else {
-        let mut result = read_listing(&html);
+        let mut result = read_listing(&html, gearbox, power);
         for i in 2..number_of_pages {
             sleep(Duration::from_secs(1));
             info!("page: {}", i);
             let url = search_cars_bg_url(&params, i);
             let html = get_pages_async(&url, false).await.unwrap();
-            result.extend(read_listing(&html));
+            result.extend(read_listing(&html, gearbox, power));
         }
         result
     }
 }
 
-fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
+pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecord> {
     let mut result = vec![];
     let document = Html::parse_document(html);
     let selector = Selector::parse("div.mdc-card.offer-item").unwrap();
@@ -88,14 +95,14 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
         if id.is_none() {
             continue;
         }
-        let mut map = HashMap::new();
-        if txt.to_lowercase().contains("частно лице") {
-            map.insert("dealer".to_owned(), "false".to_owned());
-        } else {
-            map.insert("dealer".to_owned(), "true".to_owned());
-        }
-        map.insert("id".to_owned(), id.unwrap());
-        map.insert("source".to_owned(), "cars.bg".to_owned());
+        let mut record = MobileRecord {
+            id: id.unwrap(),
+            gearbox,
+            power,
+            source: "cars.bg".to_owned(),
+            ..Default::default()
+        };
+        record.dealer = txt.to_lowercase().contains("частно лице");
         let make_model = element
             .select(&modelSelector)
             .filter_map(|element| {
@@ -113,7 +120,7 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
         if make_model.is_none() {
             continue;
         }
-        map.insert("make".to_owned(), make_model.unwrap());
+        record.title = make_model.unwrap();
         let html_fragment = Html::parse_fragment(element.inner_html().as_str());
 
         let h6_selector = Selector::parse("h6").unwrap();
@@ -128,22 +135,21 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
                 let date = holder[0].trim_end_matches(',');
                 if r#"днес"# == date {
                     let today = Local::now().date_naive();
-                    map.insert(PUBLISHED_ON_KEY.to_owned(), today.to_string());
+                    record.updated_on = today.to_string();
                 } else if r#"вчера"# == date {
                     let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
-                    map.insert(PUBLISHED_ON_KEY.to_owned(), yesterday.to_string());
+                    record.updated_on = yesterday.to_string();
                 } else {
                     let published_on = naive::NaiveDate::parse_from_str(date, "%d.%m.%y").unwrap();
-                    map.insert(PUBLISHED_ON_KEY.to_owned(), published_on.to_string());
+                    record.updated_on = published_on.to_string();
                 }
             } else if fragment_counter == 2 {
-                let price = holder[0]
+                record.price = holder[0]
                     .chars()
                     .filter(|&c| c.is_numeric())
                     .collect::<String>()
-                    .parse::<i32>()
+                    .parse::<u32>()
                     .unwrap_or(0);
-                map.insert(PRICE_KEY.to_owned(), price.to_string());
             }
             fragment_counter += 1;
         }
@@ -155,24 +161,22 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
                 .split_ascii_whitespace()
                 .map(|s| s.trim_end_matches(',').to_owned())
                 .collect::<Vec<String>>();
-            let year = holder[0]
+            record.year = holder[0]
                 .chars()
                 .filter(|&c| c.is_numeric())
                 .collect::<String>()
-                .parse::<i32>()
+                .parse::<u16>()
                 .unwrap_or(0);
-            let millage = holder[2]
+            record.mileage = holder[2]
                 .chars()
                 .filter(|&c| c.is_numeric())
                 .collect::<String>()
-                .parse::<i32>()
+                .parse::<u32>()
                 .unwrap_or(0);
 
             if let Ok(engine) = <Engine as std::str::FromStr>::from_str(&holder[1]) {
-                map.insert(ENGINE_KEY.to_owned(), engine.to_string());
+                record.engine = engine;
             }
-            map.insert(YEAR_KEY.to_owned(), year.to_string());
-            map.insert(MILEAGE_KEY.to_owned(), millage.to_string());
         }
 
         let card_footer_selector = Selector::parse("div.card__footer").unwrap();
@@ -183,15 +187,21 @@ fn read_listing(html: &str) -> Vec<HashMap<String, String>> {
                 .split(',')
                 .map(|s| s.trim().to_owned())
                 .collect::<Vec<String>>();
-            let location = holder[1]
+
+            record.name = holder[0]
+                .split(">")
+                .last()
+                .unwrap_or_default()
+                .trim()
+                .to_owned();
+            record.location = holder[1]
                 .to_owned()
                 .replace("</a>", "")
                 .replace("</strong>", "")
                 .trim()
                 .to_owned();
-            map.insert(LOCATION_KEY.to_owned(), location);
         }
-        result.push(map);
+        result.push(record);
     }
     result
 }
@@ -435,7 +445,7 @@ mod test_cars_bg {
         debug!("records: {:?}", records.len());
         for record in records {
             sleep(Duration::from_millis(150));
-            let _id = record.get("id").unwrap();
+            let _id = record.id;
         }
     }
 
@@ -464,12 +474,13 @@ mod test_cars_bg {
         map.insert("priceFrom".to_owned(), "18000".to_owned());
         map.insert("yearFrom".to_owned(), "2004".to_owned());
         map.insert("page".to_owned(), "1".to_owned());
+
         let url = search_cars_bg_url(&map, 1);
         let listing = list_pages(&url).await;
         assert!(listing > 0);
         info!("Pages found: {}", listing);
         let html = get_pages_async(&url, false).await.unwrap();
-        let result = read_listing(&html);
+        let result = read_listing(&html, Gearbox::Automatic, 90);
         assert!(result.len() > 0);
         assert_eq!(20, result.len());
         for m in result {
