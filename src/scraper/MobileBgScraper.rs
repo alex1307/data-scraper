@@ -1,20 +1,23 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 
+use log::info;
 use regex::Regex;
 use scraper::{Html, Selector};
 
 use super::Traits::{RequestResponseTrait, ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
     helpers::{
-        MobileBgHTMLHelper::{details2map, get_url, slink},
+        MobileBgHTMLHelper::{details2map, get_url, resume_info, slink},
         ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, PRICE_KEY, YEAR_KEY,
     },
     model::{
+        enums::{Engine, Gearbox},
         records::MobileRecord,
         VehicleDataModel::{LinkId, ScrapedListData},
     },
+    services::Searches::to_slink,
     BROWSER_USER_AGENT,
 };
 use lazy_static::lazy_static;
@@ -50,73 +53,60 @@ impl MobileBGScraper {
 }
 
 #[async_trait]
-impl ScrapeListTrait<LinkId> for MobileBGScraper {
-    async fn get_listed_ids(
+impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
+    async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page_number: u32,
-    ) -> Result<ScrapedListData<LinkId>, String> {
-        let mut list = vec![];
-
-        let url = self.parent.search_url(None, params.clone(), page_number);
+    ) -> Result<ScrapedListData<MobileRecord>, String> {
+        let mut search = params.clone();
+        to_slink(&mut search).await;
+        info!("slink has been added: {:?}", search.get("slink").unwrap());
+        let url = self.parent.search_url(None, search, page_number);
         let html = self
             .parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await?;
-        let document = Html::parse_document(&html);
-        let selector = Selector::parse("table.tablereset").unwrap();
-        let re = Regex::new(r"adv=(\d+)").unwrap();
-        for element in document.select(&selector) {
-            if let Some(url) = get_url(&element) {
-                let url = if url.contains(r#"https:"#) {
-                    url
-                } else {
-                    format!("https:{}", url)
-                };
-                if let Some(caps) = re.captures(&url) {
-                    if let Some(matched) = caps.get(1) {
-                        list.push(LinkId {
-                            id: matched.as_str().to_owned(),
-                            source: "mobile.bg".to_owned(),
-                            url,
-                        });
-                    }
-                }
-            }
-        }
+        let value = params.get("gearbox").unwrap().to_string();
+        let gearbox = Gearbox::from_str(&value).unwrap();
+        let value = params.get("engine").unwrap().to_string();
+        let engine = Engine::from_str(&value).unwrap();
+        let power: u32 = params.get("power").unwrap().parse().unwrap();
+        let seller = params.get("seller").unwrap();
+        let vehicles = resume_info(html.as_str(), gearbox, engine, power, "Dealer" == seller);
 
-        Ok(ScrapedListData::Values(list))
+        Ok(ScrapedListData::Values(vehicles))
     }
 }
 
-#[async_trait]
-impl RequestResponseTrait<LinkId, MobileRecord> for MobileBGScraper {
-    async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
-        let html = self
-            .parent
-            .html_search(&link.url, Some("windows-1251".to_string()))
-            .await?;
-        let document = Html::parse_document(&html);
-        let mut result = details2map(document);
-        result.insert("id".to_owned(), link.id.clone());
-        if result.get(PRICE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete price data for: {}", &link.id))
-        } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete make data for: {}", &link.id))
-        } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete year data for: {}", &link.id))
-        } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete mileage data for: {}", &link.id))
-        } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete engine data for: {}", &link.id))
-        } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete gearbox data for: {}", &link.id))
-        } else {
-            let record = MobileRecord::from(result);
-            Ok(record)
-        }
-    }
-}
+// #[async_trait]
+// impl RequestResponseTrait<LinkId, MobileRecord> for MobileBGScraper {
+//     async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
+//         let html = self
+//             .parent
+//             .html_search(&link.url, Some("windows-1251".to_string()))
+//             .await?;
+//         let document = Html::parse_document(&html);
+//         let mut result = details2map(document);
+//         result.insert("id".to_owned(), link.id.clone());
+//         if result.get(PRICE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete price data for: {}", &link.id))
+//         } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete make data for: {}", &link.id))
+//         } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete year data for: {}", &link.id))
+//         } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete mileage data for: {}", &link.id))
+//         } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete engine data for: {}", &link.id))
+//         } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete gearbox data for: {}", &link.id))
+//         } else {
+//             let record = MobileRecord::from(result);
+//             Ok(record)
+//         }
+//     }
+// }
 
 #[async_trait]
 impl ScraperTrait for MobileBGScraper {
@@ -207,7 +197,7 @@ mod screaper_mobile_bg_test {
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
             let data = mobile_bg
-                .get_listed_ids(params.clone(), page)
+                .process_listed_results(params.clone(), page)
                 .await
                 .unwrap();
             match data {
@@ -224,68 +214,70 @@ mod screaper_mobile_bg_test {
                 }
             }
         }
-        let unique: HashSet<LinkId> = all.into_iter().collect();
-        assert_eq!(unique.len(), total_number as usize);
+        assert_eq!(all.len(), total_number as usize);
     }
 
-    #[tokio::test]
-    async fn process_mobile_bg_details_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let mobile_bg: MobileBgScraper::MobileBGScraper =
-            MobileBgScraper::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-        let mut params = HashMap::new();
-        params.insert("act".to_owned(), "3".to_owned());
-        params.insert("f10".to_owned(), "2004".to_owned());
-        params.insert("topmenu".to_string(), "1".to_string());
-        params.insert("rub".to_string(), 1.to_string());
-        params.insert("pubtype".to_string(), 1.to_string());
-        params.insert("f7".to_string(), 10000.to_string());
-        params.insert(
-            "f94".to_string(),
-            "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
-        );
-        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
-        let slink = mobile_bg.slink(&html).unwrap();
+    // #[tokio::test]
+    // async fn process_mobile_bg_details_test() {
+    //     configure_log4rs(&LOG_CONFIG);
+    //     let mobile_bg: MobileBgScraper::MobileBGScraper =
+    //         MobileBgScraper::MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+    //     let mut params = HashMap::new();
+    //     params.insert("act".to_owned(), "3".to_owned());
+    //     params.insert("f10".to_owned(), "2004".to_owned());
+    //     params.insert("topmenu".to_string(), "1".to_string());
+    //     params.insert("rub".to_string(), 1.to_string());
+    //     params.insert("pubtype".to_string(), 1.to_string());
+    //     params.insert("f7".to_string(), 10000.to_string());
+    //     params.insert(
+    //         "f94".to_string(),
+    //         "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
+    //     );
+    //     let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
+    //     let slink = mobile_bg.slink(&html).unwrap();
 
-        params.clear();
-        params.insert("act".to_owned(), "3".to_owned());
-        params.insert("rub".to_string(), 1.to_string());
-        params.insert("pubtype".to_string(), 1.to_string());
-        params.insert("topmenu".to_string(), "1".to_string());
-        params.insert("slink".to_owned(), slink.clone());
+    //     params.clear();
+    //     params.insert("act".to_owned(), "3".to_owned());
+    //     params.insert("rub".to_string(), 1.to_string());
+    //     params.insert("pubtype".to_string(), 1.to_string());
+    //     params.insert("topmenu".to_string(), "1".to_string());
+    //     params.insert("slink".to_owned(), slink.clone());
 
-        let data = mobile_bg.get_listed_ids(params.clone(), 1).await.unwrap();
-        let mut id: LinkId = LinkId {
-            id: "".to_owned(),
-            source: "mobile.bg".to_owned(),
-            url: "".to_owned(),
-        };
-        match data {
-            ScrapedListData::Values(ids) => {
-                assert!(ids.len() > 0);
-                info!("ids: {:?}", ids);
-                id = ids[0].clone();
-            }
-            ScrapedListData::Error(error) => {
-                info!("error: {}", error);
-            }
-            ScrapedListData::SingleValue(link) => {
-                info!("link: {:?}", link);
-            }
-        }
+    //     let data = mobile_bg
+    //         .process_listed_results(params.clone(), 1)
+    //         .await
+    //         .unwrap();
+    //     let mut id: LinkId = LinkId {
+    //         id: "".to_owned(),
+    //         source: "mobile.bg".to_owned(),
+    //         url: "".to_owned(),
+    //     };
+    //     match data {
+    //         ScrapedListData::Values(ids) => {
+    //             assert!(ids.len() > 0);
+    //             info!("ids: {:?}", ids);
+    //             id = ids[0].clone();
+    //         }
+    //         ScrapedListData::Error(error) => {
+    //             info!("error: {}", error);
+    //         }
+    //         ScrapedListData::SingleValue(link) => {
+    //             info!("link: {:?}", link);
+    //         }
+    //     }
 
-        params.clear();
-        params.insert("act".to_owned(), "4".to_owned());
-        params.insert("topmenu".to_string(), "1".to_string());
-        params.insert("submenu".to_string(), "2".to_string());
-        params.insert("slink".to_owned(), slink.clone());
-        params.insert("adv".to_owned(), id.id.to_owned());
-        let url = mobile_bg.parent.search_url(None, params.clone(), 1);
-        info!("url: {}", url);
-        let details = mobile_bg.handle_request(id.clone()).await.unwrap();
-        info!("details: {:?}", details);
-        let record = crate::model::records::MobileRecord::from(details);
-        info!("record: {:?}", record);
-        assert_eq!(record.id, id.id);
-    }
+    //     params.clear();
+    //     params.insert("act".to_owned(), "4".to_owned());
+    //     params.insert("topmenu".to_string(), "1".to_string());
+    //     params.insert("submenu".to_string(), "2".to_string());
+    //     params.insert("slink".to_owned(), slink.clone());
+    //     params.insert("adv".to_owned(), id.id.to_owned());
+    //     let url = mobile_bg.parent.search_url(None, params.clone(), 1);
+    //     info!("url: {}", url);
+    //     let details = mobile_bg.handle_request(id.clone()).await.unwrap();
+    //     info!("details: {:?}", details);
+    //     let record = crate::model::records::MobileRecord::from(details);
+    //     info!("record: {:?}", record);
+    //     assert_eq!(record.id, id.id);
+    // }
 }

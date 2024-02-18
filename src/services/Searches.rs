@@ -8,9 +8,10 @@ use log::info;
 
 use crate::{
     scraper::Traits::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER,
-    AUTOUNCLE_ALL_SEARCHES_LOG, CARS_BG_ALL_SEARCHES_LOG, CARS_BG_NEW_SEARCHES_LOG,
-    MOBILE_BG_ALL_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG,
+    AUTOUNCLE_ALL_SEARCHES_LOG, CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG,
 };
+
+use super::SearchBuilder::{build_cars_bg_all_searches, build_mobile_bg_all_searches};
 
 pub const MOBILE_BG_NEW_SEARCHES: &str = "resources/searches/mobile_bg_new_search.json";
 pub const MOBILE_BG_ALL_SEARCHES: &str = "resources/searches/mobile_bg_all_search.json";
@@ -87,7 +88,7 @@ pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
 }
 
 pub fn cars_bg_all_searches() -> Vec<HashMap<String, String>> {
-    load_searches(CARS_BG_ALL_SEARCHES, &CARS_BG_ALL_SEARCHES_LOG)
+    build_cars_bg_all_searches()
 }
 
 pub fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
@@ -95,7 +96,20 @@ pub fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
 }
 
 pub fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
-    load_searches(MOBILE_BG_ALL_SEARCHES, &MOBILE_BG_ALL_SEARCHES_LOG)
+    build_mobile_bg_all_searches()
+}
+
+pub async fn to_slink(search: &mut HashMap<String, String>) {
+    let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
+    match MOBILE_BG_CRAWLER.slink(&html) {
+        Ok(slink) => {
+            info!("slink: {}", slink);
+            search.insert("slink".to_owned(), slink);
+        }
+        Err(e) => {
+            info!("Error: {}", e);
+        }
+    }
 }
 
 pub async fn to_slink_searches(
@@ -113,7 +127,7 @@ pub async fn to_slink_searches(
         match MOBILE_BG_CRAWLER.slink(&html) {
             Ok(slink) => {
                 params.insert("slink".to_owned(), slink.clone());
-                params.insert("id".to_owned(), search.get("id").unwrap().to_owned());
+                //params.insert("id".to_owned(), search.get("id").unwrap().to_owned());
                 searches.push(params.clone());
             }
             Err(e) => {
@@ -122,6 +136,7 @@ pub async fn to_slink_searches(
             }
         }
     }
+    info!("Total searches with slink: {}", searches.len());
     searches
 }
 

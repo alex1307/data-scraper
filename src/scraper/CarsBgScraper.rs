@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
@@ -9,13 +9,15 @@ use serde::Deserialize;
 
 use crate::{
     helpers::{
-        CarsBgHTMLHelper::read_carsbg_details, ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY,
-        PRICE_KEY, YEAR_KEY,
+        CarsBgHTMLHelper::{read_carsbg_details, read_listing},
+        ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, PRICE_KEY, YEAR_KEY,
     },
     model::{
+        enums::Gearbox,
         records::MobileRecord,
         VehicleDataModel::{LinkId, ScrapedListData},
     },
+    services::SearchBuilder::{CARS_BG_GEARBOX_ID, CARS_BG_POWER_FROM, CARS_BG_POWER_TO},
     BROWSER_USER_AGENT,
 };
 
@@ -68,78 +70,62 @@ impl CarsBGScraper {
 }
 
 #[async_trait]
-impl ScrapeListTrait<LinkId> for CarsBGScraper {
-    async fn get_listed_ids(
+impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
+    async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page_number: u32,
-    ) -> Result<ScrapedListData<LinkId>, String> {
-        let mut ids = vec![];
+    ) -> Result<ScrapedListData<MobileRecord>, String> {
         let url = self.parent.search_url(
             Some("/carslist.php?".to_string()),
             params.clone(),
             page_number,
         );
         let html = self.parent.html_search(url.as_str(), None).await?;
-        let document = Html::parse_document(&html);
-        let selector = Selector::parse("div.mdc-card__primary-action").unwrap();
-        for element in document.select(&selector) {
-            let html_fragment = Html::parse_fragment(element.inner_html().as_str());
-            let selector = Selector::parse("a").unwrap();
-            for e in html_fragment.select(&selector) {
-                if let Some(href) = e.value().attr("href") {
-                    if let Some(id) = href.split("/offer/").last() {
-                        ids.push(LinkId {
-                            source: "cars.bg".to_owned(),
-                            url: href.to_string(),
-                            id: id.to_owned(),
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-
-        Ok(ScrapedListData::Values(ids))
+        let value = params.get("gearbox").unwrap().to_string();
+        let gearbox = Gearbox::from_str(&value).unwrap();
+        let power: u32 = params.get("power").unwrap().parse().unwrap();
+        let vehicles = read_listing(html.as_str(), gearbox, power);
+        Ok(ScrapedListData::Values(vehicles))
     }
 }
 
-#[async_trait]
-impl RequestResponseTrait<LinkId, MobileRecord> for CarsBGScraper {
-    async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
-        let html = self.parent.html_search(&link.url, None).await?;
-        let mut result = read_carsbg_details(html);
-        match get_view_count(link.id.clone()).await {
-            Ok(views) => {
-                result.insert("view_count".to_owned(), views.to_string());
-            }
-            Err(e) => {
-                error!(
-                    "Error setting counter for: {}. Error: {}",
-                    link.id,
-                    e.to_string()
-                );
-            }
-        }
-        result.insert("id".to_owned(), link.id.clone());
-        if result.get(PRICE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete PRICE for: {}", &link.id))
-        } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete MAKE/MODEL for: {}", &link.id))
-        } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete YEAR for: {}", &link.id))
-        } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete MILEAGE for: {}", &link.id))
-        } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete ENGINE for: {}", &link.id))
-        } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
-            Err(format!("invalid/incompete GEARBOX for: {}", &link.id))
-        } else {
-            let record = MobileRecord::from(result);
-            Ok(record)
-        }
-    }
-}
+// #[async_trait]
+// impl RequestResponseTrait<LinkId, MobileRecord> for CarsBGScraper {
+//     async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
+//         let html = self.parent.html_search(&link.url, None).await?;
+//         let mut result = read_carsbg_details(html);
+//         match get_view_count(link.id.clone()).await {
+//             Ok(views) => {
+//                 result.insert("view_count".to_owned(), views.to_string());
+//             }
+//             Err(e) => {
+//                 error!(
+//                     "Error setting counter for: {}. Error: {}",
+//                     link.id,
+//                     e.to_string()
+//                 );
+//             }
+//         }
+//         result.insert("id".to_owned(), link.id.clone());
+//         if result.get(PRICE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete PRICE for: {}", &link.id))
+//         } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete MAKE/MODEL for: {}", &link.id))
+//         } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete YEAR for: {}", &link.id))
+//         } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete MILEAGE for: {}", &link.id))
+//         } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete ENGINE for: {}", &link.id))
+//         } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
+//             Err(format!("invalid/incompete GEARBOX for: {}", &link.id))
+//         } else {
+//             let record = MobileRecord::from(result);
+//             Ok(record)
+//         }
+//     }
+// }
 
 #[async_trait]
 impl ScraperTrait for CarsBGScraper {
@@ -216,7 +202,10 @@ mod cars_bg_tests {
         let total_number = cars_bg.total_number(&html).unwrap();
         assert!(total_number > 0);
         info!("total_number: {}", total_number);
-        let data = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
+        let data = cars_bg
+            .process_listed_results(params.clone(), 1)
+            .await
+            .unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);
@@ -241,7 +230,10 @@ mod cars_bg_tests {
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
 
-        let data = cars_bg.get_listed_ids(params.clone(), 1).await.unwrap();
+        let data = cars_bg
+            .process_listed_results(params.clone(), 1)
+            .await
+            .unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);
@@ -250,8 +242,8 @@ mod cars_bg_tests {
                 let path = Some(format!("/offer/{:?}", first));
                 let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
                 info!("search_url: {}", search_url);
-                let record = cars_bg.handle_request(first.clone()).await.unwrap();
-                info!("record: {:?}", record);
+                // let record = cars_bg.handle_request(first.clone()).await.unwrap();
+                // info!("record: {:?}", record);
             }
             _ => panic!("Wrong data type"),
         }

@@ -34,6 +34,7 @@ pub struct MobileRecord {
     pub gearbox: Gearbox,
     pub power: u32,
     pub phone: String,
+    pub name: String,
     pub location: String,
     pub view_count: u32,
     pub equipment: u64,

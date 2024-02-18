@@ -49,7 +49,7 @@ pub async fn process_list<S, T>(
 ) -> Result<(), String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
-    T: Send + Identity + URLResource + Clone + Serialize + Debug + 'static,
+    T: Send + Identity + Clone + Serialize + Debug + 'static,
 {
     let mut handlers = vec![];
     let mut sum_total_number = 0;
@@ -71,7 +71,7 @@ where
             info!("number of pages: {}", number_of_pages);
             for page_number in 1..number_of_pages {
                 let data = cloned_scraper
-                    .get_listed_ids(cloned_params.clone(), page_number)
+                    .process_listed_results(cloned_params.clone(), page_number)
                     .await
                     .unwrap();
                 info!("*** Page number: {}", page_number);
@@ -279,6 +279,62 @@ pub async fn send_mobile_record_to_kafka(
     Ok(())
 }
 
+pub async fn send_mobilerecord_data(
+    data_receiver: &mut Receiver<MobileRecord>,
+) -> Result<(), String> {
+    let mut counter = 0;
+    let mut wait_counter = 0;
+    let broker = broker();
+    let producer = crate::kafka::KafkaProducer::create_producer(&broker);
+    loop {
+        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
+            Ok(Some(data)) => {
+                wait_counter = 0;
+                let basic_info = BaseVehicleInfo::from(data.clone());
+                let detais_info = DetailedVehicleInfo::from(data.clone());
+                let price_info = Price::from(data.clone());
+                let log_change_info = VehicleChangeLogInfo::from(data.clone());
+
+                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
+                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
+                let price_data = protos::vehicle_model::Price::from(price_info);
+                let log_change_data =
+                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
+
+                let basic_encoded_message = encode_message(&basic_data).unwrap();
+                let details_encoded_message = encode_message(&details_data).unwrap();
+                let price_encoded_message = encode_message(&price_data).unwrap();
+                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
+
+                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
+                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
+                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
+                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
+
+                counter += 1;
+                if counter % 500 == 0 {
+                    info!(">>> Processed urls: {}", counter);
+                }
+            }
+
+            Ok(None) => {
+                info!("No more records to process. Total processed: {}", counter);
+                break;
+            }
+            Err(e) => {
+                wait_counter += 1;
+                if wait_counter == 5 {
+                    error!("Timeout receiving link: {}", e);
+                    continue;
+                }
+                info!("Waiting for links to process");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn send_autonucle_kafka(
     data_receiver: &mut Receiver<AutoUncleVehicle::AutoUncleVehicle>,
 ) -> Result<(), String> {
@@ -436,7 +492,7 @@ where
     info!("number of pages: {}", number_of_pages);
     for page_number in 1..number_of_pages + 1 {
         let data = cloned_scraper
-            .get_listed_ids(cloned_params.clone(), page_number)
+            .process_listed_results(cloned_params.clone(), page_number)
             .await
             .unwrap();
         match data {
