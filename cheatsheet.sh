@@ -20,3 +20,4 @@ grep -rHIin [Search text]  ./src
 grep -rHIin [Search text]  ./src/main/ | grep -v node_modules
 
 cargo clippy --fix --bin "crawler" --allow-staged --allow-dirty
+docker build -t crawler . --progress=plain
