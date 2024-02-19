@@ -26,6 +26,7 @@ pub struct MobileRecord {
     pub modification: String,
     pub currency: Currency,
     pub price: u32,
+    pub old_price: u32,
     pub mileage: u32,
     pub year: u16,
     pub month: u16,

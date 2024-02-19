@@ -287,7 +287,6 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
             let mut base_info = VehicleDataModel::BaseVehicleInfo::new(id.to_string());
             base_info.source = "mobile.de".to_string();
             if let Some(attributes) = item.attributes {
-                info!("attributes: {:?}", attributes);
                 let flattened_attributes: Vec<String> = attributes
                     .iter()
                     .flat_map(|a| a.split(" • "))
@@ -301,10 +300,7 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
                     .parse::<u32>()
                 {
                     Ok(milage) => milage,
-                    Err(e) => {
-                        info!("Error: {:?}", e);
-                        0
-                    }
+                    Err(_e) => 0,
                 };
 
                 base_info.millage = Some(milage);

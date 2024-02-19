@@ -86,11 +86,9 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
     let mut price_info_counter = 0;
     let mut consumption_info_counter = 0;
     while let Some(message) = message_stream.next().await {
-        info!("Received message!");
         match message {
             Ok(borrowed_message) => {
                 let list = handle_mobile_de_json(&borrowed_message);
-                info!("Mobile.de search items: {:?}", list.len());
                 for item in list {
                     if let Ok(price) = Price::try_from(item.clone()) {
                         let proto_message = protos::vehicle_model::Price::from(price);

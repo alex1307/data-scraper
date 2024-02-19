@@ -135,7 +135,6 @@ impl Scraper {
         }
 
         url = format!("{}{}={}", url, self.page, page);
-        info!("Search URL: {}", url);
         url
     }
 

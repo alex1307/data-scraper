@@ -21,7 +21,7 @@ use crate::model::enums::Currency;
 use crate::model::enums::Engine;
 use crate::model::enums::Gearbox;
 use crate::model::records::MobileRecord;
-use crate::model::VehicleDataModel::Resume;
+
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
@@ -31,7 +31,7 @@ use crate::POWER_TXT;
 use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
-use log::info;
+
 use log::{debug, error};
 
 use regex::Regex;
@@ -39,7 +39,6 @@ use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::ops::Index;
 
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
@@ -421,7 +420,7 @@ pub fn resume_info(
     power: u32,
     dealer: bool,
 ) -> Vec<MobileRecord> {
-    let document = Html::parse_document(&html_content);
+    let document = Html::parse_document(html_content);
     // Selector to find the price
     let price_selector = Selector::parse("span.price").unwrap();
     // Selector to find the description
@@ -448,8 +447,8 @@ pub fn resume_info(
         let mut resume = MobileRecord {
             id: id.unwrap(),
             source: "mobile.bg".to_string(),
-            engine: engine.clone(),
-            gearbox: gearbox.clone(),
+            engine,
+            gearbox,
             power,
             dealer,
             ..Default::default()
@@ -463,7 +462,7 @@ pub fn resume_info(
             counter += 1;
             let d = make_model_element.text().collect::<Vec<_>>().join(" ");
             resume.title = d.clone();
-            let make_model = d.split(" ").collect::<Vec<&str>>();
+            let make_model = d.split(' ').collect::<Vec<&str>>();
             if make_model.is_empty() || make_model.len() < 2 {
                 continue;
             }
@@ -491,9 +490,9 @@ pub fn resume_info(
             } else if price_text.contains("USD") {
                 resume.currency = Currency::USD;
             }
-            let mut price = price_text.replace(" лв.", "").replace(" ", ""); // Remove currency and spaces
-            price = price.replace("EUR", "").replace(" ", ""); // Remove currency and spaces
-            price = price.replace("USD", "").replace(" ", ""); // Remove currency and spaces
+            let mut price = price_text.replace(" лв.", "").replace(' ', ""); // Remove currency and spaces
+            price = price.replace("EUR", "").replace(' ', ""); // Remove currency and spaces
+            price = price.replace("USD", "").replace(' ', ""); // Remove currency and spaces
             resume.price = price.trim().parse::<u32>().unwrap_or(0);
         }
 
@@ -502,14 +501,13 @@ pub fn resume_info(
         let substr = &txt[start..];
         let end = substr.find(r#"</td>"#).unwrap();
         let desc = &substr[..end];
-        let (y, m) = extract_year_and_mileage(&desc);
+        let (y, m) = extract_year_and_mileage(desc);
 
         resume.year = y.parse::<u16>().unwrap_or(0);
         resume.mileage = m.parse::<u32>().unwrap_or(0);
-        resume.location = extract_region(&desc).trim().to_string();
+        resume.location = extract_region(desc).trim().to_string();
 
         if let Some(link) = element.select(&logo_selector).next() {
-            info!("##### link: {:?}", link.attr("href").unwrap().to_string());
             resume.name = link.value().attr("href").unwrap().to_string();
         }
 
@@ -518,17 +516,13 @@ pub fn resume_info(
     resumes
 }
 
-fn is_4_4(text: &str) -> bool {
-    text.contains("4x4")
-}
-
 fn extract_region(text: &str) -> String {
     let region_regex = Regex::new(r"Регион: (.+?)\s").unwrap();
     region_regex
         .captures(text)
         .and_then(|cap| cap.get(1))
         .map(|match_| match_.as_str().to_string())
-        .unwrap_or(String::default())
+        .unwrap_or_default()
 }
 
 fn extract_year_and_mileage(text: &str) -> (String, String) {
