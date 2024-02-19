@@ -15,7 +15,6 @@ use crate::{
     model::{
         enums::{Currency, Engine, Gearbox},
         records::MobileRecord,
-        VehicleDataModel::BaseVehicleInfo,
     },
     CREATED_ON, DATE_FORMAT, NOW,
 };
@@ -155,7 +154,6 @@ pub fn get_specification(html_page: &str) -> HashMap<String, String> {
                         data.insert(CREATED_ON.to_owned(), NOW.format(DATE_FORMAT).to_string());
                     }
                 }
-                info!("key: {}, value: {}", key, value.trim())
             } else {
                 data.insert(key, value);
             }
@@ -218,8 +216,6 @@ pub fn get_equipment(html_page: &str) -> u64 {
                 }
             }
         }
-    } else {
-        info!("Not found");
     }
     0
 }
@@ -273,13 +269,12 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
         Selector::parse("div.price-tag.current-price span > span:first-child").unwrap();
     let title_selector = Selector::parse("h2.title.title").unwrap();
 
-    let old_price_selector = Selector::parse("div.price-tag.old-price").unwrap();
+    // let old_price_selector = Selector::parse("div.price-tag.old-price").unwrap();
     let href_selector = Selector::parse("a.row-anchor").unwrap();
     let mut basic_info = vec![];
     for div in html.select(&div_selector) {
         // Now iterate over li elements within the div
         for li in div.select(&li_selector) {
-            info!("----------------------------------------------");
             let mut info = MobileRecord::default();
 
             for element in li.select(&href_selector) {
@@ -290,14 +285,12 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
                         .chars()
                         .filter(|&c| c.is_numeric())
                         .collect::<String>();
-                    info!("ID: {}", id);
                     info.id = id;
                 }
             }
             for span in li.select(&title_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("title: {}", text);
                 info.title = text.clone();
                 if text.contains('\'') {
                     let text = text.split('\'').collect::<Vec<_>>();
@@ -314,56 +307,44 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
             for span in li.select(&fuel_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("fuel type: {}", &text);
                 if let Ok(engine) = Engine::from_str(&text) {
                     info.engine = engine;
                 }
-                info!("Engine: {:?}", info.engine);
             }
             for span in li.select(&transimission_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("gear type: {}", text);
                 if let Ok(gearbox) = Gearbox::from_str(&text) {
                     info.gearbox = gearbox;
                 }
-                info!("Gearbox: {:?}", info.gearbox);
             }
 
             for span in li.select(&power_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("Power: {}", &text);
                 let power = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
                 info.power = power.parse::<u32>().unwrap_or(0);
-                info!("power: {}", power);
             }
 
             for span in li.select(&engine_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("engine: {}", &text);
                 let cc = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                info!("CC: {}", cc);
                 info.cc = cc.parse::<u32>().unwrap_or(0);
             }
 
             for span in li.select(&mieage_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("mileage: {}", text.trim().replace('\n', ""));
                 let millage = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                info!("millage: {}", millage);
                 info.mileage = millage.parse::<u32>().unwrap_or(0);
             }
 
             for span in li.select(&registration_selector) {
                 let text = span.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("registration: {}", text);
                 if text.contains('/') {
                     let year = text.split('/').collect::<Vec<_>>();
-                    info!("month: {}", year[0]);
                     info.year = year[1]
                         .chars()
                         .filter(|&c| c.is_numeric())
@@ -376,10 +357,8 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
                         .collect::<String>()
                         .parse::<u16>()
                         .unwrap_or(0);
-                    info!("year: {}", year[1]);
                 } else {
                     let year = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                    info!("year: {}", year);
                     info.year = year.parse::<u16>().unwrap_or(0);
                 }
             }
@@ -387,23 +366,16 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
             for p in li.select(&current_price_selector) {
                 let text = p.text().collect::<Vec<_>>().join(" ");
                 let text = text.trim().replace('\n', "");
-                info!("current price: {}", text);
                 let price = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                info!("price: {}", price);
                 info.currency = Currency::EUR;
                 info.price = price.parse::<u32>().unwrap_or(0);
             }
             basic_info.push(info);
 
-            for p in li.select(&old_price_selector) {
-                let text = p.text().collect::<Vec<_>>().join(" ");
-                let text = text.trim().replace('\n', "");
-                info!("old price: {}", &text);
-                let price = text.chars().filter(|&c| c.is_numeric()).collect::<String>();
-                info!("old price: {}", price);
-            }
-
-            info!("----------------------------------------------");
+            // for p in li.select(&old_price_selector) {
+            //     let text = p.text().collect::<Vec<_>>().join(" ");
+            //     let text = text.trim().replace('\n', "");
+            // }
         }
     }
     basic_info

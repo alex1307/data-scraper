@@ -1,21 +1,16 @@
 use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
-
-use log::info;
 use regex::Regex;
 use scraper::{Html, Selector};
 
-use super::Traits::{RequestResponseTrait, ScrapeListTrait, Scraper, ScraperTrait};
+use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
-    helpers::{
-        MobileBgHTMLHelper::{details2map, get_url, resume_info, slink},
-        ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, PRICE_KEY, YEAR_KEY,
-    },
+    helpers::MobileBgHTMLHelper::{resume_info, slink},
     model::{
         enums::{Engine, Gearbox},
         records::MobileRecord,
-        VehicleDataModel::{LinkId, ScrapedListData},
+        VehicleDataModel::ScrapedListData,
     },
     services::Searches::to_slink,
     BROWSER_USER_AGENT,
@@ -61,7 +56,6 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
     ) -> Result<ScrapedListData<MobileRecord>, String> {
         let mut search = params.clone();
         to_slink(&mut search).await;
-        info!("slink has been added: {:?}", search.get("slink").unwrap());
         let url = self.parent.search_url(None, search, page_number);
         let html = self
             .parent
@@ -145,13 +139,13 @@ impl ScraperTrait for MobileBGScraper {
 
 #[cfg(test)]
 mod screaper_mobile_bg_test {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     use crate::{
-        model::VehicleDataModel::{LinkId, ScrapedListData},
+        model::VehicleDataModel::ScrapedListData,
         scraper::{
             MobileBgScraper,
-            Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait as _},
+            Traits::{ScrapeListTrait, ScraperTrait as _},
         },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
@@ -188,12 +182,9 @@ mod screaper_mobile_bg_test {
         let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
         let slink_totals = mobile_bg.total_number(&html).unwrap();
 
-        info!("total_number: {}", total_number);
-        info!("total_number: {}", slink_totals);
         assert_eq!(total_number, slink_totals);
 
         let number_of_pages = mobile_bg.parent.get_number_of_pages(total_number).unwrap();
-        info!("number_of_pages: {}", number_of_pages);
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
             let data = mobile_bg
@@ -202,7 +193,6 @@ mod screaper_mobile_bg_test {
                 .unwrap();
             match data {
                 ScrapedListData::Values(ids) => {
-                    info!("ids: {:?}", ids);
                     assert!(ids.len() > 0);
                     all.extend(ids);
                 }

@@ -8,10 +8,12 @@ use log::info;
 
 use crate::{
     scraper::Traits::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER,
-    AUTOUNCLE_ALL_SEARCHES_LOG, CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG,
+    CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG,
 };
 
-use super::SearchBuilder::{build_cars_bg_all_searches, build_mobile_bg_all_searches};
+use super::SearchBuilder::{
+    build_autouncle_all_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
+};
 
 pub const MOBILE_BG_NEW_SEARCHES: &str = "resources/searches/mobile_bg_new_search.json";
 pub const MOBILE_BG_ALL_SEARCHES: &str = "resources/searches/mobile_bg_all_search.json";
@@ -72,17 +74,6 @@ pub fn load_searches(file_name: &str, log_file_name: &str) -> Vec<HashMap<String
     result
 }
 
-pub fn save_searches(file_name: &str, searches: Vec<HashMap<String, String>>) {
-    if searches.is_empty() {
-        return;
-    }
-    let content = fs::read_to_string(file_name).unwrap();
-    let mut source = serde_json::from_str::<Vec<HashMap<String, String>>>(&content).unwrap();
-    source.extend(searches);
-    let json_data = serde_json::to_string_pretty(&source).unwrap();
-    fs::write(file_name, json_data).unwrap();
-}
-
 pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
     load_searches(CARS_BG_NEW_SEARCHES, &CARS_BG_NEW_SEARCHES_LOG)
 }
@@ -141,7 +132,7 @@ pub async fn to_slink_searches(
 }
 
 pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
-    load_searches(AUTOUNCLE_ALL_SEARCHES, &AUTOUNCLE_ALL_SEARCHES_LOG)
+    build_autouncle_all_searches()
 }
 #[cfg(test)]
 mod test_searches {
@@ -150,9 +141,7 @@ mod test_searches {
     use log::info;
 
     use crate::{
-        services::Searches::{cars_bg_new_searches, save_searches},
-        utils::helpers::configure_log4rs,
-        LOG_CONFIG,
+        services::Searches::cars_bg_new_searches, utils::helpers::configure_log4rs, LOG_CONFIG,
     };
 
     const MOBILE_BG_NEW_SEARCHES: &str = "resources/test-data/searches/mobile_bg_new_search.json";
@@ -176,7 +165,6 @@ mod test_searches {
         let searches = super::load_searches(MOBILE_BG_NEW_SEARCHES, EMPTY_SEARCHES_LOG);
         let processed = searches[1..5].to_vec();
         info!("processed: {:?}", processed.len());
-        save_searches(MOBILE_BG_NEW_SEARCHES_LOG2, processed);
         let searches = super::load_searches(MOBILE_BG_NEW_SEARCHES, MOBILE_BG_NEW_SEARCHES_LOG2);
         assert_eq!(searches.len(), 10);
         fs::write(MOBILE_BG_NEW_SEARCHES_LOG2, "[]").unwrap();

@@ -2,8 +2,6 @@ use std::{collections::HashMap, thread::sleep, time::Duration};
 
 use async_trait::async_trait;
 
-use log::info;
-
 use crate::{
     helpers::CarGrHTMLHelper::{get_listed_links, get_total_number, vehicle_data},
     model::VehicleDataModel::{LinkId, ScrapedListData},
@@ -73,16 +71,12 @@ impl ScrapeListTrait<LinkId> for CarGrScraper {
 impl RequestResponseTrait<LinkId, HashMap<String, String>> for CarGrScraper {
     async fn handle_request(&self, link: LinkId) -> Result<HashMap<String, String>, String> {
         let html = self.parent.html_search(&link.url, None).await?;
-        info!("link: {:?}. String (len): {}", link, html.len());
         if html.len() < 2000 {
-            info!("-------------------");
-            info!("{}", html);
             sleep(Duration::from_secs(5));
             return Ok(HashMap::new());
         }
         let mut result = vehicle_data(&html);
         result.insert("id".to_owned(), link.id);
-        info!("VEHICLE: {:?}", result);
         Ok(result)
     }
 }

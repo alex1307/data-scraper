@@ -27,7 +27,6 @@ use crate::{
     },
     protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
-    services::Searches,
     writer::persistance::{MobileData, MobileDataWriter},
 };
 
@@ -45,7 +44,6 @@ pub async fn process_list<S, T>(
     scraper: Box<S>,
     searches: Vec<HashMap<String, String>>,
     link_producer: &mut Sender<T>,
-    search_producer: &mut Sender<HashMap<String, String>>,
 ) -> Result<(), String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
@@ -63,7 +61,7 @@ where
         let cloned_scraper = scraper.clone();
         let cloned_params = search.clone();
         let cloned_producer = link_producer.clone();
-        let cloned_search_producer = search_producer.clone();
+
         sum_total_number += total_number;
         info!("Total number of vehicles: {}", total_number);
         let handler = tokio::spawn(async move {
@@ -74,11 +72,8 @@ where
                     .process_listed_results(cloned_params.clone(), page_number)
                     .await
                     .unwrap();
-                info!("*** Page number: {}", page_number);
-                info!("*** Data: {:?}", data.clone());
                 match data {
                     ScrapedListData::Values(list) => {
-                        info!("*** Found ids: {}", list.len());
                         let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
                         sleep(Duration::from_millis(listing_wait_time as u64)).await;
                         for id in list {
@@ -86,8 +81,6 @@ where
                             sleep(Duration::from_millis(advert_wait_time)).await;
                             if let Err(e) = cloned_producer.send(id.clone()).await {
                                 error!("Error sending id: {}", e);
-                            } else {
-                                info!("Sent id: {}", &id.get_id());
                             }
                         }
                     }
@@ -101,10 +94,6 @@ where
                         continue;
                     }
                 }
-            }
-
-            if let Err(e) = cloned_search_producer.send(cloned_params.clone()).await {
-                error!("Error sending search: {}", e);
             }
         });
         handlers.push(handler);
@@ -413,19 +402,6 @@ pub async fn save<T: Clone + serde::Serialize>(
     Ok(())
 }
 
-pub async fn log_search(
-    mut receiver: Receiver<HashMap<String, String>>,
-    file_name: String,
-) -> Result<(), String> {
-    let mut counter = 0;
-    while let Some(record) = receiver.recv().await {
-        counter += 1;
-        debug!("Processed searches: {}", counter);
-        Searches::save_searches(&file_name, vec![record.clone()]);
-    }
-    Ok(())
-}
-
 pub fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
     info!(
         "Saving data number of records {} to file: {}",
@@ -440,7 +416,6 @@ pub async fn process_list_and_send<S, Source>(
     scraper: Box<S>,
     searches: Vec<HashMap<String, String>>, // Same issue with U
     sender: &mut Sender<Source>,
-    search_producer: Sender<HashMap<String, String>>, // Same issue with U
 ) -> Result<(), String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<Source> + Clone + 'static,
@@ -452,9 +427,9 @@ where
         match process_search(scraper.clone(), search.clone(), sender.clone()).await {
             Ok(total_number) => {
                 sum_total_number += total_number;
-                if let Err(e) = search_producer.send(search).await {
-                    error!("Error sending search: {}", e);
-                }
+                // if let Err(e) = search_producer.send(search).await {
+                //     error!("Error sending search: {}", e);
+                // }
             }
             Err(e) => {
                 error!("Error processing search: {}", e);
@@ -497,12 +472,9 @@ where
             .unwrap();
         match data {
             ScrapedListData::Values(list) => {
-                info!("*** Found ids: {}", &list.len());
                 for value in list {
                     if let Err(e) = sender.send(value.clone()).await {
                         error!("Error sending id: {}", e);
-                    } else {
-                        info!("Sent id: {}", &value.get_id());
                     }
                 }
             }

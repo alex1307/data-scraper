@@ -51,7 +51,6 @@ async fn list_pages(url: &str) -> u32 {
         .collect::<String>()
         .parse::<i32>()
         .unwrap_or(0);
-    info!("totalNumber: {}", total_number);
     let number_of_pages: u32 = ((total_number / 20) + 1).try_into().unwrap();
     number_of_pages
 }
@@ -91,7 +90,6 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
             .value()
             .attr("data-reference")
             .map(|s| s.to_string());
-        info!("id: {:?}", id);
         if id.is_none() {
             continue;
         }
@@ -105,16 +103,14 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
         record.dealer = txt.to_lowercase().contains("частно лице");
         let make_model = element
             .select(&modelSelector)
-            .filter_map(|element| {
+            .map(|element| {
                 // Extract the text content, which contains the make and model
-                Some(
-                    element
-                        .text()
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                        .trim()
-                        .to_string(),
-                )
+                element
+                    .text()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .trim()
+                    .to_string()
             })
             .next();
         if make_model.is_none() {
@@ -167,12 +163,21 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
                 .collect::<String>()
                 .parse::<u16>()
                 .unwrap_or(0);
-            record.mileage = holder[2]
-                .chars()
-                .filter(|&c| c.is_numeric())
-                .collect::<String>()
-                .parse::<u32>()
-                .unwrap_or(0);
+            if holder.len() == 2 {
+                record.mileage = holder[1]
+                    .chars()
+                    .filter(|&c| c.is_numeric())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .unwrap_or(0);
+            } else if holder.len() == 3 {
+                record.mileage = holder[2]
+                    .chars()
+                    .filter(|&c| c.is_numeric())
+                    .collect::<String>()
+                    .parse::<u32>()
+                    .unwrap_or(0);
+            }
 
             if let Ok(engine) = <Engine as std::str::FromStr>::from_str(&holder[1]) {
                 record.engine = engine;
@@ -189,7 +194,7 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
                 .collect::<Vec<String>>();
 
             record.name = holder[0]
-                .split(">")
+                .split('>')
                 .last()
                 .unwrap_or_default()
                 .trim()

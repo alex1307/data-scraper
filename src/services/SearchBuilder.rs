@@ -60,8 +60,8 @@ pub const CARS_BG_YEARS_FROM: &str = "yearFrom";
 pub const CARS_BG_YEARS_TO: &str = "yearTo";
 pub const CARS_BG_POWER_FROM: &str = "powerFrom";
 pub const CARS_BG_POWER_TO: &str = "powerTo";
-const CARS_BG_PRICE_FROM: &str = "priceFrom";
-const CARS_BG_PRICE_TO: &str = "priceTo";
+// const CARS_BG_PRICE_FROM: &str = "priceFrom";
+// const CARS_BG_PRICE_TO: &str = "priceTo";
 
 fn seller_filter(
     seller_id: &str,

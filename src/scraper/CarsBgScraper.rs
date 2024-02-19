@@ -2,26 +2,18 @@ use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::error;
 
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
 use crate::{
-    helpers::{
-        CarsBgHTMLHelper::{read_carsbg_details, read_listing},
-        ENGINE_KEY, GEARBOX_KEY, MAKE_KEY, MILEAGE_KEY, PRICE_KEY, YEAR_KEY,
-    },
-    model::{
-        enums::Gearbox,
-        records::MobileRecord,
-        VehicleDataModel::{LinkId, ScrapedListData},
-    },
-    services::SearchBuilder::{CARS_BG_GEARBOX_ID, CARS_BG_POWER_FROM, CARS_BG_POWER_TO},
+    helpers::CarsBgHTMLHelper::read_listing,
+    model::{enums::Gearbox, records::MobileRecord, VehicleDataModel::ScrapedListData},
     BROWSER_USER_AGENT,
 };
 
-use super::Traits::{RequestResponseTrait, ScrapeListTrait, Scraper, ScraperTrait};
+use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -149,7 +141,6 @@ impl ScraperTrait for CarsBGScraper {
             .collect::<String>()
             .parse::<u32>()
             .unwrap_or(0);
-        info!("totalNumber: {}", total_number);
         Ok(total_number)
     }
 
@@ -172,7 +163,7 @@ mod cars_bg_tests {
         model::VehicleDataModel::ScrapedListData,
         scraper::{
             CarsBgScraper::CarsBGScraper,
-            Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait as _},
+            Traits::{ScrapeListTrait, ScraperTrait as _},
         },
         utils::helpers::configure_log4rs,
         LOG_CONFIG,

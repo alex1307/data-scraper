@@ -5,7 +5,6 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use log::info;
 
 use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
 
@@ -24,7 +23,6 @@ pub fn load_makes_and_models() {
             serde_json::from_str(&json_data);
         match parsed {
             Ok(data) => {
-                info!("Successfully loaded makes, series and models");
                 let mut make_model_checker = MAKE_MODEL_SERIES.write().unwrap();
                 *make_model_checker = data.clone();
                 let mut make_model = MAKE_MODEL.write().unwrap();
@@ -49,7 +47,6 @@ pub fn get_models(make: &str) -> Vec<String> {
             .map(|s| s.trim().to_lowercase())
             .collect(),
         None => {
-            info!("No models found for make {}", make);
             vec![]
         }
     }
