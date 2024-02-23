@@ -10,7 +10,13 @@ use super::{
     VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo},
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct AutoUncleVehicleTest {
+    #[serde(rename = "id")]
+    pub id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AutoUncleVehicle {
     #[serde(rename = "id")]
     pub id: String,
@@ -42,6 +48,12 @@ pub struct AutoUncleVehicle {
     #[serde(rename = "currency")]
     pub currency: Option<Currency>,
 
+    #[serde(rename = "featuredAttributesEquipment")]
+    pub featured_attributes_equipment: String,
+
+    #[serde(rename = "featuredAttributesNonEquipment")]
+    pub featured_attributes_non_equipment: String,
+
     #[serde(rename = "doors")]
     pub doors: Option<u8>,
 
@@ -56,12 +68,6 @@ pub struct AutoUncleVehicle {
 
     #[serde(rename = "estimatedPrice")]
     pub estimated_price: Option<u32>,
-
-    #[serde(rename = "featuredAttributesEquipment")]
-    pub featured_attributes_equipment: Vec<String>,
-
-    #[serde(rename = "featuredAttributesNonEquipment")]
-    pub featured_attributes_non_equipment: Vec<String>,
 
     #[serde(rename = "fuel")]
     pub fuel: Option<String>,
@@ -98,9 +104,6 @@ pub struct AutoUncleVehicle {
 
     #[serde(rename = "modelGeneration")]
     pub model_generation: String,
-
-    #[serde(rename = "noRatingReasons")]
-    pub no_rating_reasons: Vec<String>,
 
     #[serde(rename = "outgoingPath")]
     pub outgoing_path: String,
@@ -140,6 +143,9 @@ pub struct AutoUncleVehicle {
 
     #[serde(skip)]
     pub source: String,
+
+    #[serde(skip)]
+    pub equipment: Vec<String>,
 }
 
 impl From<AutoUncleVehicle> for BaseVehicleInfo {
@@ -182,7 +188,7 @@ impl From<AutoUncleVehicle> for BaseVehicleInfo {
         base.currency = source.currency.unwrap_or(Currency::EUR);
         base.price = source.price;
         base.millage = source.km;
-        base.source = "autouncle".to_string();
+        base.source = source.source.clone();
         base
     }
 }
@@ -202,9 +208,9 @@ impl From<AutoUncleVehicle> for DetailedVehicleInfo {
         }
         details.is_dealer = source.seller_kind.to_lowercase() == "dealer";
         details.seller_name = source.source_name.clone();
-        details.source = "autouncle".to_string();
+        details.source = source.source.clone();
 
-        let equipment_list = source.featured_attributes_equipment;
+        let equipment_list = source.equipment;
         let equipment = get_equipment_as_u64(equipment_list);
         details.equipment = equipment;
         details
@@ -218,7 +224,6 @@ impl From<AutoUncleVehicle> for VehicleChangeLogInfo {
         if let Some(last_modified) = source.updated_at {
             log.last_modified_on = last_modified;
         }
-        log.source = "autouncle".to_string();
         log
     }
 }
@@ -230,7 +235,6 @@ impl From<AutoUncleVehicle> for Price {
         price.estimated_price = source.estimated_price;
         price.price = source.price.unwrap_or(0);
         price.save_difference = source.you_save_difference.unwrap_or(0);
-        price.source = "autouncle".to_string();
         price
     }
 }
@@ -243,6 +247,6 @@ impl Identity for AutoUncleVehicle {
 
 impl URLResource for AutoUncleVehicle {
     fn get_url(&self) -> String {
-        format!("https://www.autouncle.dk/en/cars/{}", self.id)
+        format!("https://www.autouncle.ro/en/cars/{}", self.id)
     }
 }

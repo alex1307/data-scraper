@@ -31,7 +31,6 @@ impl BaseVehicleInfo {
     pub fn new(id: String) -> Self {
         Self {
             id,
-            currency: Currency::EUR,
             ..Default::default()
         }
     }

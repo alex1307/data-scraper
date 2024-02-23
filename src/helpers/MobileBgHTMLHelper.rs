@@ -428,24 +428,26 @@ pub fn resume_info(
     let make_model_selector = Selector::parse("td.valgtop > a.mmm").unwrap(); // Adjusted to be mo
     let a_selector = Selector::parse("a.mmm").unwrap();
     let logo_selector = Selector::parse("a.logoLink").unwrap();
-    let href_regex = Regex::new(r"adv=(\d+)").unwrap(); // Extract make and model
     let mut resumes = vec![];
     let mut counter = 0;
     for element in document.select(&rows_selector) {
-        let id: Option<String> = element.select(&a_selector).find_map(|element| {
-            element.value().attr("href").and_then(|href| {
-                // Extract the numeric value from the href attribute
-                href_regex
-                    .captures(href)
-                    .and_then(|caps| caps.get(1).map(|match_| match_.as_str().to_string()))
-            })
-        });
-        if id.is_none() {
+        let id: String;
+        if let Some(link_el) = element.select(&a_selector).next() {
+            let href = link_el.value().attr("href").unwrap();
+            let arr = href.split('-').collect::<Vec<&str>>();
+            if arr.len() < 2 {
+                continue;
+            }
+            id = arr[1].to_string();
+        } else {
             continue;
         }
 
+        if id == "" {
+            continue;
+        }
         let mut resume = MobileRecord {
-            id: id.unwrap(),
+            id,
             source: "mobile.bg".to_string(),
             engine,
             gearbox,

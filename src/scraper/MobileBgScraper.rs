@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
+
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -61,6 +62,7 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
             .parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await?;
+
         let value = params.get("gearbox").unwrap().to_string();
         let gearbox = Gearbox::from_str(&value).unwrap();
         let value = params.get("engine").unwrap().to_string();
@@ -68,7 +70,6 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         let power: u32 = params.get("power").unwrap().parse().unwrap();
         let seller = params.get("seller").unwrap();
         let vehicles = resume_info(html.as_str(), gearbox, engine, power, "Dealer" == seller);
-
         Ok(ScrapedListData::Values(vehicles))
     }
 }

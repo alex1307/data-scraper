@@ -5,11 +5,16 @@ use log::{error, info};
 use crate::{
     model::{records::MobileRecord, AutoUncleVehicle::AutoUncleVehicle},
     scraper::{
-        AutouncleScraper::AutouncleScraper,
-        CarGrScraper::CarGrScraper,
+        AutouncleFRScraper::AutouncleFRScraper,
+        AutouncleNLScraper::AutouncleNLScraper,
+        AutouncleROScraper::AutouncleROScraper,
         CarsBgScraper::CarsBGScraper,
         MobileBgScraper::MobileBGScraper,
         Traits::{ScrapeListTrait, ScraperTrait},
+    },
+    services::SearchBuilder::{
+        build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
+        build_cars_bg_all_searches, build_mobile_bg_all_searches,
     },
 };
 use lazy_static::lazy_static;
@@ -18,22 +23,24 @@ lazy_static! {
     pub static ref MOBILE_BG_CRAWLER: MobileBGScraper =
         MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
     pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
-    pub static ref CAR_GR_CRAWLER: CarGrScraper = CarGrScraper::new("https://www.car.gr", 250);
-    pub static ref AUTOUNCLE_CRAWLER: AutouncleScraper =
-        AutouncleScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
+    pub static ref AUTOUNCLE_RO_CRAWLER: AutouncleROScraper =
+        AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
+    pub static ref AUTOUNCLE_NL_CRAWLER: AutouncleNLScraper =
+        AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
+    pub static ref AUTOUNCLE_FR_CRAWLER: AutouncleFRScraper =
+        AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
 }
 
-use super::{
-    ScraperService::{
-        process_list, process_list_and_send, send_autonucle_kafka, send_mobile_record_to_kafka,
-    },
-    Searches::{autouncle_all_searches, cars_bg_all_searches, mobile_bg_all_searches},
+use super::ScraperService::{
+    process_list, process_list_and_send, send_autonucle_kafka, send_mobile_record_to_kafka,
 };
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),
     MobileBG(String),
-    Autouncle(String),
+    AutouncleRo(String),
+    AutouncleNL(String),
+    AutouncleFR(String),
 }
 
 impl FromStr for Crawlers {
@@ -44,13 +51,19 @@ impl FromStr for Crawlers {
             "cars.bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
             "cars_bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
             "cars" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
-            "mobile.bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
-            "mobile_bg" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
-            "mobile" => Ok(Crawlers::MobileBG(r#"https://www.cars.bg"#.to_owned())),
-            "autouncle" => Ok(Crawlers::Autouncle(
+            "mobile.bg" => Ok(Crawlers::MobileBG(
+                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
+            )),
+            "mobile_bg" => Ok(Crawlers::MobileBG(
+                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
+            )),
+            "mobile" => Ok(Crawlers::MobileBG(
+                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
+            )),
+            "autouncle" => Ok(Crawlers::AutouncleRo(
                 r#"https://www.autouncle.ro"#.to_owned(),
             )),
-            "autouncle.ro" => Ok(Crawlers::Autouncle(
+            "autouncle.ro" => Ok(Crawlers::AutouncleRo(
                 r#"https://www.autouncle.ro"#.to_owned(),
             )),
             _ => Err("Invalid crawler".into()),
@@ -63,17 +76,29 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
     info!("Starting crawler (all): {:?}", crawler);
     match crawler {
         Crawlers::CarsBG(_) => {
-            let searches = cars_bg_all_searches();
+            info!("Starting cars.bg");
+            let searches = build_cars_bg_all_searches();
             download_list_data(CARS_BG_CRAWLER.clone(), searches).await
         }
         Crawlers::MobileBG(_) => {
             info!("Starting mobile.bg");
-            let searches = mobile_bg_all_searches();
+            let searches = build_mobile_bg_all_searches();
             download_list_data(MOBILE_BG_CRAWLER.clone(), searches).await
         }
-        Crawlers::Autouncle(_) => {
-            let searches: Vec<HashMap<String, String>> = autouncle_all_searches();
-            download_autouncle_data(AUTOUNCLE_CRAWLER.clone(), searches).await
+        Crawlers::AutouncleRo(_) => {
+            info!("Starting autouncle.ro");
+            let searches: Vec<HashMap<String, String>> = build_autouncle_ro_searches();
+            download_autouncle_data(AUTOUNCLE_RO_CRAWLER.clone(), searches).await
+        }
+        Crawlers::AutouncleNL(_) => {
+            info!("Starting autouncle.nl");
+            let searches: Vec<HashMap<String, String>> = build_autouncle_nl_searches();
+            download_autouncle_data(AUTOUNCLE_NL_CRAWLER.clone(), searches).await
+        }
+        Crawlers::AutouncleFR(_) => {
+            info!("Starting autouncle.fr");
+            let searches: Vec<HashMap<String, String>> = build_autouncle_fr_searches();
+            download_autouncle_data(AUTOUNCLE_FR_CRAWLER.clone(), searches).await
         }
     }
 }

@@ -1,3 +1,4 @@
+use log::error;
 use prost::Message;
 use rdkafka::config::ClientConfig;
 use rdkafka::message::{Header, OwnedHeaders};
@@ -23,8 +24,8 @@ pub async fn send_message(producer: &FutureProducer, topic: &str, message: Vec<u
         .key("some_key"); // Optional key
 
     match producer.send(record, Duration::from_secs(0)).await {
-        Ok(delivery) => println!("Sent message to {:?}", delivery),
-        Err((e, _)) => println!("Error sending message: {:?}", e),
+        Ok(_delivery) => (),
+        Err((e, _)) => error!("Error sending message: {:?}", e),
     }
 }
 

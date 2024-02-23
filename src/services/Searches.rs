@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::SearchBuilder::{
-    build_autouncle_all_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
+    build_autouncle_ro_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
 };
 
 pub const MOBILE_BG_NEW_SEARCHES: &str = "resources/searches/mobile_bg_new_search.json";
@@ -132,7 +132,7 @@ pub async fn to_slink_searches(
 }
 
 pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
-    build_autouncle_all_searches()
+    build_autouncle_ro_searches()
 }
 #[cfg(test)]
 mod test_searches {
