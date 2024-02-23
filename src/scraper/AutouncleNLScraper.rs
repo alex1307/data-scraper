@@ -20,32 +20,35 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone)]
-pub struct AutouncleScraper {
+pub struct AutouncleNLScraper {
     pub parent: Scraper,
 }
 
-impl AutouncleScraper {
+impl AutouncleNLScraper {
     pub fn new(url: &str, wait_time_ms: u64) -> Self {
-        AutouncleScraper {
+        AutouncleNLScraper {
             parent: Scraper::new(url, "page".to_string(), wait_time_ms),
         }
     }
 }
 
 #[async_trait]
-impl ScrapeListTrait<AutoUncleVehicle> for AutouncleScraper {
+impl ScrapeListTrait<AutoUncleVehicle> for AutouncleNLScraper {
     async fn process_listed_results(
         &self,
         params: HashMap<String, String>,
         page_number: u32,
     ) -> Result<ScrapedListData<AutoUncleVehicle>, String> {
         let html = self.get_html(params.clone(), page_number).await?;
-        let vehicles = get_vehicles(&html);
+        let mut vehicles = get_vehicles(&html);
+        for v in &mut vehicles {
+            v.source = "autouncle.nl".to_string();
+        }
         Ok(ScrapedListData::Values(vehicles))
     }
 }
 #[async_trait]
-impl ScraperTrait for AutouncleScraper {
+impl ScraperTrait for AutouncleNLScraper {
     async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
         let url = self.parent.search_url(self.get_search_path(), params, page);
         self.parent.html_search(&url, None).await
@@ -83,7 +86,7 @@ mod autouncle_test {
     #[test]
     fn test_get_number_of_pages() {
         configure_log4rs(&LOG_CONFIG);
-        let autouncle = AutouncleScraper::new("https://www.autouncle.ro/en/cars_search", 0);
+        let autouncle = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search", 0);
         let start = Instant::now();
         let content = fs::read_to_string("resources/test-data/autouncle/2.html").unwrap();
         let number = autouncle.total_number(&content).unwrap();

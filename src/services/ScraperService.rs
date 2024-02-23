@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, sync::Mutex, time::Duration};
 
+use futures::future::join_all;
 use log::{debug, error, info};
 use rand::Rng;
 use serde::Serialize;
@@ -49,64 +50,71 @@ where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
     T: Send + Identity + Clone + Serialize + Debug + 'static,
 {
-    let mut handlers = vec![];
     let mut sum_total_number = 0;
-    for search in searches {
-        let html = scraper.get_html(search.clone(), 1).await?;
-        let total_number = scraper.total_number(&html)?;
-        info!(
-            "Starting search: {:?}. Found {} vehicles",
-            search, total_number
-        );
-        let cloned_scraper = scraper.clone();
-        let cloned_params = search.clone();
-        let cloned_producer = link_producer.clone();
+    let chunks = searches.chunks(10);
+    for c in chunks {
+        let mut handlers = vec![];
+        for search in c {
+            let html = scraper.get_html(search.clone(), 1).await?;
+            let total_number = scraper.total_number(&html)?;
+            info!(
+                "Starting search: {:?}. Found {} vehicles",
+                search, total_number
+            );
+            let cloned_scraper = scraper.clone();
+            let cloned_params = search.clone();
+            let cloned_producer = link_producer.clone();
 
-        sum_total_number += total_number;
-        info!("Total number of vehicles: {}", total_number);
-        let handler = tokio::spawn(async move {
-            let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
-            info!("number of pages: {}", number_of_pages);
-            for page_number in 1..number_of_pages {
-                let data = cloned_scraper
-                    .process_listed_results(cloned_params.clone(), page_number)
-                    .await
-                    .unwrap();
-                match data {
-                    ScrapedListData::Values(list) => {
-                        let listing_wait_time: u64 = rand::thread_rng().gen_range(3_000..10_000);
-                        sleep(Duration::from_millis(listing_wait_time as u64)).await;
-                        for id in list {
-                            let advert_wait_time: u64 = rand::thread_rng().gen_range(3_000..7_000);
-                            sleep(Duration::from_millis(advert_wait_time)).await;
-                            if let Err(e) = cloned_producer.send(id.clone()).await {
-                                error!("Error sending id: {}", e);
+            sum_total_number += total_number;
+            info!("Total number of vehicles: {}", total_number);
+            info!("-------------------------------------------------");
+            info!("Total number of vehicles: {}", sum_total_number);
+            info!("-------------------------------------------------");
+            let handler = tokio::spawn(async move {
+                info!("STARTING...");
+                let number_of_pages = cloned_scraper.get_number_of_pages(total_number).unwrap();
+                info!("number of pages: {}", number_of_pages);
+                for page_number in 1..number_of_pages {
+                    let data = cloned_scraper
+                        .process_listed_results(cloned_params.clone(), page_number)
+                        .await
+                        .unwrap();
+                    match data {
+                        ScrapedListData::Values(list) => {
+                            let listing_wait_time: u64 = rand::thread_rng().gen_range(1_000..3_000);
+                            sleep(Duration::from_millis(listing_wait_time as u64)).await;
+                            for id in list {
+                                if let Err(e) = cloned_producer.send(id.clone()).await {
+                                    error!("Error sending id: {}", e);
+                                }
                             }
                         }
-                    }
-                    ScrapedListData::SingleValue(value) => {
-                        if (cloned_producer.send(value.clone()).await).is_err() {
-                            error!("Error sending id: {:?}", value);
+                        ScrapedListData::SingleValue(value) => {
+                            if (cloned_producer.send(value.clone()).await).is_err() {
+                                error!("Error sending id: {:?}", value);
+                            }
+                        }
+                        ScrapedListData::Error(_) => {
+                            error!("Error getting data for page# : {}", page_number);
+                            continue;
                         }
                     }
-                    ScrapedListData::Error(_) => {
-                        error!("Error getting data for page# : {}", page_number);
-                        continue;
-                    }
                 }
-            }
-        });
-        handlers.push(handler);
+            });
+            handlers.push(handler);
+        }
+        TOTAL_COUNT.lock().unwrap().clone_from(&sum_total_number);
+        info!("-------------------------------------------------");
+        info!("Total number of vehicles: {}", TOTAL_COUNT.lock().unwrap());
+        info!("-------------------------------------------------");
+        let results = join_all(handlers).await;
+        info!("EXECUTED ");
+        for result in results {
+            let ok = result.unwrap(); // Handle or log errors as needed
+            info!("result: {:?}", ok);
+        }
     }
-    TOTAL_COUNT.lock().unwrap().clone_from(&sum_total_number);
-    info!("-------------------------------------------------");
-    info!("Total number of vehicles: {}", TOTAL_COUNT.lock().unwrap());
-    info!("-------------------------------------------------");
 
-    for handler in handlers {
-        info!("Waiting for handler to finish");
-        handler.await.unwrap();
-    }
     info!("All handlers finished");
     Ok(())
 }
@@ -258,8 +266,6 @@ pub async fn send_mobile_record_to_kafka(
                 if wait_counter == 5 {
                     error!("Timeout receiving link: {}", e);
                     continue;
-                } else {
-                    info!("Waiting for links to process");
                 }
             }
         }
@@ -427,9 +433,6 @@ where
         match process_search(scraper.clone(), search.clone(), sender.clone()).await {
             Ok(total_number) => {
                 sum_total_number += total_number;
-                // if let Err(e) = search_producer.send(search).await {
-                //     error!("Error sending search: {}", e);
-                // }
             }
             Err(e) => {
                 error!("Error processing search: {}", e);
@@ -481,8 +484,6 @@ where
             ScrapedListData::SingleValue(value) => {
                 if let Err(e) = sender.send(value.clone()).await {
                     error!("Error sending id: {}", e);
-                } else {
-                    info!("Sent id: {}", &value.get_id());
                 }
             }
             ScrapedListData::Error(_) => {

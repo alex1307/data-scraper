@@ -3,9 +3,14 @@ use std::collections::HashMap;
 use data_scraper::kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons};
 use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
 use data_scraper::services::ScraperAppService::{
-    download_all, download_autouncle_data, AUTOUNCLE_CRAWLER,
+    download_all, download_autouncle_data, AUTOUNCLE_FR_CRAWLER, AUTOUNCLE_NL_CRAWLER,
+    AUTOUNCLE_RO_CRAWLER, MOBILE_BG_CRAWLER,
 };
-use data_scraper::services::Searches::autouncle_all_searches;
+use data_scraper::services::SearchBuilder::{
+    build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
+    build_mobile_bg_all_searches,
+};
+
 use data_scraper::utils::helpers::configure_log4rs;
 use data_scraper::LOG_CONFIG;
 
@@ -34,10 +39,14 @@ enum Commands {
     InitSearch(CrawlerArgs),
     ReadDir(CrawlerArgs),
 }
-
 #[tokio::main]
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
+    //rull_all().await;
+    run().await;
+}
+
+async fn rull_all() {
     let broker = broker();
     let conuser_task = tokio::spawn(run_consumers(broker.clone()));
     let scraper_task = tokio::spawn(run_scrapers());
@@ -57,17 +66,44 @@ async fn main() {
     info!("All tasks finished");
 }
 
+async fn run() {
+    //let searches: Vec<HashMap<String, String>> = build_mobile_bg_all_searches();
+    //let task = tokio::spawn(download_all("mobile.bg"));
+    let task = tokio::spawn(download_all("mobile.bg"));
+
+    let (result,) = tokio::join!(task);
+    if result.is_ok() {
+        info!("task just finished successfully");
+    } else {
+        info!("task failed");
+    }
+    info!("The scraper finished. Waiting for 24 hours....");
+    tokio::time::sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;
+}
+
 async fn run_scrapers() {
-    let searches: Vec<HashMap<String, String>> = autouncle_all_searches();
+    let ro_searches: Vec<HashMap<String, String>> = build_autouncle_ro_searches();
+    let nl_searches: Vec<HashMap<String, String>> = build_autouncle_nl_searches();
+    let fr_searches: Vec<HashMap<String, String>> = build_autouncle_fr_searches();
     loop {
         info!("Running all scrapers");
         let task1 = tokio::spawn(download_all("cars.bg"));
         let task2 = tokio::spawn(download_all("mobile.bg"));
         let task3 = tokio::spawn(download_autouncle_data(
-            AUTOUNCLE_CRAWLER.clone(),
-            searches.clone(),
+            AUTOUNCLE_RO_CRAWLER.clone(),
+            ro_searches.clone(),
         ));
-        let (r1, r2, r3) = tokio::join!(task1, task2, task3);
+        let task4 = tokio::spawn(download_autouncle_data(
+            AUTOUNCLE_NL_CRAWLER.clone(),
+            nl_searches.clone(),
+        ));
+
+        let task5 = tokio::spawn(download_autouncle_data(
+            AUTOUNCLE_FR_CRAWLER.clone(),
+            fr_searches.clone(),
+        ));
+
+        let (r1, r2, r3, r4, r5) = tokio::join!(task1, task2, task3, task4, task5);
         if r1.is_ok() {
             info!("cars.bg finished");
         } else {
@@ -82,6 +118,16 @@ async fn run_scrapers() {
             info!("autouncle.ro finished");
         } else {
             info!("autouncle.ro failed");
+        }
+        if r4.is_ok() {
+            info!("autouncle.nl finished");
+        } else {
+            info!("autouncle.nl failed");
+        }
+        if r5.is_ok() {
+            info!("autouncle.fr finished");
+        } else {
+            info!("autouncle.fr failed");
         }
         info!("All scrapers finished. Waiting for 24 hours....");
         tokio::time::sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;

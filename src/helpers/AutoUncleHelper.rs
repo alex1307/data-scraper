@@ -1,4 +1,7 @@
+use std::{collections::HashMap, fmt::Write, vec};
+
 use log::{error, info};
+use regex::Regex;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
@@ -14,15 +17,6 @@ struct Cars {
     cars: Vec<AutoUncleVehicle>,
 }
 
-pub fn get_vehicles(html: &str) -> Vec<AutoUncleVehicle> {
-    let scripts = get_scripts(html);
-    for s in scripts {
-        if s.contains("self.__next_f.push") && s.contains("carsPaginated") {
-            return list_vehicles_from_text(&s);
-        }
-    }
-    vec![]
-}
 pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
     let start = txt.find("carsPaginated").unwrap();
     let end = txt.find("pagination").unwrap();
@@ -66,7 +60,8 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
         Ok(json) => json,
         Err(e) => {
             error!("Error: {:?}", e);
-            info!("Lines: {:?}", lines);
+            let l = e.line();
+            error!("Line: {:?}", lines.lines().nth(l - 1).unwrap());
             return vec![];
         }
     };
@@ -75,12 +70,113 @@ pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
 
 pub fn get_scripts(html: &str) -> Vec<String> {
     let document = Html::parse_document(html);
+
     let script_selector = Selector::parse("script").unwrap();
     let scripts = document
         .select(&script_selector)
         .map(|script| script.inner_html())
-        .collect::<Vec<String>>();
+        .collect::<Vec<String>>()
+        .into_iter()
+        .filter(|s| s.contains("announcedAsNew"))
+        .collect();
     scripts
+}
+
+pub fn get_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
+    let mut vehicles = parse_vehicles(&content);
+    let mut ids = vec![];
+    for v in &vehicles {
+        let featured = v.featured_attributes_equipment[1..].to_string();
+        let non_featured = v.featured_attributes_non_equipment[1..].to_string();
+        ids.push(featured);
+        ids.push(non_featured);
+    }
+    let equipments = parse_equipment(&content, &ids);
+
+    for v in &mut vehicles {
+        let featuered = v.featured_attributes_equipment[1..].to_string();
+        let non_featured = v.featured_attributes_non_equipment[1..].to_string();
+
+        if let Some(values) = equipments.get(&featuered) {
+            v.equipment.extend(values.clone());
+        }
+        if let Some(values) = equipments.get(&non_featured) {
+            v.equipment.extend(values.clone());
+        }
+    }
+    vehicles
+}
+
+pub fn parse_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
+    let script_selector = Selector::parse("script").unwrap();
+    let mut vehicles = vec![];
+    let html = Html::parse_document(content);
+    let scripts = html
+        .select(&script_selector)
+        .map(|script| script.inner_html())
+        .collect::<Vec<String>>()
+        .into_iter()
+        .filter(|s| s.contains("announcedAsNew"))
+        .collect::<Vec<String>>();
+    for s in scripts {
+        let start = s.find('{').unwrap();
+        let end = s.find('}').unwrap() + 1;
+        let js = s[start..end].to_string();
+        let js = js.replace(r#"\""#, r#"""#);
+        let result = serde_json::from_str::<AutoUncleVehicle>(&js.trim());
+        if js.contains("mediumUrl") {
+            continue;
+        }
+        if let Ok(json) = result {
+            vehicles.push(json);
+        } else {
+            info!("Error: {:?}", js);
+            error!("Error: {:?}", result.err().unwrap());
+        }
+    }
+    vehicles
+}
+
+pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<String>> {
+    let script_selector = Selector::parse("script").unwrap();
+    let mut equipments = HashMap::new();
+    let html = Html::parse_document(content);
+    let scripts = html
+        .select(&script_selector)
+        .map(|script| script.inner_html())
+        .collect::<Vec<String>>()
+        .into_iter()
+        .filter(|s| {
+            !s.contains("announcedAsNew")
+                && s.contains("self.__next_f.push([1,")
+                && s.contains("has")
+        })
+        .collect::<Vec<String>>();
+
+    for id in ids {
+        let pattern = format!(r#"\${}:.*?\]"#, id);
+        let re = Regex::new(&pattern).unwrap();
+        for s in scripts.iter() {
+            if s.contains(id) {
+                let js = s.replace(r#"\""#, r#"""#);
+                let js = js.replace(r#"\n"#, r#"$"#);
+                re.find(&js).and_then(|caps| -> Option<()> {
+                    Some({
+                        let matched = &js[caps.start() + id.len() + 2..caps.end()];
+                        let mut json_str = String::new();
+                        write!(&mut json_str, r#"{{"{}":{}}}"#, id, matched).unwrap();
+                        let result =
+                            serde_json::from_str::<HashMap<String, Vec<String>>>(&json_str);
+                        if let Ok(json) = result {
+                            equipments.extend(json);
+                        }
+                    })
+                });
+                break;
+            }
+        }
+    }
+    equipments
 }
 
 #[cfg(test)]
@@ -99,90 +195,13 @@ mod auto_uncle_tests {
     use super::*;
 
     #[test]
-    fn test_get_scripts() {
+    fn test_list_vehicles_from_text() {
         configure_log4rs(&LOG_CONFIG);
-        let content = fs::read_to_string("resources/test-data/autouncle/1 copy.html").unwrap();
-        let scripts = get_scripts(&content);
-        info!("Filtered: {:?}", scripts.len());
-        for s in scripts {
-            if s.contains("self.__next_f.push") && s.contains("carsPaginated") {
-                let start = s.find("carsPaginated").unwrap();
-                let end = s.find("pagination").unwrap();
-                info!("Start: {:?}", start - 1);
-                info!("End: {:?}", end);
-                let s = s[start - 1..end - 1].to_string();
-                let s = s.replace(r#"\""#, r#"""#);
-                let s = s.replace("\\", "");
-                let s = s.replace(r#"\\"#, r#"\"#);
-                let s = s.replace(r#"\n"#, r#""#);
-                let s = s.replace(r#"\t"#, r#""#);
-                let s = s.replace(r#"\r"#, r#""#);
-                let s = s.replace(r#""""#, r#"""#);
-                let s = s.replace("}],", "}],\n");
-                let s = s.replace("},", "},\n");
-                let s = s.replace("],", "],\n");
-                let s = s.replace("{", "{\n");
-                info!("Found: {:?}", s.len());
-                let mut show_it = false;
-                let mut counter = 0;
-                let mut acc = vec!["{".to_string()];
-                for line in s.lines() {
-                    if line.contains("carsPaginated") {
-                        show_it = true;
-                    } else if line.contains("pagination") {
-                        break;
-                    }
-
-                    if show_it {
-                        counter += 1;
-                        if line.trim().is_empty() {
-                            continue;
-                        }
-                        acc.push(line.to_string());
-                        continue;
-                    }
-                }
-                let len = acc.len();
-                let last = acc[len - 1].clone();
-                let last = last.replace("}],", "}]");
-                acc[len - 1] = last.to_string();
-                acc.push("}\n}".to_string());
-                info!("Found lines: {:?}", counter);
-                let lines = acc.join("\n");
-                info!("-------------------");
-                info!("{}", lines);
-                let json = serde_json::from_str::<PaginatedCars>(&lines).unwrap();
-                info!("{:?}", json);
-                info!("-------------------");
-            }
-        }
-    }
-
-    #[test]
-    fn test_read_from_scripts() {
-        configure_log4rs(&LOG_CONFIG);
-        let content = fs::read_to_string("resources/test-data/autouncle/6.html").unwrap();
-        let scripts = get_scripts(&content);
-        info!("Filtered: {:?}", scripts.len());
-        let mut equipment = vec![];
-        for s in scripts {
-            if s.contains("self.__next_f.push") && s.contains("carsPaginated") {
-                let vehicles = list_vehicles_from_text(&s);
-                assert!(vehicles.len() > 0);
-                info!("Found: {:?}", vehicles.len());
-                assert_eq!(vehicles.len(), 25);
-
-                for v in vehicles {
-                    let featueres = v.featured_attributes_equipment.clone();
-                    for f in featueres {
-                        if equipment.contains(&f) {
-                            continue;
-                        } else {
-                            equipment.push(f);
-                        }
-                    }
-                }
-            }
+        let content = fs::read_to_string("resources/test-data/autouncle/nl_1.html").unwrap();
+        let vehicles = get_vehicles(&content);
+        info!("Vehicles: {}", vehicles.len());
+        for v in &vehicles {
+            info!("Vehicle: {:?}", v);
         }
     }
 
