@@ -20,7 +20,7 @@ use crate::helpers::YEAR_KEY;
 use crate::model::enums::Currency;
 use crate::model::enums::Engine;
 use crate::model::enums::Gearbox;
-use crate::model::records::MobileRecord;
+use crate::model::VehicleRecord::MobileRecord;
 
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
@@ -413,12 +413,11 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 
     (n, k)
 }
-pub fn resume_info(
+pub fn process_listing(
     html_content: &str,
     gearbox: Gearbox,
     engine: Engine,
     power: u32,
-    dealer: bool,
 ) -> Vec<MobileRecord> {
     let document = Html::parse_document(html_content);
     // Selector to find the price
@@ -426,7 +425,7 @@ pub fn resume_info(
     // Selector to find the description
     let rows_selector = Selector::parse("table.tablereset").unwrap();
     let make_model_selector = Selector::parse("td.valgtop > a.mmm").unwrap(); // Adjusted to be mo
-    let a_selector = Selector::parse("a.mmm").unwrap();
+    let a_selector = Selector::parse("a.mmmL").unwrap();
     let logo_selector = Selector::parse("a.logoLink").unwrap();
     let mut resumes = vec![];
     let mut counter = 0;
@@ -452,7 +451,7 @@ pub fn resume_info(
             engine,
             gearbox,
             power,
-            dealer,
+            dealer: true,
             ..Default::default()
         };
 
@@ -499,15 +498,22 @@ pub fn resume_info(
         }
 
         let txt = element.inner_html();
-        let start = txt.find(r#"дата на произв."#).unwrap();
-        let substr = &txt[start..];
-        let end = substr.find(r#"</td>"#).unwrap();
-        let desc = &substr[..end];
-        let (y, m) = extract_year_and_mileage(desc);
-
-        resume.year = y.parse::<u16>().unwrap_or(0);
-        resume.mileage = m.parse::<u32>().unwrap_or(0);
-        resume.location = extract_region(desc).trim().to_string();
+        if let Some(start) = txt.find(r#"дата на произв."#) {
+            let substr = &txt[start..];
+            if let Some(end) = substr.find(r#"</td>"#) {
+                let desc = &substr[..end];
+                let (y, m) = extract_year_and_mileage(desc);
+                resume.year = y.parse::<u16>().unwrap_or(0);
+                resume.mileage = m.parse::<u32>().unwrap_or(0);
+                resume.location = extract_region(desc).trim().to_string();
+            }
+        } else {
+            error!(
+                "Failed to find the year and mileage for the vehicle with id: {}",
+                resume.id
+            );
+            continue;
+        }
 
         if let Some(link) = element.select(&logo_selector).next() {
             resume.name = link.value().attr("href").unwrap().to_string();
@@ -566,12 +572,11 @@ mod test_listing {
         let (decoded, _, _) = encoding.decode(&file);
         let utf8_html = UTF_8.encode(&decoded).0;
         let content = String::from_utf8_lossy(&utf8_html);
-        let data = resume_info(
+        let data = process_listing(
             content.to_string().as_str(),
             Gearbox::Manual,
             Engine::Petrol,
             0,
-            false,
         );
         info!("data: {:?}", data);
     }

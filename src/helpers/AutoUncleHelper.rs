@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Write, vec};
 
-use log::{error, info};
+use log::error;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde::Deserialize;
@@ -130,7 +130,7 @@ pub fn parse_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
         if let Ok(json) = result {
             vehicles.push(json);
         } else {
-            info!("Error: {:?}", js);
+            // info!("Error: {:?}", js);
             error!("Error: {:?}", result.err().unwrap());
         }
     }

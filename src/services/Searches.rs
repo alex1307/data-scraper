@@ -6,10 +6,7 @@ use std::{
 
 use log::info;
 
-use crate::{
-    scraper::Traits::ScraperTrait, services::ScraperAppService::MOBILE_BG_CRAWLER,
-    CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG,
-};
+use crate::{CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG};
 
 use super::SearchBuilder::{
     build_autouncle_ro_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
@@ -88,47 +85,6 @@ pub fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
 
 pub fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     build_mobile_bg_all_searches()
-}
-
-pub async fn to_slink(search: &mut HashMap<String, String>) {
-    let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
-    match MOBILE_BG_CRAWLER.slink(&html) {
-        Ok(slink) => {
-            info!("slink: {}", slink);
-            search.insert("slink".to_owned(), slink);
-        }
-        Err(e) => {
-            info!("Error: {}", e);
-        }
-    }
-}
-
-pub async fn to_slink_searches(
-    meta_searches: Vec<HashMap<String, String>>,
-) -> Vec<HashMap<String, String>> {
-    let mut searches = vec![];
-    let mut params = HashMap::new();
-    params.insert("act".to_owned(), "3".to_owned());
-    params.insert("rub".to_string(), 1.to_string());
-    params.insert("pubtype".to_string(), 1.to_string());
-    params.insert("topmenu".to_string(), "1".to_string());
-
-    for search in meta_searches {
-        let html = MOBILE_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
-        match MOBILE_BG_CRAWLER.slink(&html) {
-            Ok(slink) => {
-                params.insert("slink".to_owned(), slink.clone());
-                //params.insert("id".to_owned(), search.get("id").unwrap().to_owned());
-                searches.push(params.clone());
-            }
-            Err(e) => {
-                info!("Error: {}", e);
-                continue;
-            }
-        }
-    }
-    info!("Total searches with slink: {}", searches.len());
-    searches
 }
 
 pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
