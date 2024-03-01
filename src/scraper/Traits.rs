@@ -5,6 +5,7 @@ use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
 
 use log::info;
+use rand::Rng;
 use serde::Serialize;
 
 use crate::{
@@ -24,7 +25,7 @@ lazy_static! {
 }
 
 #[async_trait]
-pub trait ScrapeListTrait<T: Identity + Clone + Debug + Serialize>:
+pub trait ScrapeListTrait<T: Clone + Debug + Serialize>:
     Clone + Debug + Send + Sync + 'static
 {
     async fn process_listed_results(
@@ -177,5 +178,9 @@ impl Scraper {
             }
         }
         Err(format!("Failed to get html from {}", url))
+    }
+
+    pub fn waiting_time(&self) -> u64 {
+        rand::thread_rng().gen_range(1_000..3_000)
     }
 }

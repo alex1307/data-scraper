@@ -9,6 +9,8 @@ use crate::{
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
+use rand::Rng;
+use tokio::time::sleep;
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -41,9 +43,14 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleFRScraper {
     ) -> Result<ScrapedListData<AutoUncleVehicle>, String> {
         let html = self.get_html(params, page_number).await?;
         let mut vehicles = get_vehicles(&html);
+        if vehicles.is_empty() {
+            panic!("{}", html);
+        }
         for v in &mut vehicles {
             v.source = "autouncle.fr".to_string();
         }
+        let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
+        sleep(Duration::from_millis(waiting_time_ms as u64)).await;
         Ok(ScrapedListData::Values(vehicles))
     }
 }

@@ -2,10 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
-use super::records::MobileRecord;
 use super::{
     enums::{Currency, Engine, Gearbox},
-    traits::{Header, Identity, URLResource},
+    traits::URLResource,
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -130,79 +129,6 @@ impl Consumption {
     }
 }
 
-impl Header for Price {
-    fn header() -> Vec<&'static str> {
-        vec![
-            "id",
-            "source",
-            "estimated_price",
-            "price",
-            "currency",
-            "save_difference",
-            "overpriced_difference",
-            "ranges",
-            "rating",
-        ]
-    }
-}
-
-impl Header for Consumption {
-    fn header() -> Vec<&'static str> {
-        vec![
-            "id",
-            "source",
-            "make",
-            "model",
-            "year",
-            "co2_emission",
-            "fuel_consumption",
-            "kw_consuption",
-        ]
-    }
-}
-
-impl Header for BaseVehicleInfo {
-    fn header() -> Vec<&'static str> {
-        vec![
-            "id", "source", "make", "model", "title", "currency", "price", "millage", "year",
-            "engine", "gearbox", "power",
-        ]
-    }
-}
-
-impl Header for DetailedVehicleInfo {
-    fn header() -> Vec<&'static str> {
-        vec![
-            "id",
-            "source",
-            "phone",
-            "location",
-            "view_count",
-            "cc",
-            "fuel_consumption",
-            "electric_drive_range",
-            "equipment",
-            "is_dealer",
-            "seller_name",
-        ]
-    }
-}
-
-impl Header for VehicleChangeLogInfo {
-    fn header() -> Vec<&'static str> {
-        vec![
-            "id",
-            "source",
-            "published_on",
-            "last_modified_on",
-            "last_modified_message",
-            "days_in_sale",
-            "sold",
-            "promoted",
-        ]
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CarModel {
     //series + relevant models
@@ -237,16 +163,74 @@ pub struct Resume {
     pub promoted: bool,
 }
 
-impl Identity for LinkId {
-    fn get_id(&self) -> String {
-        self.id.clone()
-    }
-}
-
 impl URLResource for LinkId {
     fn get_url(&self) -> String {
         self.url.clone()
     }
+}
+pub trait ConsumptionsT {
+    fn get_id(&self) -> String;
+    fn source(&self) -> String;
+    fn make(&self) -> String;
+    fn model(&self) -> String;
+    fn year(&self) -> u16;
+    fn co2_emission(&self) -> u32;
+    fn fuel_consumption(&self) -> Option<f32>;
+    fn kw_consuption(&self) -> Option<f32>;
+}
+pub trait DetailsT {
+    fn get_id(&self) -> String;
+    fn source(&self) -> String;
+    fn phone(&self) -> String;
+    fn location(&self) -> String;
+    fn view_count(&self) -> u32;
+    fn cc(&self) -> u32;
+    fn fuel_consumption(&self) -> f64;
+    fn electric_drive_range(&self) -> f64;
+    fn equipment(&self) -> u64;
+    fn is_dealer(&self) -> bool;
+    fn seller_name(&self) -> String;
+}
+
+pub trait ChangeLogT {
+    fn get_id(&self) -> String;
+    fn source(&self) -> String;
+    fn published_on(&self) -> String;
+    fn last_modified_on(&self) -> String;
+    fn last_modified_message(&self) -> String;
+    fn days_in_sale(&self) -> Option<u32>;
+    fn sold(&self) -> bool;
+    fn promoted(&self) -> bool;
+}
+
+pub trait PriceT {
+    fn id(&self) -> String;
+    fn source(&self) -> String;
+    fn estimated_price(&self) -> Option<u32>;
+    fn price(&self) -> u32;
+    fn currency(&self) -> Currency;
+    fn save_difference(&self) -> u32;
+    fn overpriced_difference(&self) -> u32;
+    fn ranges(&self) -> Option<String>;
+    fn rating(&self) -> Option<String>;
+    fn thresholds(&self) -> Vec<u32>;
+}
+pub trait BasicT {
+    fn id(&self) -> String;
+    fn source(&self) -> String;
+    fn make(&self) -> String;
+    fn model(&self) -> String;
+    fn title(&self) -> String;
+    fn currency(&self) -> Currency;
+    fn price(&self) -> Option<u32>;
+    fn millage(&self) -> Option<u32>;
+    fn month(&self) -> Option<u16>;
+    fn year(&self) -> u16;
+    fn engine(&self) -> Engine;
+    fn gearbox(&self) -> Gearbox;
+    fn cc(&self) -> u32;
+    fn power_ps(&self) -> u32;
+    fn power_kw(&self) -> u32;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -260,7 +244,7 @@ impl PartialEq for LinkId {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ScrapedListData<T: Identity + Clone + Serialize + Debug> {
+pub enum ScrapedListData<T: Clone + Serialize + Debug> {
     SingleValue(T),
     Values(Vec<T>),
     Error(String),
@@ -272,74 +256,106 @@ impl Hash for LinkId {
     }
 }
 
-impl From<MobileRecord> for BaseVehicleInfo {
-    fn from(record: MobileRecord) -> Self {
-        Self {
-            id: record.id,
-            source: record.source,
-            title: record.title,
-            make: record.make,
-            model: record.model,
-            currency: record.currency,
-            price: Some(record.price),
-            millage: Some(record.mileage),
-            year: record.year,
-            engine: record.engine,
-            gearbox: record.gearbox,
-            cc: 0,
-            power_ps: record.power,
-            power_kw: record.power,
-            month: None,
+impl<T> From<T> for BaseVehicleInfo
+where
+    T: BasicT,
+{
+    fn from(item: T) -> Self {
+        BaseVehicleInfo {
+            // Assuming `BaseVehicleInfo` has these fields. You need to adjust according to the actual struct fields.
+            id: item.id(),
+            source: item.source(),
+            make: item.make(),
+            model: item.model(),
+            title: item.title(),
+            currency: item.currency(),
+            price: item.price(),
+            millage: item.millage(),
+            month: item.month(),
+            year: item.year(),
+            engine: item.engine(),
+            gearbox: item.gearbox(),
+            cc: item.cc(),
+            power_ps: item.power_ps(),
+            power_kw: item.power_kw(),
         }
     }
 }
 
-impl From<MobileRecord> for DetailedVehicleInfo {
-    fn from(record: MobileRecord) -> Self {
-        Self {
-            id: record.id,
-            source: record.source,
-            phone: record.phone,
-            seller_name: record.name,
-            location: record.location,
-            view_count: record.view_count,
-            cc: 0,
-            fuel_consumption: 0.0,
-            electric_drive_range: 0.0,
-            equipment: record.equipment,
-            is_dealer: record.dealer,
+impl<T> From<T> for Price
+where
+    T: PriceT,
+{
+    fn from(item: T) -> Self {
+        Price {
+            // Assuming `Price` has these fields. You need to adjust according to the actual struct fields.
+            id: item.id(),
+            source: item.source(),
+            estimated_price: item.estimated_price(),
+            price: item.price(),
+            currency: item.currency(),
+            save_difference: item.save_difference(),
+            overpriced_difference: item.overpriced_difference(),
+            ranges: item.ranges(),
+            rating: item.rating(),
+            thresholds: item.thresholds(),
         }
     }
 }
 
-impl From<MobileRecord> for VehicleChangeLogInfo {
-    fn from(record: MobileRecord) -> Self {
+impl<T> From<T> for Consumption
+where
+    T: ConsumptionsT,
+{
+    fn from(item: T) -> Self {
+        Consumption {
+            // Assuming `Consumption` has these fields. You need to adjust according to the actual struct fields.
+            id: item.get_id(),
+            source: item.source(),
+            make: item.make(),
+            model: item.model(),
+            year: item.year(),
+            co2_emission: 0,
+            fuel_consumption: None,
+            kw_consuption: None,
+        }
+    }
+}
+impl<T> From<T> for VehicleChangeLogInfo
+where
+    T: ChangeLogT,
+{
+    fn from(record: T) -> Self {
         Self {
-            id: record.id,
-            source: record.source,
-            published_on: record.created_on,
-            last_modified_on: record.updated_on,
-            last_modified_message: "".to_string(),
-            days_in_sale: None,
-            sold: record.sold,
-            promoted: record.vip,
+            id: record.get_id(),
+            source: record.source(),
+            published_on: record.published_on(),
+            last_modified_on: record.last_modified_on(),
+            last_modified_message: record.last_modified_message(),
+            days_in_sale: record.days_in_sale(),
+            sold: record.sold(),
+            promoted: record.promoted(),
         }
     }
 }
 
-impl From<MobileRecord> for Price {
-    fn from(value: MobileRecord) -> Self {
+impl<T> From<T> for DetailedVehicleInfo
+where
+    T: DetailsT,
+{
+    fn from(record: T) -> Self {
         Self {
-            id: value.id,
-            source: value.source,
-            estimated_price: None,
-            price: value.price,
-            currency: value.currency,
-            save_difference: 0,
-            overpriced_difference: 0,
-            ranges: None,
-            rating: None,
-            thresholds: vec![],
+            id: record.get_id(),
+            source: record.source(),
+            phone: record.phone(),
+            location: record.location(),
+            view_count: record.view_count(),
+            cc: record.cc(),
+            fuel_consumption: record.fuel_consumption(),
+            electric_drive_range: record.electric_drive_range(),
+            equipment: record.equipment(),
+            is_dealer: record.is_dealer(),
+            seller_name: record.seller_name(),
         }
     }
 }

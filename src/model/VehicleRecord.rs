@@ -14,6 +14,7 @@ use crate::{
 use super::{
     enums::{Currency, Engine, Gearbox},
     traits::{Header, Identity},
+    VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT},
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -200,5 +201,149 @@ impl From<HashMap<String, String>> for MobileRecord {
             source,
             ..Default::default()
         }
+    }
+}
+
+impl BasicT for MobileRecord {
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn make(&self) -> String {
+        self.make.clone()
+    }
+    fn model(&self) -> String {
+        self.model.clone()
+    }
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+    fn currency(&self) -> Currency {
+        self.currency
+    }
+    fn price(&self) -> Option<u32> {
+        Some(self.price)
+    }
+    fn millage(&self) -> Option<u32> {
+        Some(self.mileage)
+    }
+    fn month(&self) -> Option<u16> {
+        None
+    }
+    fn year(&self) -> u16 {
+        self.year
+    }
+    fn engine(&self) -> Engine {
+        self.engine
+    }
+    fn gearbox(&self) -> Gearbox {
+        self.gearbox
+    }
+    fn cc(&self) -> u32 {
+        0
+    }
+    fn power_ps(&self) -> u32 {
+        self.power
+    }
+    fn power_kw(&self) -> u32 {
+        self.power
+    }
+}
+
+impl DetailsT for MobileRecord {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn phone(&self) -> String {
+        self.phone.clone()
+    }
+    fn location(&self) -> String {
+        self.location.clone()
+    }
+    fn view_count(&self) -> u32 {
+        self.view_count
+    }
+    fn cc(&self) -> u32 {
+        0
+    }
+    fn fuel_consumption(&self) -> f64 {
+        0.0
+    }
+    fn electric_drive_range(&self) -> f64 {
+        0.0
+    }
+    fn equipment(&self) -> u64 {
+        self.equipment
+    }
+    fn is_dealer(&self) -> bool {
+        self.dealer
+    }
+    fn seller_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl ChangeLogT for MobileRecord {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn published_on(&self) -> String {
+        self.created_on.clone()
+    }
+    fn last_modified_on(&self) -> String {
+        self.updated_on.clone()
+    }
+    fn last_modified_message(&self) -> String {
+        "".to_string()
+    }
+    fn days_in_sale(&self) -> Option<u32> {
+        None
+    }
+    fn sold(&self) -> bool {
+        self.sold
+    }
+    fn promoted(&self) -> bool {
+        self.vip
+    }
+}
+
+impl PriceT for MobileRecord {
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn estimated_price(&self) -> Option<u32> {
+        None
+    }
+    fn price(&self) -> u32 {
+        self.price
+    }
+    fn currency(&self) -> Currency {
+        self.currency
+    }
+    fn save_difference(&self) -> u32 {
+        0
+    }
+    fn overpriced_difference(&self) -> u32 {
+        0
+    }
+    fn ranges(&self) -> Option<String> {
+        None
+    }
+    fn rating(&self) -> Option<String> {
+        None
+    }
+    fn thresholds(&self) -> Vec<u32> {
+        vec![]
     }
 }

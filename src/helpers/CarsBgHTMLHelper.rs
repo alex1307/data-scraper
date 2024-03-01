@@ -9,7 +9,7 @@ use crate::{
     helpers::PUBLISHED_ON_KEY,
     model::{
         enums::{Engine, Gearbox},
-        records::MobileRecord,
+        VehicleRecord::MobileRecord,
     },
     CARS_BG_LISTING_URL,
 };

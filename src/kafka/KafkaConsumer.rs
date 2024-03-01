@@ -10,9 +10,9 @@ use crate::{
     helpers::CarGrHTMLHelper::process_listed_links,
     kafka::{CONSUPTION_TOPIC, PRICE_TOPIC},
     model::{
-        records::MobileRecord,
         MobileDe::{MobileDeResults, SearchItem},
         VehicleDataModel::{self, Price},
+        VehicleRecord::MobileRecord,
     },
     protos,
 };

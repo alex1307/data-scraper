@@ -4,12 +4,14 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use log::error;
 
+use rand::Rng;
 use scraper::{Html, Selector};
 use serde::Deserialize;
+use tokio::time::sleep;
 
 use crate::{
     helpers::CarsBgHTMLHelper::read_listing,
-    model::{enums::Gearbox, records::MobileRecord, VehicleDataModel::ScrapedListData},
+    model::{enums::Gearbox, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
     BROWSER_USER_AGENT,
 };
 
@@ -78,6 +80,12 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
         let gearbox = Gearbox::from_str(&value).unwrap();
         let power: u32 = params.get("power").unwrap().parse().unwrap();
         let vehicles = read_listing(html.as_str(), gearbox, power);
+        if vehicles.is_empty() {
+            panic!("{}", html);
+        }
+        let waiting_time_ms: u64 = rand::thread_rng().gen_range(1_000..3_000);
+        sleep(Duration::from_millis(waiting_time_ms as u64)).await;
+
         Ok(ScrapedListData::Values(vehicles))
     }
 }

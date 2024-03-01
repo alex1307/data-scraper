@@ -14,7 +14,7 @@ use crate::{
     },
     model::{
         enums::{Currency, Engine, Gearbox},
-        records::MobileRecord,
+        VehicleRecord::MobileRecord,
     },
     CREATED_ON, DATE_FORMAT, NOW,
 };
@@ -385,30 +385,12 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
 mod car_gr_test_suit {
     use std::collections::HashMap;
 
-    use log::info;
-    use scraper::{Html, Selector};
-
     use crate::{
-        helpers::CarGrHTMLHelper::{
-            get_dealer_data, get_equipment, get_listed_links, get_specification, get_total_number,
-            process_listed_links, vehicle_data,
-        },
-        model::records::MobileRecord,
-        scraper::{CarGrScraper::CarGrScraper, Traits::Scraper},
+        helpers::CarGrHTMLHelper::{get_listed_links, get_total_number},
+        scraper::Traits::Scraper,
         utils::helpers::configure_log4rs,
         LOG_CONFIG,
     };
-
-    #[tokio::test]
-    async fn parse_file_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let file = std::fs::read_to_string("resources/test-data/car.gr/deals.html").unwrap();
-        let vehicles = process_listed_links(&file);
-        info!("data: {:?}", vehicles.len());
-        for v in vehicles {
-            info!("vehicle: {:?}", v);
-        }
-    }
 
     #[tokio::test]
     async fn get_listes_vehicles_test() {
@@ -431,169 +413,5 @@ mod car_gr_test_suit {
         assert_eq!(data.len(), 24);
         let total_number = get_total_number(&html);
         assert_eq!(total_number, 125);
-    }
-
-    #[tokio::test]
-    async fn get_vehicle_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        info!("page: {}", page.as_bytes().len());
-        //info!("page: {}", page);
-        let selector = Selector::parse("div.tw-text-base").unwrap();
-        let document = Html::parse_document(&page);
-        for element in document.select(&selector) {
-            let text = element.text().collect::<Vec<_>>().join(" ");
-            if text.contains("Registration") {
-                text.split("\n").for_each(|line| {
-                    info!("line: {}", line.trim().replace(' ', ""));
-                    if line.contains('/') {
-                        let millage = line.split('/').collect::<Vec<_>>()[1];
-                        let millage = millage
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
-                        info!("year: {}", millage);
-                    } else {
-                        let value = line
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
-                        info!("year: {}", value);
-                    }
-                });
-            }
-
-            if text.contains("Fuel type") {
-                text.split("\n").for_each(|line| {
-                    info!("line: {}", line.trim().replace(' ', ""));
-                });
-            }
-
-            if text.contains("Engine") {
-                text.split("\n").for_each(|line| {
-                    info!("line: {}", line.trim().replace(' ', ""));
-                    if line.contains("cc") {
-                        let millage = line.split("cc").collect::<Vec<_>>()[0];
-                        let cc = millage
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
-                        info!("cc: {}", cc);
-                    }
-                });
-            }
-
-            if text.contains("Transmission") {
-                text.split("\n").for_each(|line| {
-                    info!("line: {}", line.trim().replace(' ', ""));
-                });
-            }
-
-            if text.contains("Power") {
-                text.split("\n").for_each(|line| {
-                    info!("line: {}", line.trim().replace(' ', ""));
-                    if line.contains("bhp") {
-                        let millage = line.split("bhp").collect::<Vec<_>>()[0];
-                        let millage = millage
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
-                        info!("power: {}", millage);
-                    }
-                });
-            }
-
-            if text.contains("Mileage") {
-                text.split("\n").for_each(|line| {
-                    let line = line.trim().replace(' ', "");
-                    info!("line: {}", line);
-                    if line.contains("km") {
-                        let millage = line.split("km").collect::<Vec<_>>()[0];
-                        let millage = millage
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<u32>()
-                            .unwrap_or(0);
-                        info!("millage: {}", millage);
-                    }
-                });
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn get_specification_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let data = get_specification(&page);
-        info!("data: {:?}", data);
-    }
-
-    #[tokio::test]
-    async fn get_extras_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let equipment = get_equipment(&page);
-        assert!(equipment > 0);
-        info!("equipment: {}", equipment);
-    }
-
-    #[tokio::test]
-    async fn get_dealer_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let data = get_dealer_data(&page);
-        assert!(!data.is_empty());
-        assert_eq!(data.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn get_private_seller_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url =
-            "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let data = get_dealer_data(&page);
-        assert!(!data.is_empty());
-        assert_eq!(data.len(), 2);
-        info!("data: {:?}", data);
-    }
-
-    #[tokio::test]
-    async fn vehicle_data_test() {
-        configure_log4rs(&LOG_CONFIG);
-        let url =
-            "https://www.car.gr/classifieds/cars/view/338681033-land-rover-range-rover?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let data = vehicle_data(&page);
-        //info!("land-rover: {:?}", data);
-        let record = MobileRecord::from(data);
-        info!("record: {:?}", record);
-        let url = "https://www.car.gr/classifieds/cars/view/319951193-mercedes-benz-e-350?lang=en";
-        let scraper = CarGrScraper::new(url, 250);
-        let page = scraper.parent.html_search(url, None).await.unwrap();
-        let data = vehicle_data(&page);
-        // info!("mercedes: {:?}", data);
-        let record = MobileRecord::from(data);
-        info!("record: {:?}", record);
     }
 }

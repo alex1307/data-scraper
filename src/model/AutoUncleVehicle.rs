@@ -2,12 +2,10 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::Equipment::get_equipment_as_u64;
-
 use super::{
     enums::{Currency, Engine, Gearbox},
-    traits::{Identity, URLResource},
-    VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo},
+    traits::URLResource,
+    VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -146,107 +144,173 @@ pub struct AutoUncleVehicle {
 
     #[serde(skip)]
     pub equipment: Vec<String>,
-}
 
-impl From<AutoUncleVehicle> for BaseVehicleInfo {
-    fn from(source: AutoUncleVehicle) -> Self {
-        let mut base = BaseVehicleInfo::new(source.id.clone());
-        if let Some(is_automatic) = source.has_auto_gear {
-            base.gearbox = if is_automatic {
-                Gearbox::Automatic
-            } else {
-                Gearbox::Manual
-            };
-        } else {
-            base.gearbox = Gearbox::Manual;
-        }
-
-        if let Some(engine_fuel) = source.fuel.clone() {
-            base.engine = Engine::from_str(&engine_fuel).unwrap();
-        } else {
-            base.engine = Engine::NotAvailable;
-        }
-
-        if let Some(brand) = source.brand.clone() {
-            base.make = brand;
-        }
-
-        if let Some(model) = source.car_model.clone() {
-            base.model = model;
-        }
-
-        if let Some(year) = source.year {
-            base.year = year;
-        }
-
-        if let Some(hp) = source.hp {
-            base.power_ps = hp as u32;
-        } else {
-            base.power_ps = 0;
-        }
-
-        base.currency = source.currency.unwrap_or(Currency::EUR);
-        base.price = source.price;
-        base.millage = source.km;
-        base.source = source.source.clone();
-        base
-    }
-}
-
-impl From<AutoUncleVehicle> for DetailedVehicleInfo {
-    fn from(source: AutoUncleVehicle) -> Self {
-        let mut details = DetailedVehicleInfo::new(source.id.clone(), 0);
-        details.location = source.location.clone();
-        if let Some(cc) = source.engine_size {
-            details.cc = (cc * 1000.0) as u32;
-        }
-        if let Some(fuel_consumption) = source.fuel_economy {
-            details.fuel_consumption = fuel_consumption;
-        }
-        if let Some(electric_drive_range) = source.electric_drive_range {
-            details.electric_drive_range = electric_drive_range;
-        }
-        details.is_dealer = source.seller_kind.to_lowercase() == "dealer";
-        details.seller_name = source.source_name.clone();
-        details.source = source.source.clone();
-
-        let equipment_list = source.equipment;
-        let equipment = get_equipment_as_u64(equipment_list);
-        details.equipment = equipment;
-        details
-    }
-}
-
-impl From<AutoUncleVehicle> for VehicleChangeLogInfo {
-    fn from(source: AutoUncleVehicle) -> Self {
-        let mut log = VehicleChangeLogInfo::new(source.id.clone(), source.source);
-        log.days_in_sale = source.laytime;
-        if let Some(last_modified) = source.updated_at {
-            log.last_modified_on = last_modified;
-        }
-        log
-    }
-}
-
-impl From<AutoUncleVehicle> for Price {
-    fn from(source: AutoUncleVehicle) -> Self {
-        let mut price = Price::new(source.id.clone(), source.source);
-        price.currency = source.currency.unwrap_or(Currency::EUR);
-        price.estimated_price = source.estimated_price;
-        price.price = source.price.unwrap_or(0);
-        price.save_difference = source.you_save_difference.unwrap_or(0);
-        price
-    }
-}
-
-impl Identity for AutoUncleVehicle {
-    fn get_id(&self) -> String {
-        self.id.clone()
-    }
+    #[serde(skip)]
+    pub equipment_id: u64,
 }
 
 impl URLResource for AutoUncleVehicle {
     fn get_url(&self) -> String {
         format!("https://www.autouncle.ro/en/cars/{}", self.id)
+    }
+}
+
+impl BasicT for AutoUncleVehicle {
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn price(&self) -> Option<u32> {
+        self.price
+    }
+    fn currency(&self) -> Currency {
+        self.currency.unwrap_or(Currency::EUR)
+    }
+    fn make(&self) -> String {
+        self.brand.clone().unwrap_or("".to_string())
+    }
+    fn model(&self) -> String {
+        self.car_model.clone().unwrap_or("".to_string())
+    }
+    fn year(&self) -> u16 {
+        self.year.unwrap_or(0)
+    }
+    fn power_ps(&self) -> u32 {
+        self.hp.unwrap_or(0) as u32
+    }
+    fn gearbox(&self) -> Gearbox {
+        if let Some(is_automatic) = self.has_auto_gear {
+            if is_automatic {
+                Gearbox::Automatic
+            } else {
+                Gearbox::Manual
+            }
+        } else {
+            Gearbox::Manual
+        }
+    }
+    fn engine(&self) -> Engine {
+        if let Some(engine_fuel) = self.fuel.clone() {
+            Engine::from_str(&engine_fuel).unwrap()
+        } else {
+            Engine::NotAvailable
+        }
+    }
+    fn millage(&self) -> Option<u32> {
+        self.km
+    }
+    fn cc(&self) -> u32 {
+        (self.engine_size.unwrap_or(0.0) * 1000.0) as u32
+    }
+    fn power_kw(&self) -> u32 {
+        self.kw.unwrap_or(0) as u32
+    }
+    fn month(&self) -> Option<u16> {
+        None
+    }
+    fn title(&self) -> String {
+        self.headline.clone().unwrap_or("".to_string())
+    }
+}
+
+impl DetailsT for AutoUncleVehicle {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn phone(&self) -> String {
+        "".to_string()
+    }
+    fn location(&self) -> String {
+        self.location.clone()
+    }
+    fn equipment(&self) -> u64 {
+        self.equipment_id
+    }
+    fn is_dealer(&self) -> bool {
+        self.seller_kind.to_lowercase() == "dealer"
+    }
+    fn view_count(&self) -> u32 {
+        0
+    }
+    fn fuel_consumption(&self) -> f64 {
+        self.fuel_economy.unwrap_or(0.0)
+    }
+    fn electric_drive_range(&self) -> f64 {
+        self.electric_drive_range.unwrap_or(0.0)
+    }
+
+    fn cc(&self) -> u32 {
+        (self.engine_size.unwrap_or(0.0) * 1000.0) as u32
+    }
+
+    fn seller_name(&self) -> String {
+        self.source_name.clone()
+    }
+}
+
+impl PriceT for AutoUncleVehicle {
+    fn currency(&self) -> Currency {
+        self.currency.unwrap_or(Currency::EUR)
+    }
+    fn price(&self) -> u32 {
+        self.price.unwrap_or(0)
+    }
+    fn ranges(&self) -> Option<String> {
+        None
+    }
+
+    fn overpriced_difference(&self) -> u32 {
+        self.you_save_difference.unwrap_or(0)
+    }
+
+    fn save_difference(&self) -> u32 {
+        self.you_save_difference.unwrap_or(0)
+    }
+    fn thresholds(&self) -> Vec<u32> {
+        vec![]
+    }
+    fn estimated_price(&self) -> Option<u32> {
+        self.estimated_price
+    }
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn rating(&self) -> Option<String> {
+        None
+    }
+}
+
+impl ChangeLogT for AutoUncleVehicle {
+    fn get_id(&self) -> String {
+        self.id.clone()
+    }
+    fn source(&self) -> String {
+        self.source.clone()
+    }
+    fn published_on(&self) -> String {
+        self.created_at.clone().unwrap_or("".to_string())
+    }
+    fn last_modified_on(&self) -> String {
+        self.updated_at.clone().unwrap_or("".to_string())
+    }
+    fn last_modified_message(&self) -> String {
+        "".to_string()
+    }
+    fn days_in_sale(&self) -> Option<u32> {
+        self.laytime
+    }
+    fn sold(&self) -> bool {
+        false
+    }
+    fn promoted(&self) -> bool {
+        self.is_featured.unwrap_or(false)
     }
 }
