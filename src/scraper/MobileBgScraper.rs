@@ -74,12 +74,11 @@ impl MobileBGScraper {
         let url = url.replace("{powerFrom}", fromPower);
         let url = url.replace("{engine}", engine);
         let url = url.replace("{gearbox}", gearbox);
-        let url = if page > 1 {
+        if page > 1 {
             url.replace("{page}", &format!("/p-{}", page))
         } else {
             url.replace("{page}", "")
-        };
-        url
+        }
     }
 }
 

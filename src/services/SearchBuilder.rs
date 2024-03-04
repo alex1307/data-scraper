@@ -22,6 +22,17 @@ lazy_static! {
         ("2020", "2021"),
         ("2022", "2024"),
     ];
+    static ref PRICES: Vec<(&'static str, &'static str)> = vec![
+        ("1000", "5000"),
+        ("5000", "10000"),
+        ("10000", "15000"),
+        ("15000", "20000"),
+        ("20000", "30000"),
+        ("30000", "40000"),
+        ("40000", "50000"),
+        ("50000", "90000"),
+        ("90000", ""),
+    ];
     static ref CARS_BG_FUELS: Vec<(&'static str, &'static str)> = vec![
         ("[1]", "Petrol"),
         ("[2]", "Diesel"),
@@ -139,29 +150,19 @@ fn year_filter(
 fn price_filter(
     price_from: &str,
     price_to: &str,
-    source: HashMap<String, String>,
+    source: Vec<(&'static str, &'static str)>,
 ) -> Vec<HashMap<String, String>> {
-    let prices = [
-        (1000, 5000),
-        (5000, 10_000),
-        (10_000, 13_000),
-        (13_000, 15_000),
-        (15_000, 20_000),
-        (20_000, 25_000),
-        (30_000, 40_000),
-        (40_000, 50_000),
-        (50_000, 90_000),
-    ];
     let mut searches = vec![];
-    for from_to in prices.iter() {
-        let mut params = source.clone();
-        params.insert(price_from.to_owned(), from_to.0.to_string());
-        params.insert(price_to.to_owned(), from_to.1.to_string());
-        searches.push(params.clone());
+    for price in source.iter() {
+        let mut params = HashMap::new();
+        if !price.1.is_empty() {
+            params.insert(price_to.to_owned(), price.1.to_string());
+        }
+        if !price.0.is_empty() {
+            params.insert(price_from.to_owned(), price.0.to_string());
+        }
+        searches.push(params);
     }
-    let mut most_expensive = source.clone();
-    most_expensive.insert(price_from.to_owned(), "90000".to_owned());
-    searches.push(most_expensive);
     searches
 }
 
@@ -176,7 +177,7 @@ pub fn build_autouncle_ro_searches() -> Vec<HashMap<String, String>> {
         "[5,4,3,2,1]".to_owned(),
     );
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", map.clone());
+    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
 
     for year in year_filter {
         for price in price_filter.iter() {
@@ -198,7 +199,7 @@ pub fn build_autouncle_nl_searches() -> Vec<HashMap<String, String>> {
     map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), "[5]".to_owned());
     map.insert("s%5Bfeatured%5D".to_owned(), "true".to_owned());
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", map.clone());
+    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
 
     for year in year_filter {
         for price in price_filter.iter() {
@@ -220,7 +221,7 @@ pub fn build_autouncle_fr_searches() -> Vec<HashMap<String, String>> {
     map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), "[5]".to_owned());
     map.insert("s%5Bfeatured%5D".to_owned(), "true".to_owned());
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", map.clone());
+    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
 
     for year in year_filter {
         for price in price_filter.iter() {
@@ -261,30 +262,6 @@ pub fn build_mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     }
     info!("Search builder: searches: {}", searches.len());
     searches
-}
-
-pub fn build_mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
-    let mut params = HashMap::new();
-    params.insert("act".to_owned(), "3".to_owned());
-    params.insert("f10".to_owned(), "2014".to_owned());
-    params.insert("topmenu".to_string(), "1".to_string());
-    params.insert("rub".to_string(), 1.to_string());
-    params.insert("pubtype".to_string(), 1.to_string());
-    params.insert("f20".to_string(), 7.to_string());
-    params.insert("f24".to_string(), 2.to_string());
-    price_filter("f7", "f8", params.clone())
-}
-
-pub fn build_cars_bg_new_searches() -> Vec<HashMap<String, String>> {
-    let mut map = HashMap::new();
-    map.insert("subm".to_owned(), "1".to_owned());
-    map.insert("add_search".to_owned(), "1".to_owned());
-    map.insert("typeoffer".to_owned(), "1".to_owned());
-    map.insert("last".to_owned(), "1".to_owned());
-    map.insert("conditions[]".to_owned(), "1".to_owned());
-    map.insert("yearFrom".to_owned(), "2014".to_owned());
-    map.insert("company_type[]".to_owned(), "[1,2]".to_owned());
-    price_filter("priceFrom", "priceTo", map.clone())
 }
 
 pub fn build_cars_bg_all_searches() -> Vec<HashMap<String, String>> {

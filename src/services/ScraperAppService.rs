@@ -192,7 +192,7 @@ where
 pub async fn download_list_data<S, T>(
     scraper: S,
     searches: Vec<HashMap<String, String>>,
-) -> Result<(), String>
+) -> Result<Vec<DownloadStatus>, String>
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
     T: BasicT + DetailsT + PriceT + ChangeLogT + Send + Serialize + Clone + Debug + 'static,
@@ -203,25 +203,12 @@ where
         tokio::spawn(async move { process_list(Box::new(scraper), searches, &mut producer).await });
     let send_to_kafka = tokio::spawn(async move { send_data(&mut receiver).await });
 
-    if let (Ok(scraped), Ok(sent)) = tokio::join!(start_handler, send_to_kafka) {
+    if let (Ok(scraped), Ok(_sent)) = tokio::join!(start_handler, send_to_kafka) {
         if let Ok(statuses) = scraped {
-            let mut total_listed = 0;
-            let mut total_actual = 0;
-            let source = statuses[0].source.clone();
-            for status in statuses {
-                info!("-> {:?}", status);
-                total_listed += status.listed;
-                total_actual += status.actual;
-            }
-            if let Ok(counter) = sent {
-                info!(
-                    "Overall report for {}: listed {}, actual: {}, sent: {}",
-                    source, total_listed, total_actual, counter
-                );
-            }
+            Ok(statuses)
+        } else {
+            Err("Failed to scrape".into())
         }
-
-        Ok(())
     } else {
         error!("One or more tasks failed");
         Err("One or more tasks failed".into())

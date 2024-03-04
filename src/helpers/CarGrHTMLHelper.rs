@@ -276,7 +276,7 @@ pub fn process_listed_links(source: &str) -> Vec<MobileRecord> {
         // Now iterate over li elements within the div
         for li in div.select(&li_selector) {
             let mut info = MobileRecord::default();
-
+            info.source = "car.gr".to_owned();
             for element in li.select(&href_selector) {
                 // Access the href attribute
                 if let Some(href) = element.value().attr("href") {

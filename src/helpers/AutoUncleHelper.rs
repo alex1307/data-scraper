@@ -161,7 +161,7 @@ pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<
                 let js = s.replace(r#"\""#, r#"""#);
                 let js = js.replace(r#"\n"#, r#"$"#);
                 re.find(&js).and_then(|caps| -> Option<()> {
-                    Some({
+                    {
                         let matched = &js[caps.start() + id.len() + 2..caps.end()];
                         let mut json_str = String::new();
                         write!(&mut json_str, r#"{{"{}":{}}}"#, id, matched).unwrap();
@@ -170,7 +170,8 @@ pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<
                         if let Ok(json) = result {
                             equipments.extend(json);
                         }
-                    })
+                    };
+                    Some(())
                 });
                 break;
             }

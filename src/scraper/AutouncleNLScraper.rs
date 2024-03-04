@@ -9,6 +9,7 @@ use crate::{
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
+use log::error;
 use rand::Rng;
 use tokio::time::sleep;
 
@@ -44,12 +45,23 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleNLScraper {
         let html = self.get_html(params.clone(), page_number).await?;
         let mut vehicles = get_vehicles(&html);
         if vehicles.is_empty() {
-            panic!("{}", html);
+            if html.to_lowercase().contains("too many requests")
+                || html.to_lowercase().contains(r#""429""#)
+                || html.to_lowercase().contains(r#"429 "#)
+                || html.to_lowercase().contains(r#" 429"#)
+            {
+                error!("429 - TOO MANY REQUESTS{}", html.len());
+            } else {
+                error!(
+                    "No vehicles found. Page: {}, Search: {:?}",
+                    page_number, params
+                );
+            }
         }
         for v in &mut vehicles {
             v.source = "autouncle.nl".to_string();
         }
-        let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
+        let waiting_time_ms: u64 = rand::thread_rng().gen_range(3_000..5_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
         Ok(ScrapedListData::Values(vehicles))
     }

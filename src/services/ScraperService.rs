@@ -172,13 +172,12 @@ where
         "STARTING async session: {}. Expected number of results: {}. Number of pages: {}",
         uuid, total_number, number_of_pages
     );
-    for page_number in 1..number_of_pages {
+    for page_number in 1..=number_of_pages {
         let data = scraper
             .process_listed_results(search.clone(), page_number)
-            .await
-            .unwrap();
+            .await;
         match data {
-            ScrapedListData::Values(list) => {
+            Ok(ScrapedListData::Values(list)) => {
                 if list.len() < 25 {
                     info!("Get less data {} for page# : {}", list.len(), page_number);
                 }
@@ -189,12 +188,12 @@ where
                     }
                 }
             }
-            ScrapedListData::SingleValue(value) => {
+            Ok(ScrapedListData::SingleValue(value)) => {
                 if (producer.send(value.clone()).await).is_err() {
                     error!("Error sending id: {:?}", value);
                 }
             }
-            ScrapedListData::Error(_) => {
+            _ => {
                 error!("Error getting data for page# : {}", page_number);
                 continue;
             }
@@ -326,10 +325,10 @@ pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT + ChangeLogT>(
                 info!("No more records to process. Total processed: {}", counter);
                 break;
             }
-            Err(e) => {
+            Err(_e) => {
                 wait_counter += 1;
                 if wait_counter == 5 {
-                    debug!("Timeout receiving link: {}", e);
+                    //error!("Timeout receiving link: {}", e);
                     continue;
                 }
             }

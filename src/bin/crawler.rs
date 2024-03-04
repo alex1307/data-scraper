@@ -1,30 +1,38 @@
 use std::collections::HashMap;
 
+use std::fmt::Debug;
+
 use std::vec;
 
 use data_scraper::kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons};
 use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
 
+use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT};
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
-use data_scraper::scraper::AutouncleROScraper::AutouncleROScraper;
-use data_scraper::scraper::CarsBgScraper::CarsBGScraper;
-use data_scraper::scraper::MobileBgScraper::MobileBGScraper;
-
-use data_scraper::services::ScraperAppService::download_list_data;
-use data_scraper::services::SearchBuilder::{
-    build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
-    build_cars_bg_all_searches, build_mobile_bg_all_searches, CRAWLER_AUTOUNCLE_FR,
-    CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_CARS_BG, CRAWLER_MOBILE_BG,
+use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
+use data_scraper::LOG_CONFIG;
+use data_scraper::{
+    scraper::{
+        AutouncleROScraper::AutouncleROScraper, CarsBgScraper::CarsBGScraper,
+        MobileBgScraper::MobileBGScraper,
+    },
+    services::{
+        ScraperAppService::download_list_data,
+        SearchBuilder::{
+            build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
+            build_cars_bg_all_searches, build_mobile_bg_all_searches, CRAWLER_AUTOUNCLE_FR,
+            CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_CARS_BG, CRAWLER_MOBILE_BG,
+        },
+    },
+    utils::helpers::configure_log4rs,
 };
 
-use data_scraper::utils::helpers::configure_log4rs;
-use data_scraper::LOG_CONFIG;
-
-use log::info;
+use log::{error, info};
 
 use clap::{command, Args, Parser, Subcommand};
 use rand::seq::SliceRandom;
+use serde::Serialize;
 
 pub const CHUNK_SIZE: usize = 4;
 #[derive(Parser, Debug)]
@@ -43,26 +51,91 @@ struct CrawlerArgs {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    ScrapeAll(CrawlerArgs),
-    ScrapeNew(CrawlerArgs),
-    InitSearch(CrawlerArgs),
-    ReadDir(CrawlerArgs),
+    ScrapeAll,
+    Scrape(CrawlerArgs),
+    Puppeteer,
 }
 #[tokio::main]
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
-    let scraper_tasks = tokio::spawn(run());
-    let consumer_tasks = tokio::spawn(run_consumers(broker()));
-    let (r1, r2) = tokio::join!(scraper_tasks, consumer_tasks);
-    if r1.is_ok() {
-        info!("Scraper finished");
-    } else {
-        info!("Scraper failed");
+    let command = Cli::parse();
+
+    match command.command {
+        Commands::ScrapeAll => run().await,
+        Commands::Scrape(args) => {
+            let source = args.source.clone();
+            run_crawler(source).await;
+        }
+        Commands::Puppeteer => {
+            info!("Puppeteer command is not implemented yet");
+            run_consumers(broker()).await;
+        }
     }
-    if r2.is_ok() {
-        info!("Consumers finished");
+}
+
+async fn run_crawler(crawler: String) {
+    if crawler == CRAWLER_MOBILE_BG {
+        let searches = build_mobile_bg_all_searches();
+        let crawler = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+        let searches = searches.chunks(5);
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_FR {
+        let searches = build_autouncle_fr_searches();
+        info!("Starting autouncle.fr with #{} searches", searches.len());
+        let crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
+        let searches = searches.chunks(2);
+        info!("Starting autouncle.fr with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_NL {
+        let searches = build_autouncle_nl_searches();
+        info!("Starting autouncle.nl with #{} searches", searches.len());
+        let crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
+        let searches = searches.chunks(1);
+        info!("Starting autouncle.nl with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_RO {
+        let searches = build_autouncle_ro_searches();
+        info!("Starting autouncle.ro with #{} searches", searches.len());
+        let crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
+        let searches = searches.chunks(2);
+        info!("Starting autouncle.ro with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_CARS_BG {
+        let searches = build_cars_bg_all_searches();
+        let crawler = CarsBGScraper::new("https://www.cars.bg", 250);
+        let searches = searches.chunks(5);
+        for search in searches {
+            let vsearch = search.to_vec();
+            let _ = download_list_data(crawler.clone(), vsearch).await;
+        }
     } else {
-        info!("Consumers failed");
+        error!("Invalid crawler: {}", crawler);
+    }
+}
+
+async fn log_and_search<S, T>(searches: std::slice::Chunks<'_, HashMap<String, String>>, crawler: S)
+where
+    S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
+    T: BasicT + DetailsT + PriceT + ChangeLogT + Send + Serialize + Clone + Debug + 'static,
+{
+    let mut listed = 0;
+    let mut actual = 0;
+    let mut chunk_counter = 0;
+    let mut counter = 0;
+    for search in searches {
+        chunk_counter += 1;
+        let vsearch = search.to_vec();
+        if let Ok(statuses) = download_list_data(crawler.clone(), vsearch).await {
+            for s in statuses {
+                listed += s.listed;
+                actual += s.actual;
+                counter += 1;
+            }
+            info!(
+                "Listed: {}, Actual: {}, Chunk#: {}, Searches#: {}",
+                listed, actual, chunk_counter, counter
+            );
+        }
     }
 }
 
@@ -159,9 +232,9 @@ async fn run() {
     tokio::time::sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;
 }
 
-fn to_execution_list<'a>(
+fn to_execution_list(
     source: Vec<HashMap<String, String>>,
-    crawler: &'a str,
+    crawler: &str,
     chunk_size: usize,
 ) -> Vec<(String, Vec<HashMap<String, String>>)> {
     let chunks = source.chunks(chunk_size);
