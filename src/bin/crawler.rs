@@ -45,6 +45,7 @@ struct Cli {
 #[derive(Args, Debug)]
 struct CrawlerArgs {
     source: String,
+    threads: Option<usize>,
     dir: Option<String>,
     topic: Option<String>,
 }
@@ -64,7 +65,11 @@ async fn main() {
         Commands::ScrapeAll => run().await,
         Commands::Scrape(args) => {
             let source = args.source.clone();
-            run_crawler(source).await;
+            let threads = match args.threads {
+                Some(threads) => threads,
+                None => 1,
+            };
+            run_crawler(source, threads).await;
         }
         Commands::Puppeteer => {
             info!("Puppeteer command is not implemented yet");
@@ -73,41 +78,38 @@ async fn main() {
     }
 }
 
-async fn run_crawler(crawler: String) {
+async fn run_crawler(crawler: String, threads: usize) {
     if crawler == CRAWLER_MOBILE_BG {
         let searches = build_mobile_bg_all_searches();
         let crawler = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-        let searches = searches.chunks(5);
+        let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
         let searches = build_autouncle_fr_searches();
         info!("Starting autouncle.fr with #{} searches", searches.len());
         let crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
-        let searches = searches.chunks(2);
+        let searches = searches.chunks(threads);
         info!("Starting autouncle.fr with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_NL {
         let searches = build_autouncle_nl_searches();
         info!("Starting autouncle.nl with #{} searches", searches.len());
         let crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
-        let searches = searches.chunks(1);
+        let searches = searches.chunks(threads);
         info!("Starting autouncle.nl with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_RO {
         let searches = build_autouncle_ro_searches();
         info!("Starting autouncle.ro with #{} searches", searches.len());
         let crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
-        let searches = searches.chunks(2);
+        let searches = searches.chunks(threads);
         info!("Starting autouncle.ro with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_CARS_BG {
         let searches = build_cars_bg_all_searches();
         let crawler = CarsBGScraper::new("https://www.cars.bg", 250);
-        let searches = searches.chunks(5);
-        for search in searches {
-            let vsearch = search.to_vec();
-            let _ = download_list_data(crawler.clone(), vsearch).await;
-        }
+        let searches = searches.chunks(threads);
+        log_and_search(searches, crawler).await;
     } else {
         error!("Invalid crawler: {}", crawler);
     }
