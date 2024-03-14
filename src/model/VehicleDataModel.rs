@@ -261,11 +261,28 @@ where
     T: BasicT,
 {
     fn from(item: T) -> Self {
+        let mut make = item.make();
+        if make.starts_with("Mercedes") {
+            make = "Mercedes-Benz".to_string();
+        } else if make.trim() == "DS" {
+            make = "DS Automobiles".to_string();
+        } else if make == r#"CITROËN"# {
+            make = "Citroen".to_string();
+        } else if make.starts_with("Alfa") {
+            make = "Alfa Romeo".to_string();
+        } else if make.starts_with("SSANG") {
+            make = "SsangYong".to_string();
+        } else if make.to_uppercase().starts_with("LYNK") {
+            make = "Lynk & Co".to_string();
+        } else if make.to_uppercase() == "ALPINA" {
+            make = "Alpina".to_string();
+        }
+
         BaseVehicleInfo {
             // Assuming `BaseVehicleInfo` has these fields. You need to adjust according to the actual struct fields.
             id: item.id(),
             source: item.source(),
-            make: item.make(),
+            make,
             model: item.model(),
             title: item.title(),
             currency: item.currency(),
