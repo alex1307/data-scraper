@@ -16,11 +16,17 @@ lazy_static! {
         ("402", ""),
     ];
     static ref YEARS: Vec<(&'static str, &'static str)> = vec![
-        ("2014", "2015"),
-        ("2016", "2017"),
-        ("2018", "2019"),
-        ("2020", "2021"),
-        ("2022", "2024"),
+        ("2014", "2014"),
+        ("2015", "2015"),
+        ("2016", "2016"),
+        ("2017", "2017"),
+        ("2018", "2018"),
+        ("2019", "2019"),
+        ("2020", "2020"),
+        ("2021", "2021"),
+        ("2022", "2022"),
+        ("2023", "2023"),
+        ("2024", "2024"),
     ];
     static ref PRICES: Vec<(&'static str, &'static str)> = vec![
         ("1000", "5000"),
@@ -166,42 +172,29 @@ fn price_filter(
     searches
 }
 
-pub fn build_autouncle_ro_searches() -> Vec<HashMap<String, String>> {
-    //https://www.autouncle.ro/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
-    let mut searches = vec![];
-    let mut map = HashMap::new();
-    map.insert("s%5Bnot_damaged%5D".to_owned(), "true".to_owned());
-    map.insert("s%5Bseller_kind%5D".to_owned(), "Dealer".to_owned());
-    map.insert(
-        "s%5Bwith_ratings%5D%5B%5D".to_owned(),
-        "[5,4,3,2,1]".to_owned(),
-    );
-    let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
-
-    for year in year_filter {
-        for price in price_filter.iter() {
-            let mut params = map.clone();
-            params.extend(year.clone());
-            params.extend(price.clone());
-            params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_RO.to_owned());
-            searches.push(params);
-        }
-    }
-    searches
-}
-pub fn build_autouncle_nl_searches() -> Vec<HashMap<String, String>> {
+pub fn build_autouncle_searches(rating: &str) -> Vec<HashMap<String, String>> {
     //https://www.autouncle.nl/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
     let mut searches = vec![];
     let mut map = HashMap::new();
     map.insert("s%5Bnot_damaged%5D".to_owned(), "true".to_owned());
     map.insert("s%5Bseller_kind%5D".to_owned(), "Dealer".to_owned());
-    map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), "[5]".to_owned());
-    map.insert("s%5Bfeatured%5D".to_owned(), "true".to_owned());
+    map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), rating.to_owned());
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
     let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
 
     for year in year_filter {
+        if let Some(y) = year.get("s%5Bmin_year%5D") {
+            if y == "2014" || y == "2015" {
+                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
+            } else if y == "2016" || y == "2017" {
+                map.insert("s%5Bmax_km%5D".to_owned(), "150000".to_owned());
+            } else if y == "2018" || y == "2019" || y == "2020" {
+                map.insert("s%5Bmax_km%5D".to_owned(), "100000".to_owned());
+            } else {
+                map.insert("s%5Bmax_km%5D".to_owned(), "50000".to_owned());
+            }
+        }
+
         for price in price_filter.iter() {
             let mut params = map.clone();
             params.extend(year.clone());
@@ -210,29 +203,6 @@ pub fn build_autouncle_nl_searches() -> Vec<HashMap<String, String>> {
             searches.push(params);
         }
     }
-    searches
-}
-
-pub fn build_autouncle_fr_searches() -> Vec<HashMap<String, String>> {
-    //https://www.autouncle.fr/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
-    let mut searches = vec![];
-    let mut map = HashMap::new();
-    map.insert("s%5Bseller_kind%5D".to_owned(), "Dealer".to_owned());
-    map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), "[5]".to_owned());
-    map.insert("s%5Bfeatured%5D".to_owned(), "true".to_owned());
-    let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
-
-    for year in year_filter {
-        for price in price_filter.iter() {
-            let mut params = map.clone();
-            params.extend(year.clone());
-            params.extend(price.clone());
-            params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_FR.to_owned());
-            searches.push(params);
-        }
-    }
-    info!("Search builder: searches: {}", searches.len());
     searches
 }
 

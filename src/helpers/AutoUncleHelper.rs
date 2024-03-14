@@ -83,7 +83,7 @@ pub fn get_scripts(html: &str) -> Vec<String> {
 }
 
 pub fn get_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
-    let mut vehicles = parse_vehicles(&content);
+    let mut vehicles = parse_vehicles(content);
     let mut ids = vec![];
     for v in &vehicles {
         let featured = v.featured_attributes_equipment[1..].to_string();
@@ -91,7 +91,7 @@ pub fn get_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
         ids.push(featured);
         ids.push(non_featured);
     }
-    let equipments = parse_equipment(&content, &ids);
+    let equipments = parse_equipment(content, &ids);
 
     for v in &mut vehicles {
         let featuered = v.featured_attributes_equipment[1..].to_string();

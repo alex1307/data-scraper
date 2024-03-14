@@ -45,13 +45,13 @@ pub struct DetailedVehicleInfo {
     pub cc: u32,
     pub fuel_consumption: f64,
     pub electric_drive_range: f64,
-    pub equipment: u64,
+    pub equipment: String,
     pub is_dealer: bool,
     pub seller_name: String,
 }
 
 impl DetailedVehicleInfo {
-    pub fn new(id: String, equipment: u64) -> Self {
+    pub fn new(id: String, equipment: String) -> Self {
         Self {
             id,
             equipment,
@@ -187,9 +187,9 @@ pub trait DetailsT {
     fn cc(&self) -> u32;
     fn fuel_consumption(&self) -> f64;
     fn electric_drive_range(&self) -> f64;
-    fn equipment(&self) -> u64;
     fn is_dealer(&self) -> bool;
     fn seller_name(&self) -> String;
+    fn equipment(&self) -> String;
 }
 
 pub trait ChangeLogT {
@@ -353,9 +353,9 @@ where
             cc: record.cc(),
             fuel_consumption: record.fuel_consumption(),
             electric_drive_range: record.electric_drive_range(),
-            equipment: record.equipment(),
             is_dealer: record.is_dealer(),
             seller_name: record.seller_name(),
+            equipment: record.equipment(),
         }
     }
 }

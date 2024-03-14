@@ -11,6 +11,7 @@ use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
 use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
+use data_scraper::services::SearchBuilder::build_autouncle_searches;
 use data_scraper::LOG_CONFIG;
 use data_scraper::{
     scraper::{
@@ -20,7 +21,6 @@ use data_scraper::{
     services::{
         ScraperAppService::download_list_data,
         SearchBuilder::{
-            build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
             build_cars_bg_all_searches, build_mobile_bg_all_searches, CRAWLER_AUTOUNCLE_FR,
             CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_CARS_BG, CRAWLER_MOBILE_BG,
         },
@@ -65,10 +65,7 @@ async fn main() {
         Commands::ScrapeAll => run().await,
         Commands::Scrape(args) => {
             let source = args.source.clone();
-            let threads = match args.threads {
-                Some(threads) => threads,
-                None => 1,
-            };
+            let threads = args.threads.unwrap_or(1);
             run_crawler(source, threads).await;
         }
         Commands::Puppeteer => {
@@ -85,21 +82,21 @@ async fn run_crawler(crawler: String, threads: usize) {
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
-        let searches = build_autouncle_fr_searches();
+        let searches = build_autouncle_searches("[5]");
         info!("Starting autouncle.fr with #{} searches", searches.len());
         let crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.fr with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_NL {
-        let searches = build_autouncle_nl_searches();
+        let searches = build_autouncle_searches("[5]");
         info!("Starting autouncle.nl with #{} searches", searches.len());
         let crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.nl with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_RO {
-        let searches = build_autouncle_ro_searches();
+        let searches = build_autouncle_searches("[5]");
         info!("Starting autouncle.ro with #{} searches", searches.len());
         let crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
         let searches = searches.chunks(threads);
@@ -148,15 +145,15 @@ async fn run() {
     let mobile_bg_all = random.len();
     all.extend(random.clone());
 
-    let random = to_execution_list(build_autouncle_fr_searches(), CRAWLER_AUTOUNCLE_FR, 4);
+    let random = to_execution_list(build_autouncle_searches("[5]"), CRAWLER_AUTOUNCLE_FR, 4);
     let fr_all = random.len();
     all.extend(random.clone());
 
-    let random = to_execution_list(build_autouncle_nl_searches(), CRAWLER_AUTOUNCLE_NL, 4);
+    let random = to_execution_list(build_autouncle_searches("[5]"), CRAWLER_AUTOUNCLE_NL, 4);
     let nl_all = random.len();
     all.extend(random.clone());
 
-    let random = to_execution_list(build_autouncle_ro_searches(), CRAWLER_AUTOUNCLE_RO, 4);
+    let random = to_execution_list(build_autouncle_searches("[5]"), CRAWLER_AUTOUNCLE_RO, 4);
     let ro_all = random.len();
     all.extend(random.clone());
 

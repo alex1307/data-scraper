@@ -144,9 +144,6 @@ pub struct AutoUncleVehicle {
 
     #[serde(skip)]
     pub equipment: Vec<String>,
-
-    #[serde(skip)]
-    pub equipment_id: u64,
 }
 
 impl URLResource for AutoUncleVehicle {
@@ -228,9 +225,10 @@ impl DetailsT for AutoUncleVehicle {
     fn location(&self) -> String {
         self.location.clone()
     }
-    fn equipment(&self) -> u64 {
-        self.equipment_id
+    fn equipment(&self) -> String {
+        self.equipment.join(",")
     }
+
     fn is_dealer(&self) -> bool {
         self.seller_kind.to_lowercase() == "dealer"
     }

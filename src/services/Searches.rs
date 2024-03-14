@@ -8,9 +8,7 @@ use log::info;
 
 use crate::{CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG};
 
-use super::SearchBuilder::{
-    build_autouncle_ro_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
-};
+use super::SearchBuilder::{build_cars_bg_all_searches, build_mobile_bg_all_searches};
 
 pub const MOBILE_BG_NEW_SEARCHES: &str = "resources/searches/mobile_bg_new_search.json";
 pub const MOBILE_BG_ALL_SEARCHES: &str = "resources/searches/mobile_bg_all_search.json";
@@ -37,7 +35,6 @@ pub fn init_searches() -> Result<(), String> {
     let json_data = serde_json::to_string_pretty(&searches).map_err(|e| e.to_string())?;
     fs::write(MOBILE_BG_ALL_SEARCHES, json_data).map_err(|e| e.to_string())?;
 
-    let searches = autouncle_all_searches();
     let json_data = serde_json::to_string_pretty(&searches).map_err(|e| e.to_string())?;
     fs::write(AUTOUNCLE_ALL_SEARCHES, json_data).map_err(|e| e.to_string())?;
     Ok(())
@@ -87,9 +84,6 @@ pub fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     build_mobile_bg_all_searches()
 }
 
-pub fn autouncle_all_searches() -> Vec<HashMap<String, String>> {
-    build_autouncle_ro_searches()
-}
 #[cfg(test)]
 mod test_searches {
     use std::fs;

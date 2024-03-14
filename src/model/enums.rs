@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use scraper::error;
 use serde::{Deserialize, Serialize};
 
 use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo};
@@ -97,9 +98,9 @@ pub enum Payload<T> {
 impl ToString for Gearbox {
     fn to_string(&self) -> String {
         match self {
-            Gearbox::Automatic => "Автоматична".to_string(),
-            Gearbox::Manual => "Ръчна".to_string(),
-            Gearbox::Semiautomatic => "Полуавтоматична".to_string(),
+            Gearbox::Automatic => "Automatic".to_string(),
+            Gearbox::Manual => "Manual".to_string(),
+            Gearbox::Semiautomatic => "Semi-automatic".to_string(),
             Gearbox::NotAvailable => "NotFound".to_string(),
         }
     }
@@ -119,7 +120,7 @@ impl ToString for Engine {
             Engine::HybridDiesel => "Hybrid-diesel".to_string(),
             Engine::PlugInHybridPetrol => "Plug-in-hybrid-petrol".to_string(),
             Engine::PlugInHybridDiesel => "Plug-in-hybrid-diesel".to_string(),
-            _ => "NotFound".to_string(),
+            Engine::NotAvailable => "NotFound".to_string(),
         }
     }
 }
@@ -169,12 +170,20 @@ impl FromStr for Engine {
             "електричество" => Ok(Engine::Electric),
             "хибриден" => Ok(Engine::Hybrid),
             "hybrid" => Ok(Engine::Hybrid),
+            "el_hybrid" => Ok(Engine::Hybrid),
+            "el_benzin" => Ok(Engine::HybridPetrol),
             "хибрид" => Ok(Engine::Hybrid),
             "hybrid petrol" => Ok(Engine::HybridPetrol),
             "hybrid diesel" => Ok(Engine::HybridDiesel),
             "plug-in hybrid petrol" => Ok(Engine::PlugInHybridPetrol),
             "plug-in hybrid diesel" => Ok(Engine::PlugInHybridDiesel),
-            _ => Ok(Engine::NotAvailable),
+            "el" => Ok(Engine::Electric),
+            "cng_hybrid" => Ok(Engine::Hybrid),
+            "ethanol_benzin" => Ok(Engine::Petrol),
+            _ => {
+                log::error!("ENGINE ERROR: Invalid type: {}", s);
+                Ok(Engine::NotAvailable)
+            }
         }
     }
 }
