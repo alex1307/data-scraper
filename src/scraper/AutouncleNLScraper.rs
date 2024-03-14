@@ -9,7 +9,7 @@ use crate::{
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use rand::Rng;
 use tokio::time::sleep;
 
@@ -57,6 +57,8 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleNLScraper {
                     page_number, params
                 );
             }
+            info!("*** Waiting 30 seconds ***");
+            sleep(Duration::from_secs(30)).await;
         }
         for v in &mut vehicles {
             v.source = "autouncle.nl".to_string();

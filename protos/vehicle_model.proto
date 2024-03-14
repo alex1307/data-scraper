@@ -39,7 +39,7 @@ message DetailedVehicleInfo {
     uint32 cc = 6;
     double fuel_consumption = 7;
     double electric_drive_range = 8;
-    uint64 equipment = 9;
+    string equipment = 9;
     bool is_dealer = 10;
     string seller_name = 11;
 }

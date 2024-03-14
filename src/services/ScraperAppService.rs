@@ -17,8 +17,7 @@ use crate::{
         Traits::{ScrapeListTrait, ScraperTrait},
     },
     services::SearchBuilder::{
-        build_autouncle_fr_searches, build_autouncle_nl_searches, build_autouncle_ro_searches,
-        build_cars_bg_all_searches, build_mobile_bg_all_searches,
+        build_autouncle_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
     },
 };
 use lazy_static::lazy_static;
@@ -118,7 +117,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleRo(_) => {
             info!("Starting autouncle.ro");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_ro_searches();
+            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {
@@ -133,7 +132,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleNL(_) => {
             info!("Starting autouncle.nl");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_nl_searches();
+            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {
@@ -148,7 +147,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleFR(_) => {
             info!("Starting autouncle.fr");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_fr_searches();
+            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {

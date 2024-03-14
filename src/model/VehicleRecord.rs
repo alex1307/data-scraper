@@ -39,7 +39,7 @@ pub struct MobileRecord {
     pub name: String,
     pub location: String,
     pub view_count: u32,
-    pub equipment: u64,
+    pub equipment: String,
     pub top: bool,
     pub vip: bool,
     pub sold: bool,
@@ -116,9 +116,8 @@ impl From<HashMap<String, String>> for MobileRecord {
             .unwrap_or(0);
         let equipment = map
             .get(&EQUIPMENT_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u64>()
-            .unwrap_or(0);
+            .unwrap_or(default_str)
+            .to_string();
         let price = map
             .get(&PRICE_KEY.to_owned())
             .unwrap_or(default_0)
@@ -277,14 +276,15 @@ impl DetailsT for MobileRecord {
     fn electric_drive_range(&self) -> f64 {
         0.0
     }
-    fn equipment(&self) -> u64 {
-        self.equipment
-    }
+
     fn is_dealer(&self) -> bool {
         self.dealer
     }
     fn seller_name(&self) -> String {
         self.name.clone()
+    }
+    fn equipment(&self) -> String {
+        self.equipment.clone()
     }
 }
 

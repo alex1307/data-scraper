@@ -78,8 +78,8 @@ pub struct DetailedVehicleInfo {
     pub fuel_consumption: f64,
     #[prost(double, tag = "8")]
     pub electric_drive_range: f64,
-    #[prost(uint64, tag = "9")]
-    pub equipment: u64,
+    #[prost(string, tag = "9")]
+    pub equipment: ::prost::alloc::string::String,
     #[prost(bool, tag = "10")]
     pub is_dealer: bool,
     #[prost(string, tag = "11")]

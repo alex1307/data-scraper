@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 
 use rand::Rng;
 use scraper::{Html, Selector};
@@ -81,7 +81,20 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
         let power: u32 = params.get("power").unwrap().parse().unwrap();
         let vehicles = read_listing(html.as_str(), gearbox, power);
         if vehicles.is_empty() {
-            panic!("{}", html);
+            if html.to_lowercase().contains("too many requests")
+                || html.to_lowercase().contains(r#""429""#)
+                || html.to_lowercase().contains(r#"429 "#)
+                || html.to_lowercase().contains(r#" 429"#)
+            {
+                error!("429 - TOO MANY REQUESTS{}", html.len());
+            } else {
+                error!(
+                    "No vehicles found. Page: {}, Search: {:?}",
+                    page_number, params
+                );
+            }
+            info!("*** Waiting 30 seconds ***");
+            sleep(Duration::from_secs(30)).await;
         }
         let waiting_time_ms: u64 = rand::thread_rng().gen_range(1_000..3_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
