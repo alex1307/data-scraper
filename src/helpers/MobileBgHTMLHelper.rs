@@ -25,6 +25,7 @@ use crate::model::VehicleRecord::MobileRecord;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
+use crate::utils::helpers::extract_make;
 use crate::ENGINE_TXT;
 use crate::GEARBOX_TXT;
 use crate::POWER_TXT;
@@ -424,7 +425,7 @@ pub fn process_listing(
     let price_selector = Selector::parse("span.price").unwrap();
     // Selector to find the description
     let rows_selector = Selector::parse("table.tablereset").unwrap();
-    let make_model_selector = Selector::parse("td.valgtop > a.mmm").unwrap(); // Adjusted to be mo
+    let make_model_selector = Selector::parse("td.valgtop > a.mmmL").unwrap(); // Adjusted to be mo
     let a_selector = Selector::parse("a.mmmL").unwrap();
     let logo_selector = Selector::parse("a.logoLink").unwrap();
     let mut resumes = vec![];
@@ -461,25 +462,22 @@ pub fn process_listing(
 
         if let Some(make_model_element) = element.select(&make_model_selector).next() {
             counter += 1;
-            let d = make_model_element.text().collect::<Vec<_>>().join(" ");
-            resume.title = d.clone();
-            let make_model = d.split(' ').collect::<Vec<&str>>();
-            if make_model.is_empty() || make_model.len() < 2 {
-                continue;
+            let txt = make_model_element.text().collect::<Vec<_>>().join("");
+            let mut make_model = txt.split_whitespace().collect::<Vec<_>>();
+            if let Some(last) = make_model.last() {
+                if last.ends_with("...")
+                    || regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]")
+                        .unwrap()
+                        .is_match(last)
+                {
+                    make_model.pop();
+                }
             }
 
-            if make_model.len() == 2 {
-                resume.make = make_model[0].to_string();
-                resume.model = make_model[1].to_string();
-            } else if make_model.len() == 3 {
-                resume.make = make_model[0].to_string();
-                resume.model = make_model[1].to_string();
-                resume.modification = make_model[2].to_string();
-            } else {
-                resume.make = make_model[0].to_string();
-                resume.model = make_model[1].to_string();
-                resume.modification = format!("{} {}", make_model[2], make_model[3]);
-            }
+            let (make, model, title) = extract_make(make_model);
+            resume.make = make;
+            resume.model = model;
+            resume.title = title;
         }
 
         if let Some(price_element) = element.select(&price_selector).next() {

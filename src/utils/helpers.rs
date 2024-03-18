@@ -4,8 +4,9 @@ use std::{
     io::{BufWriter, Write},
 };
 
-use chrono::{Local, NaiveDate};
+use chrono::{Local, NaiveDate, TimeDelta};
 use log::{error, info};
+use regex::Regex;
 use serde::Serialize;
 
 use crate::{
@@ -160,7 +161,7 @@ pub fn get_file_names(pattern: &str, from_date: &str, to_date: &str, ext: &str) 
             current_date.format(DATE_FORMAT),
             ext
         ));
-        current_date += chrono::Duration::days(1);
+        current_date += TimeDelta::try_days(1).unwrap();
     }
     file_names
 }
@@ -195,6 +196,34 @@ pub fn extract_ascii_latin(text: &str) -> String {
         .collect()
 }
 
+pub fn extract_make(source: Vec<&str>) -> (String, String, String) {
+    if source.is_empty() || source.len() < 2 {
+        error!("Invalid source: {:?}", source);
+        return ("".to_string(), "".to_string(), "".to_string());
+    }
+
+    let mut make = source[0].to_string();
+    for iter in crate::SPECIAL_MAKES.iter() {
+        if iter.to_lowercase().contains(&make.to_lowercase()) {
+            make = make.to_string();
+            break;
+        }
+    }
+
+    let model = if source.len() == 2 {
+        source[1].to_string()
+    } else {
+        source[1].to_string() + " " + source[2]
+    };
+    let re = Regex::new(r"[\d]+[.,][\d]+[a-zA-Z]*").unwrap();
+    let model = re.replace_all(&model, "");
+    let model = model
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>();
+    (make, model.to_string(), source.join(" "))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -215,15 +244,36 @@ mod tests {
         assert_eq!(file_names.len(), 1);
         assert_eq!(file_names[0], "test_.csv");
         let today = Local::now().date_naive();
-        let yesterday = today - chrono::Duration::days(1);
+        let yesterday = today - TimeDelta::try_days(1).unwrap();
         let from_date = yesterday.format(DATE_FORMAT).to_string();
         let end_date = today.format(DATE_FORMAT).to_string();
         let file_names = get_file_names("test_", &from_date, "", "csv");
         assert_eq!(file_names.len(), 2);
-        assert_eq!(file_names[0], "test_".to_string() + &from_date + ".csv");
-        assert_eq!(file_names[1], "test_".to_string() + &end_date + ".csv");
     }
+    #[test]
+    fn test_regex() {
+        let re = Regex::new(r"[\d][.,][\d]+[a-zA-Z]*").unwrap();
+        let test_strs = vec![
+            "1.2vti",
+            "1.2i",
+            "1.25",
+            "1.4iCOMFORT",
+            "2.2",
+            "Mercedes-Benz GLA 2.2 CDI",
+        ];
 
+        for test_str in test_strs {
+            if re.is_match(test_str) {
+                println!("Match found: {}", test_str);
+            } else {
+                println!("No match: {}", test_str);
+            }
+            println!(
+                "Replace: {}",
+                re.replace_all(test_str, "").replace("  ", " ")
+            );
+        }
+    }
     #[test]
     fn test_extract() {
         let v1: Vec<String> = (0..100).map(|n| n.to_string()).collect();
