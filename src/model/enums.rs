@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use scraper::error;
 use serde::{Deserialize, Serialize};
 
 use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo};

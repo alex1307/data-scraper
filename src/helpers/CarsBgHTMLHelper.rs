@@ -1,23 +1,19 @@
 use std::{collections::HashMap, str::FromStr, thread::sleep, time::Duration, vec};
 
-use chrono::{naive, Local};
-use log::{debug, info};
+use chrono::{naive, Local, TimeDelta};
+use log::info;
 use scraper::{Html, Selector};
 
 use crate::{
-    config::Equipment,
-    helpers::PUBLISHED_ON_KEY,
     model::{
         enums::{Engine, Gearbox},
         VehicleRecord::MobileRecord,
     },
+    utils::helpers::extract_make,
     CARS_BG_LISTING_URL,
 };
 
-use super::{
-    MobileBgHTMLHelper::get_pages_async, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY,
-    LOCATION_KEY, MAKE_KEY, MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, YEAR_KEY,
-};
+use super::MobileBgHTMLHelper::get_pages_async;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -101,22 +97,24 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
             ..Default::default()
         };
         record.dealer = txt.to_lowercase().contains("частно лице");
-        let make_model = element
-            .select(&modelSelector)
-            .map(|element| {
-                // Extract the text content, which contains the make and model
-                element
-                    .text()
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .trim()
-                    .to_string()
-            })
-            .next();
-        if make_model.is_none() {
-            continue;
+        if let Some(make_model_element) = element.select(&modelSelector).next() {
+            let txt = make_model_element.text().collect::<Vec<_>>().join("");
+            let mut make_model = txt.split_whitespace().collect::<Vec<_>>();
+            if let Some(last) = make_model.last() {
+                if last.ends_with("...")
+                    || regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]")
+                        .unwrap()
+                        .is_match(last)
+                {
+                    make_model.pop();
+                }
+            }
+
+            let (make, model, title) = extract_make(make_model);
+            record.make = make;
+            record.model = model;
+            record.title = title;
         }
-        record.title = make_model.unwrap();
         let html_fragment = Html::parse_fragment(element.inner_html().as_str());
 
         let h6_selector = Selector::parse("h6").unwrap();
@@ -133,7 +131,7 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
                     let today = Local::now().date_naive();
                     record.updated_on = today.to_string();
                 } else if r#"вчера"# == date {
-                    let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
+                    let yesterday = Local::now().date_naive() - TimeDelta::try_days(1).unwrap();
                     record.updated_on = yesterday.to_string();
                 } else {
                     let published_on = naive::NaiveDate::parse_from_str(date, "%d.%m.%y").unwrap();
@@ -222,153 +220,6 @@ pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
         }
     }
     Ok(ids)
-}
-
-pub fn read_carsbg_details(html: String) -> HashMap<String, String> {
-    let mut result = HashMap::new();
-    result.insert("source".to_owned(), "cars.bg".to_owned());
-    if html.contains(r#"Частно лице"#) {
-        result.insert(DEALER_KEY.to_owned(), "false".to_owned());
-    } else {
-        result.insert(DEALER_KEY.to_owned(), "true".to_owned());
-    }
-    let document = Html::parse_document(&html);
-    if let Some(el) = document.select(&PRICE_SELECTOR).next() {
-        let price = el
-            .inner_html()
-            .chars()
-            .filter(|&c| c.is_numeric())
-            .collect::<String>()
-            .parse::<i32>()
-            .unwrap_or(0);
-        result.insert(PRICE_KEY.to_owned(), price.to_string());
-    } else {
-        result.clear();
-        return result;
-    }
-
-    if let Some(phone_txt) = document.select(&PHONE_SELECTOR).next() {
-        let phone = phone_txt.inner_html();
-        result.insert(
-            PHONE_KEY.to_owned(),
-            phone.replace('\n', "").trim().to_string(),
-        );
-    }
-    let make_model = document.select(&MAKE_MODEL_SELECTOR).next();
-    let make_model = match make_model {
-        None => {
-            result.clear();
-            return result;
-        }
-        Some(mm) => mm
-            .inner_html()
-            .split_ascii_whitespace()
-            .map(|s| s.to_owned())
-            .collect::<Vec<String>>(),
-    };
-    if make_model.len() > 1 {
-        result.insert(MAKE_KEY.to_owned(), make_model[0].to_owned());
-        result.insert(MODEL_KEY.to_owned(), make_model[1].to_owned());
-    } else {
-        result.clear();
-        return result;
-    }
-
-    let selector = Selector::parse("div.text-copy > strong").unwrap();
-    let mut strong = vec![];
-
-    for element in document.select(&selector) {
-        if let Some(text) = element.text().next() {
-            strong.push(text);
-        }
-    }
-
-    let blur_text_selector = Selector::parse("div.blur-text").unwrap();
-    for el in document.select(&blur_text_selector) {
-        let date = el.text().collect::<String>();
-        debug!("UPDATED ON: {}", date);
-        if date.contains(r#"днес"#) {
-            let today = Local::now().date_naive();
-            result.insert(PUBLISHED_ON_KEY.to_owned(), today.to_string());
-        } else if date.contains(r#"вчера"#) {
-            let yesterday = Local::now().date_naive() - chrono::Duration::days(1);
-            result.insert(PUBLISHED_ON_KEY.to_owned(), yesterday.to_string());
-        } else {
-            let published_on = match naive::NaiveDate::parse_from_str(date.trim(), "%d.%m.%y") {
-                Ok(date) => date,
-                Err(e) => {
-                    info!("Error parsing date: {}", e);
-                    continue;
-                }
-            };
-            result.insert(PUBLISHED_ON_KEY.to_owned(), published_on.to_string());
-        }
-        break;
-    }
-    if strong.len() >= 2 {
-        result.insert(YEAR_KEY.to_owned(), strong[0].to_owned());
-        result.insert(LOCATION_KEY.to_owned(), strong[1].to_owned());
-    } else if strong.len() == 1 {
-        result.insert(YEAR_KEY.to_owned(), strong[0].to_owned());
-    }
-    get_vehicle_equipment(&document, &mut result);
-    result
-}
-
-fn get_vehicle_equipment(document: &Html, data: &mut HashMap<String, String>) {
-    let selector = Selector::parse("div.text-copy").unwrap();
-
-    // Find all elements with the "description" class
-    let mut equipment = vec![];
-    for element in document.select(&selector) {
-        // Extract the text content within the selected element
-        let text = element.text().collect::<String>();
-        // Split the text into lines
-        let lines: Vec<&str> = text
-            .lines()
-            .map(|line| line.trim())
-            .filter(|line| !line.is_empty())
-            .collect();
-        for l in lines {
-            if l.contains(", ") {
-                let values: Vec<String> = l.split(", ").map(|s| s.trim().to_owned()).collect();
-                equipment.extend(values);
-            }
-        }
-    }
-
-    for eq in equipment.iter() {
-        if eq.contains(r#"скорости"#) {
-            data.insert(GEARBOX_KEY.to_owned(), eq.to_string());
-        } else if eq.contains(r#"к.с."#) {
-            let numeric = eq
-                .chars()
-                .filter(|&c| c.is_numeric())
-                .collect::<String>()
-                .parse::<i32>()
-                .unwrap_or(0);
-            data.insert(POWER_KEY.to_owned(), numeric.to_string());
-        } else if eq.contains(r#"км"#) {
-            let numeric = eq
-                .chars()
-                .filter(|&c| c.is_numeric())
-                .collect::<String>()
-                .parse::<i32>()
-                .unwrap_or(0);
-            data.insert(MILEAGE_KEY.to_owned(), numeric.to_string());
-        } else if eq.contains("Газ/Бензин")
-            || eq.contains("Дизел")
-            || eq.contains("Бензин")
-            || eq.contains("Електричество")
-            || eq.contains("Хибрид")
-        {
-            data.insert(ENGINE_KEY.to_owned(), eq.to_string());
-        }
-    }
-    let equipment_id = Equipment::get_equipment_as_u64(equipment);
-    data.insert(EQUIPMENT_KEY.to_owned(), equipment_id.to_string());
-
-    //println!("equipment * : {:?}", equipment);
 }
 
 #[cfg(test)]
