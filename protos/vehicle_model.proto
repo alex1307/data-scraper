@@ -17,6 +17,7 @@ message BaseVehicleInfo {
     uint32 cc = 13;
     uint32 power_ps = 14;
     uint32 power_kw = 15;
+    string search_id = 16;
 }
 
 message VehicleChangeLogInfo {
@@ -73,4 +74,36 @@ message Consumption {
 message ID {
     string id = 1;
     string source = 2;
+}
+
+message VehicleView {
+    string id = 1;
+    string source = 2;
+    string make = 3;
+    string model = 4;
+    string title = 5;
+    string currency = 6;       // Assuming Currency is a defined enum or message
+    uint32 price = 7;            // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 millage = 8;          // Optional in Rust, so no 'optional' keyword needed in proto3
+    uint32 year = 10;
+    string engine = 11;          // Assuming Engine is a defined message
+    string gearbox = 12;        // Assuming Gearbox is a defined message
+    uint32 cc = 13;
+    uint32 power_ps = 14;
+    uint32 estimated_price = 15;
+    string location = 16;
+    string equipment = 17;
+    string seller_name = 18;
+    uint32 days_in_sale = 19;
+    bool promoted = 20;
+    string last_modified_on = 21;
+}
+
+message DownloadStatus{
+    string id = 1;
+    string source = 2;
+    string url = 3;
+    uint32 listed = 4;
+    uint32 actual = 5;
+    uint64 hash = 6;
 }

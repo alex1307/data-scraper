@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, sync::Mutex, time::Duration};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::Mutex,
+    time::Duration,
+};
 
 use futures::future::join_all;
 use log::{debug, error, info};
@@ -14,7 +20,7 @@ use uuid::Uuid;
 use crate::{
     kafka::{
         broker,
-        KafkaProducer::{encode_message, send_message},
+        KafkaProducer::{encode_message, message2kafka, send_message},
         BASE_INFO_TOPIC, CHANGE_LOG_TOPIC, DETAILS_TOPIC, PRICE_TOPIC,
     },
     model::{
@@ -28,7 +34,7 @@ use crate::{
     },
     protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
-    services::SearchBuilder::CRAWLER_KEY,
+    services::SearchBuilder::{CRAWLER_KEY, ID_KEY},
     writer::persistance::{MobileData, MobileDataWriter},
 };
 
@@ -71,8 +77,16 @@ where
     let results = join_all(handlers).await;
     let mut download_status = vec![];
     for result in results {
-        let processed_vehicles = result.unwrap(); // Handle or log errors as needed
-        download_status.push(processed_vehicles);
+        match result {
+            Ok(status) => {
+                info!("Download status: {:?}", status);
+                TOTAL_COUNT.lock().unwrap().clone_from(&status.actual);
+                download_status.push(status);
+            }
+            Err(e) => {
+                error!("Error processing search: {}", e);
+            }
+        } // Handle or log errors as needed
     }
     Ok(download_status)
 }
@@ -85,12 +99,17 @@ async fn download_all_found_results<S, T>(
 ) -> DownloadStatus
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
-    T: Send + BasicT + DetailsT + PriceT + ChangeLogT + Send + Clone + Serialize + Debug + 'static,
+    T: Send + BasicT + DetailsT + PriceT + ChangeLogT + Clone + Serialize + Debug + 'static,
 {
     let uuid = Uuid::new_v4().to_string();
 
     let number_of_pages = scraper.get_number_of_pages(total_number).unwrap();
     let mut actual_number = 0;
+    let url = scraper.get_search_url(search.clone(), 1);
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    let hash = hasher.finish();
+
     info!(
         "STARTING async session: {}. Expected number of results: {}. Number of pages: {}",
         uuid, total_number, number_of_pages
@@ -131,12 +150,25 @@ where
     } else {
         "n.a"
     };
-    DownloadStatus {
+    let url = scraper.get_search_url(search.clone(), 1);
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    let message = DownloadStatus {
+        id: search.get(ID_KEY).unwrap_or(&"0".to_string()).to_string(),
         source: source.to_string(),
-        search,
+        url,
         listed: total_number,
         actual: actual_number,
-    }
+        hash,
+    };
+    info!("Download status: {:?}", message);
+    let _ = message2kafka::<DownloadStatus, protos::vehicle_model::DownloadStatus>(
+        "status",
+        message.clone(),
+    )
+    .await;
+    info!("Download status sent to kafka: {:?}", message);
+    message
 }
 
 pub async fn process_details<S, Req, Res>(

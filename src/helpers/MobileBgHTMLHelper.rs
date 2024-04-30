@@ -18,10 +18,10 @@ use crate::helpers::VIEW_COUNT_KEY;
 use crate::helpers::VIP_KEY;
 use crate::helpers::YEAR_KEY;
 use crate::model::enums::Currency;
-use crate::model::enums::Engine;
-use crate::model::enums::Gearbox;
+
 use crate::model::VehicleRecord::MobileRecord;
 
+use crate::services::SearchBuilder::CRAWLER_KEY;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_date;
 use crate::utils::helpers::extract_integers;
@@ -67,7 +67,7 @@ lazy_static! {
 
 pub fn details2map(document: Html) -> HashMap<String, String> {
     let mut map = HashMap::new();
-    map.insert("source".to_owned(), "mobile.bg".to_owned());
+    map.insert(CRAWLER_KEY.to_owned(), "mobile.bg".to_owned());
     let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
         txt.text().collect::<Vec<_>>().join("")
     } else {
@@ -414,12 +414,7 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 
     (n, k)
 }
-pub fn process_listing(
-    html_content: &str,
-    gearbox: Gearbox,
-    engine: Engine,
-    power: u32,
-) -> Vec<MobileRecord> {
+pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
     let document = Html::parse_document(html_content);
     // Selector to find the price
     let price_selector = Selector::parse("span.price").unwrap();
@@ -448,10 +443,6 @@ pub fn process_listing(
         }
         let mut resume = MobileRecord {
             id,
-            source: "mobile.bg".to_string(),
-            engine,
-            gearbox,
-            power,
             dealer: true,
             ..Default::default()
         };
@@ -570,12 +561,7 @@ mod test_listing {
         let (decoded, _, _) = encoding.decode(&file);
         let utf8_html = UTF_8.encode(&decoded).0;
         let content = String::from_utf8_lossy(&utf8_html);
-        let data = process_listing(
-            content.to_string().as_str(),
-            Gearbox::Manual,
-            Engine::Petrol,
-            0,
-        );
+        let data = get_vehicles(&content.to_string());
         info!("data: {:?}", data);
     }
 }

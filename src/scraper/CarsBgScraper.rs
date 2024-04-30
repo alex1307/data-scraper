@@ -10,7 +10,7 @@ use serde::Deserialize;
 use tokio::time::sleep;
 
 use crate::{
-    helpers::CarsBgHTMLHelper::read_listing,
+    helpers::CarsBgHTMLHelper::get_vehicles,
     model::{enums::Gearbox, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
     BROWSER_USER_AGENT,
 };
@@ -70,16 +70,16 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
         params: HashMap<String, String>,
         page_number: u32,
     ) -> Result<ScrapedListData<MobileRecord>, String> {
-        let url = self.parent.search_url(
-            Some("/carslist.php?".to_string()),
-            params.clone(),
-            page_number,
-        );
+        let url = self.parent.search_url(params.clone(), page_number);
         let html = self.parent.html_search(url.as_str(), None).await?;
         let value = params.get("gearbox").unwrap().to_string();
         let gearbox = Gearbox::from_str(&value).unwrap();
         let power: u32 = params.get("power").unwrap().parse().unwrap();
-        let vehicles = read_listing(html.as_str(), gearbox, power);
+        let mut vehicles = get_vehicles(&html);
+        for vehicle in vehicles.iter_mut() {
+            vehicle.gearbox = gearbox;
+            vehicle.power = power;
+        }
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")
                 || html.to_lowercase().contains(r#""429""#)
@@ -103,47 +103,10 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
     }
 }
 
-// #[async_trait]
-// impl RequestResponseTrait<LinkId, MobileRecord> for CarsBGScraper {
-//     async fn handle_request(&self, link: LinkId) -> Result<MobileRecord, String> {
-//         let html = self.parent.html_search(&link.url, None).await?;
-//         let mut result = read_carsbg_details(html);
-//         match get_view_count(link.id.clone()).await {
-//             Ok(views) => {
-//                 result.insert("view_count".to_owned(), views.to_string());
-//             }
-//             Err(e) => {
-//                 error!(
-//                     "Error setting counter for: {}. Error: {}",
-//                     link.id,
-//                     e.to_string()
-//                 );
-//             }
-//         }
-//         result.insert("id".to_owned(), link.id.clone());
-//         if result.get(PRICE_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete PRICE for: {}", &link.id))
-//         } else if result.get(MAKE_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete MAKE/MODEL for: {}", &link.id))
-//         } else if result.get(YEAR_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete YEAR for: {}", &link.id))
-//         } else if result.get(MILEAGE_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete MILEAGE for: {}", &link.id))
-//         } else if result.get(ENGINE_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete ENGINE for: {}", &link.id))
-//         } else if result.get(GEARBOX_KEY.to_string().as_str()).is_none() {
-//             Err(format!("invalid/incompete GEARBOX for: {}", &link.id))
-//         } else {
-//             let record = MobileRecord::from(result);
-//             Ok(record)
-//         }
-//     }
-// }
-
 #[async_trait]
 impl ScraperTrait for CarsBGScraper {
     async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
-        let url = self.parent.search_url(self.get_search_path(), params, page);
+        let url = self.parent.search_url(params, page);
         self.parent.html_search(&url, None).await
     }
 
@@ -171,6 +134,10 @@ impl ScraperTrait for CarsBGScraper {
 
     fn get_search_path(&self) -> Option<String> {
         Some("/carslist.php?".to_string())
+    }
+
+    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
+        self.parent.search_url(params, page)
     }
 }
 
@@ -203,9 +170,7 @@ mod cars_bg_tests {
         params.insert("priceTo".to_owned(), "30000".to_owned());
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
-        let url = cars_bg
-            .parent
-            .search_url(Some("/carslist.php?".to_string()), params.clone(), 1);
+        let url = cars_bg.parent.search_url(params.clone(), 1);
         let html = cars_bg
             .parent
             .html_search(url.as_str(), None)
@@ -250,9 +215,7 @@ mod cars_bg_tests {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);
                 info!("ids: {:?}", ids);
-                let first = ids.first().unwrap();
-                let path = Some(format!("/offer/{:?}", first));
-                let search_url = cars_bg.parent.search_url(path, HashMap::new(), 0);
+                let search_url = cars_bg.parent.search_url(HashMap::new(), 0);
                 info!("search_url: {}", search_url);
                 // let record = cars_bg.handle_request(first.clone()).await.unwrap();
                 // info!("record: {:?}", record);

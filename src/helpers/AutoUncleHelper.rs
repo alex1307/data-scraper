@@ -5,7 +5,7 @@ use regex::Regex;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::model::AutoUncleVehicle::AutoUncleVehicle;
+use crate::model::AutoUncleVehicle::{AutoUncleVehicle, Root};
 #[derive(Deserialize, Debug)]
 struct PaginatedCars {
     #[serde(rename = "carsPaginated")]
@@ -84,33 +84,40 @@ pub fn get_scripts(html: &str) -> Vec<String> {
 
 pub fn get_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
     let mut vehicles = parse_vehicles(content);
-    let mut ids = vec![];
-    for v in &vehicles {
-        let featured = v.featured_attributes_equipment[1..].to_string();
-        let non_featured = v.featured_attributes_non_equipment[1..].to_string();
-        ids.push(featured);
-        ids.push(non_featured);
-    }
-    let equipments = parse_equipment(content, &ids);
-
     for v in &mut vehicles {
-        let featuered = v.featured_attributes_equipment[1..].to_string();
-        let non_featured = v.featured_attributes_non_equipment[1..].to_string();
-
-        if let Some(values) = equipments.get(&featuered) {
-            v.equipment.extend(values.clone());
-        }
-        if let Some(values) = equipments.get(&non_featured) {
-            v.equipment.extend(values.clone());
-        }
+        v.equipment = v.featuredAttributesEquipment.clone();
+        v.equipment.extend(v.featuredAttributesNonEquipment.clone());
     }
     vehicles
+}
+
+fn extract_json(js_content: &str) -> Vec<AutoUncleVehicle> {
+    let re = Regex::new(r"\{[\s\S]*}}}}").unwrap(); // Adjust regex to capture JSON correctly
+    let jsons: Vec<&str> = re
+        .find_iter(js_content)
+        .map(|mat| mat.as_str().trim_end_matches(");")) // Removing trailing characters if any
+        .collect();
+    for js in jsons {
+        let js = js.to_string().replace("\\\"", "\""); // Correcting escape sequences for quotes
+        let js = js.replace(r"\\", r"\");
+        let js = js + "}";
+        match serde_json::from_str::<Root>(&js) {
+            Ok(json) => return json.dynamicScriptData.cars_search.carsPaginated.cars,
+            Err(e) => {
+                error!("Failed to deserialize: {:?}", e);
+                continue;
+                // This will show the error why deserialization failed
+            }
+        }
+    }
+    vec![]
 }
 
 pub fn parse_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
     let script_selector = Selector::parse("script").unwrap();
     let mut vehicles = vec![];
     let html = Html::parse_document(content);
+
     let scripts = html
         .select(&script_selector)
         .map(|script| script.inner_html())
@@ -118,21 +125,13 @@ pub fn parse_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
         .into_iter()
         .filter(|s| s.contains("announcedAsNew"))
         .collect::<Vec<String>>();
+
     for s in scripts {
-        let start = s.find('{').unwrap();
-        let end = s.find('}').unwrap() + 1;
-        let js = s[start..end].to_string();
-        let js = js.replace(r#"\""#, r#"""#);
-        let result = serde_json::from_str::<AutoUncleVehicle>(&js.trim());
-        if js.contains("mediumUrl") {
+        let found = extract_json(&s);
+        if found.is_empty() {
             continue;
         }
-        if let Ok(json) = result {
-            vehicles.push(json);
-        } else {
-            // info!("Error: {:?}", js);
-            error!("Error: {:?}", result.err().unwrap());
-        }
+        vehicles.extend(found);
     }
     vehicles
 }

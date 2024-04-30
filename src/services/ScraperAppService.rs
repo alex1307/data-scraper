@@ -18,6 +18,7 @@ use crate::{
     },
     services::SearchBuilder::{
         build_autouncle_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
+        ID_AUTOUNCLE_FR, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_RO_START, ID_MOBILE_BG_START,
     },
 };
 use lazy_static::lazy_static;
@@ -38,10 +39,12 @@ use super::ScraperService::{process_list, send_data};
 #[derive(Debug, Clone)]
 
 pub struct DownloadStatus {
+    pub id: String,
     pub source: String,
-    pub search: HashMap<String, String>,
+    pub url: String,
     pub listed: u32,
     pub actual: u32,
+    pub hash: u64,
 }
 #[derive(Debug, Clone)]
 pub enum Crawlers {
@@ -86,7 +89,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
     match crawler {
         Crawlers::CarsBG(_) => {
             info!("Starting cars.bg");
-            let searches = build_cars_bg_all_searches();
+            let searches = build_cars_bg_all_searches(500_000);
             let chunks = searches.chunks(10);
             info!("Starting list processing. chunks: {}", chunks.len());
             let mut max_10_searches = vec![];
@@ -101,7 +104,7 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::MobileBG(_) => {
             info!("Starting mobile.bg");
-            let searches = build_mobile_bg_all_searches();
+            let searches = build_mobile_bg_all_searches(ID_MOBILE_BG_START);
             let chunks = searches.chunks(10);
             info!("Starting list processing. chunks: {}", chunks.len());
             let mut max_10_searches = vec![];
@@ -117,7 +120,8 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleRo(_) => {
             info!("Starting autouncle.ro");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
+            let searches: Vec<HashMap<String, String>> =
+                build_autouncle_searches("[5]", ID_AUTOUNCLE_RO_START);
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {
@@ -132,7 +136,8 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleNL(_) => {
             info!("Starting autouncle.nl");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
+            let searches: Vec<HashMap<String, String>> =
+                build_autouncle_searches("[5]", ID_AUTOUNCLE_NL_START);
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {
@@ -147,7 +152,8 @@ pub async fn download_all(crawler: &str) -> Result<(), String> {
         }
         Crawlers::AutouncleFR(_) => {
             info!("Starting autouncle.fr");
-            let searches: Vec<HashMap<String, String>> = build_autouncle_searches("[5]");
+            let searches: Vec<HashMap<String, String>> =
+                build_autouncle_searches("[5]", ID_AUTOUNCLE_FR);
             let splitted_searches = searches.chunks(10);
             let mut max_10_searches = vec![];
             for chunks in splitted_searches {
