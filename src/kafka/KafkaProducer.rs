@@ -5,6 +5,8 @@ use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::time::Duration;
 
+use super::broker;
+
 pub(crate) fn create_producer(brokers: &str) -> FutureProducer {
     ClientConfig::new()
         .set("bootstrap.servers", brokers)
@@ -37,6 +39,13 @@ pub fn encode_message<T: Message>(message: &T) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Error encoding message: {:?}", e))
 }
 
+pub(crate) async fn message2kafka<T: Clone, S: Message + From<T>>(topic: &str, message: T) {
+    let producer = create_producer(&broker());
+    let proto_message: S = S::from(message.clone());
+    let encoded_message = encode_message(&proto_message).unwrap();
+    send_message(&producer, topic, encoded_message).await;
+}
+
 #[cfg(test)]
 mod kafka_tests {
 
@@ -66,6 +75,7 @@ mod kafka_tests {
                 cc: 3000,
                 power_ps: 300,
                 power_kw: 250,
+                search_id: "search_1".to_string(),
             };
             let encoded_message = encode_message(&message).unwrap();
             send_message(&producer, "base_info", encoded_message).await;

@@ -58,21 +58,31 @@ pub async fn search_cars_bg(params: HashMap<String, String>) -> Vec<MobileRecord
     let gearbox = Gearbox::from_str(params.get("gearbox").unwrap()).unwrap();
     let power = params.get("power").unwrap().parse::<u32>().unwrap_or(0);
     if number_of_pages == 1 {
-        read_listing(&html, gearbox, power)
+        let mut vehicles = get_vehicles(&html);
+        for vehicle in vehicles.iter_mut() {
+            vehicle.power = power;
+            vehicle.gearbox = gearbox;
+        }
+        vehicles
     } else {
-        let mut result = read_listing(&html, gearbox, power);
-        for i in 2..number_of_pages {
+        let mut result = vec![];
+        for i in 1..number_of_pages {
             sleep(Duration::from_secs(1));
             info!("page: {}", i);
             let url = search_cars_bg_url(&params, i);
             let html = get_pages_async(&url, false).await.unwrap();
-            result.extend(read_listing(&html, gearbox, power));
+            let mut vehicles = get_vehicles(&html);
+            for vehicle in vehicles.iter_mut() {
+                vehicle.power = power;
+                vehicle.gearbox = gearbox;
+            }
+            result.extend(vehicles);
         }
         result
     }
 }
 
-pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecord> {
+pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
     let mut result = vec![];
     let document = Html::parse_document(html);
     let selector = Selector::parse("div.mdc-card.offer-item").unwrap();
@@ -91,8 +101,6 @@ pub fn read_listing(html: &str, gearbox: Gearbox, power: u32) -> Vec<MobileRecor
         }
         let mut record = MobileRecord {
             id: id.unwrap(),
-            gearbox,
-            power,
             source: "cars.bg".to_owned(),
             ..Default::default()
         };
@@ -336,7 +344,7 @@ mod test_cars_bg {
         assert!(listing > 0);
         info!("Pages found: {}", listing);
         let html = get_pages_async(&url, false).await.unwrap();
-        let result = read_listing(&html, Gearbox::Automatic, 90);
+        let result = get_vehicles(&html);
         assert!(result.len() > 0);
         assert_eq!(20, result.len());
         for m in result {

@@ -8,7 +8,9 @@ use log::info;
 
 use crate::{CARS_BG_NEW_SEARCHES_LOG, MOBILE_BG_NEW_SEARCHES_LOG};
 
-use super::SearchBuilder::{build_cars_bg_all_searches, build_mobile_bg_all_searches};
+use super::SearchBuilder::{
+    build_cars_bg_all_searches, build_mobile_bg_all_searches, ID_CARS_BG_START, ID_MOBILE_BG_START,
+};
 
 pub const MOBILE_BG_NEW_SEARCHES: &str = "resources/searches/mobile_bg_new_search.json";
 pub const MOBILE_BG_ALL_SEARCHES: &str = "resources/searches/mobile_bg_all_search.json";
@@ -73,7 +75,7 @@ pub fn cars_bg_new_searches() -> Vec<HashMap<String, String>> {
 }
 
 pub fn cars_bg_all_searches() -> Vec<HashMap<String, String>> {
-    build_cars_bg_all_searches()
+    build_cars_bg_all_searches(ID_CARS_BG_START)
 }
 
 pub fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
@@ -81,7 +83,7 @@ pub fn mobile_bg_new_searches() -> Vec<HashMap<String, String>> {
 }
 
 pub fn mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
-    build_mobile_bg_all_searches()
+    build_mobile_bg_all_searches(ID_MOBILE_BG_START)
 }
 
 #[cfg(test)]

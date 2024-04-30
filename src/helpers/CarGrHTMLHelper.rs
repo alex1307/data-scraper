@@ -406,7 +406,7 @@ mod car_gr_test_suit {
         params.insert("registration-to".to_owned(), "2011".to_owned());
         //params.insert("created".to_owned(), ">1".to_owned());
         let scraper = Scraper::new(url, "pg".to_owned(), 250);
-        let url = scraper.search_url(None, params, 1);
+        let url = scraper.search_url(params, 1);
         let html = scraper.html_search(&url, None).await.unwrap();
         //info!("html: {}", html);
         let data = get_listed_links(&html);

@@ -3,10 +3,14 @@ use std::{collections::HashMap, time::Duration};
 use crate::{
     helpers::AutoUncleHelper::get_vehicles,
     model::{AutoUncleVehicle::AutoUncleVehicle, VehicleDataModel::ScrapedListData},
+    services::SearchBuilder::{CRAWLER_KEY, ID_KEY},
     BROWSER_USER_AGENT,
 };
 
-use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
+use super::{
+    search_url,
+    Traits::{ScrapeListTrait, Scraper, ScraperTrait},
+};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -61,7 +65,8 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleROScraper {
             sleep(Duration::from_secs(30)).await;
         }
         for v in &mut vehicles {
-            v.source = "autouncle.ro".to_string();
+            v.source = params.get(CRAWLER_KEY).unwrap().to_string();
+            v.searchId = params.get(ID_KEY).unwrap().to_string();
         }
         let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
@@ -71,7 +76,12 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleROScraper {
 #[async_trait]
 impl ScraperTrait for AutouncleROScraper {
     async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
-        let url = self.parent.search_url(self.get_search_path(), params, page);
+        let url = search_url(
+            self.parent.url.clone(),
+            self.get_search_path(),
+            params.clone(),
+        );
+        let url = format!("{}&{}={}", url, self.parent.page, page);
         self.parent.html_search(&url, None).await
     }
 
@@ -90,6 +100,10 @@ impl ScraperTrait for AutouncleROScraper {
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         let number_of_pages = (total_number as f32 / 25.0).ceil() as u32;
         Ok(number_of_pages)
+    }
+
+    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
+        self.parent.search_url(params, page)
     }
 }
 

@@ -10,14 +10,15 @@ use tokio::time::sleep;
 
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
-    helpers::MobileBgHTMLHelper::process_listing,
+    helpers::MobileBgHTMLHelper::get_vehicles,
     model::{
         enums::{Engine, Gearbox},
         VehicleDataModel::ScrapedListData,
         VehicleRecord::MobileRecord,
     },
     services::SearchBuilder::{
-        MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, MOBILE_BG_YEARS_FROM, MOBILE_BG_YEARS_TO,
+        CRAWLER_KEY, ID_KEY, MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, MOBILE_BG_YEARS_FROM,
+        MOBILE_BG_YEARS_TO,
     },
     BROWSER_USER_AGENT,
 };
@@ -102,7 +103,19 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         let value = params.get("engine").unwrap().to_string();
         let engine = Engine::from_str(&value).unwrap();
         let power: u32 = params.get("power").unwrap().parse().unwrap();
-        let vehicles = process_listing(html.as_str(), gearbox, engine, power);
+        let searchId = params.get(ID_KEY).unwrap_or(&"".to_string()).to_string();
+        let source = params
+            .get(CRAWLER_KEY)
+            .unwrap_or(&"".to_string())
+            .to_string();
+        let mut vehicles = get_vehicles(&html);
+        for vehicle in vehicles.iter_mut() {
+            vehicle.gearbox = gearbox;
+            vehicle.power = power;
+            vehicle.engine = engine;
+            vehicle.searchId = searchId.clone();
+            vehicle.source = source.clone();
+        }
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")
                 || html.to_lowercase().contains(r#""429""#)
@@ -158,6 +171,10 @@ impl ScraperTrait for MobileBGScraper {
 
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         self.parent.get_number_of_pages(total_number)
+    }
+
+    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
+        self.search_url(params, page)
     }
 }
 

@@ -8,6 +8,7 @@ use crate::{
         MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY,
         TOP_KEY, VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,
     },
+    services::SearchBuilder::CRAWLER_KEY,
     CREATED_ON,
 };
 
@@ -22,6 +23,7 @@ pub struct MobileRecord {
     pub id: String,
     pub title: String,
     pub source: String,
+    pub searchId: String,
     pub make: String,
     pub model: String,
     pub modification: String,
@@ -175,7 +177,7 @@ impl From<HashMap<String, String>> for MobileRecord {
             .get(&PUBLISHED_ON_KEY.to_string())
             .unwrap_or(default_str)
             .to_string();
-        let source = map.get("source").unwrap_or(default_str).to_string();
+        let source = map.get(CRAWLER_KEY).unwrap_or(default_str).to_string();
         MobileRecord {
             id,
             engine,
@@ -248,6 +250,9 @@ impl BasicT for MobileRecord {
     }
     fn power_kw(&self) -> u32 {
         self.power
+    }
+    fn search_id(&self) -> String {
+        self.searchId.clone()
     }
 }
 

@@ -24,6 +24,7 @@ pub struct BaseVehicleInfo {
     pub cc: u32,
     pub power_ps: u32,
     pub power_kw: u32,
+    pub search_id: String,
 }
 
 impl BaseVehicleInfo {
@@ -231,6 +232,16 @@ pub trait BasicT {
     fn cc(&self) -> u32;
     fn power_ps(&self) -> u32;
     fn power_kw(&self) -> u32;
+    fn search_id(&self) -> String;
+}
+
+pub trait SearchT {
+    fn id(&self) -> String;
+    fn source(&self) -> String;
+    fn url(&self) -> String;
+    fn number_of_cars(&self) -> u32;
+    fn actual_number_of_cars(&self) -> u32;
+    fn total_pages(&self) -> u32;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -295,6 +306,7 @@ where
             cc: item.cc(),
             power_ps: item.power_ps(),
             power_kw: item.power_kw(),
+            search_id: item.search_id(),
         }
     }
 }
@@ -304,13 +316,20 @@ where
     T: PriceT,
 {
     fn from(item: T) -> Self {
+        let price = if item.currency() == Currency::BGN {
+            (item.price() as f64 / 1.95583) as u32
+        } else if item.currency() == Currency::USD {
+            0
+        } else {
+            item.price()
+        };
         Price {
             // Assuming `Price` has these fields. You need to adjust according to the actual struct fields.
             id: item.id(),
             source: item.source(),
             estimated_price: item.estimated_price(),
-            price: item.price(),
-            currency: item.currency(),
+            price,
+            currency: Currency::EUR,
             save_difference: item.save_difference(),
             overpriced_difference: item.overpriced_difference(),
             ranges: item.ranges(),

@@ -1,7 +1,11 @@
-use crate::model::VehicleDataModel::{self, LinkId};
+use crate::{
+    model::VehicleDataModel::{self, LinkId},
+    services::ScraperAppService,
+};
 
 use super::vehicle_model::{
-    BaseVehicleInfo, Consumption, DetailedVehicleInfo, Id, Price, VehicleChangeLogInfo,
+    BaseVehicleInfo, Consumption, DetailedVehicleInfo, DownloadStatus, Id, Price,
+    VehicleChangeLogInfo,
 };
 
 impl From<VehicleDataModel::BaseVehicleInfo> for BaseVehicleInfo {
@@ -22,6 +26,7 @@ impl From<VehicleDataModel::BaseVehicleInfo> for BaseVehicleInfo {
             cc: base_vehicle_info.cc,
             power_ps: base_vehicle_info.power_ps,
             power_kw: base_vehicle_info.power_kw,
+            search_id: base_vehicle_info.search_id,
         }
     }
 }
@@ -86,6 +91,19 @@ impl From<VehicleDataModel::Consumption> for Consumption {
             year: source.year as u32,
             co2_emission: source.co2_emission,
             kw_consuption: source.kw_consuption.unwrap_or(0.0),
+        }
+    }
+}
+
+impl From<ScraperAppService::DownloadStatus> for DownloadStatus {
+    fn from(source: ScraperAppService::DownloadStatus) -> Self {
+        Self {
+            id: source.id,
+            source: source.source,
+            url: source.url,
+            listed: source.listed,
+            actual: source.actual,
+            hash: source.hash,
         }
     }
 }

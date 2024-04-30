@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 
 lazy_static! {
@@ -57,7 +57,8 @@ lazy_static! {
         vec![("1", "Manual"), ("2", "Automatic"),];
     static ref MOBILE_BG_GEARBOX: Vec<(&'static str, &'static str)> =
         vec![("rachna", "Manual"), ("avtomatichna", "Automatic"),];
-    pub static ref EXCLUED: Vec<&'static str> = vec!["seller", "engine", "gearbox", "power", "id"];
+    pub static ref EXCLUED: Vec<&'static str> =
+        vec!["seller", "engine", "gearbox", "power", ID_KEY, CRAWLER_KEY];
 }
 
 const MOBILE_BG_FUEL_ID: &str = "engine_url";
@@ -78,11 +79,18 @@ pub const CARS_BG_POWER_TO: &str = "powerTo";
 // const CARS_BG_PRICE_TO: &str = "priceTo";
 
 pub const CRAWLER_KEY: &str = "crawler_key";
+pub const ID_KEY: &str = "id";
 pub const CRAWLER_MOBILE_BG: &str = "mobile.bg";
 pub const CRAWLER_CARS_BG: &str = "cars.bg";
 pub const CRAWLER_AUTOUNCLE_RO: &str = "autouncle.ro";
 pub const CRAWLER_AUTOUNCLE_NL: &str = "autouncle.nl";
 pub const CRAWLER_AUTOUNCLE_FR: &str = "autouncle.fr";
+
+pub const ID_AUTOUNCLE_FR: i32 = 100_000;
+pub const ID_AUTOUNCLE_NL_START: i32 = 200_000;
+pub const ID_AUTOUNCLE_RO_START: i32 = 300_000;
+pub const ID_CARS_BG_START: i32 = 400_000;
+pub const ID_MOBILE_BG_START: i32 = 500_000;
 
 fn fuel_filter(
     fuelid: &str,
@@ -172,7 +180,7 @@ fn price_filter(
     searches
 }
 
-pub fn build_autouncle_searches(rating: &str) -> Vec<HashMap<String, String>> {
+pub fn build_autouncle_searches(rating: &str, id: i32) -> Vec<HashMap<String, String>> {
     //https://www.autouncle.nl/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
     let mut searches = vec![];
     let mut map = HashMap::new();
@@ -181,7 +189,7 @@ pub fn build_autouncle_searches(rating: &str) -> Vec<HashMap<String, String>> {
     map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), rating.to_owned());
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
     let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
-
+    let mut counter = id;
     for year in year_filter {
         if let Some(y) = year.get("s%5Bmin_year%5D") {
             if y == "2014" || y == "2015" {
@@ -196,17 +204,28 @@ pub fn build_autouncle_searches(rating: &str) -> Vec<HashMap<String, String>> {
         }
 
         for price in price_filter.iter() {
+            counter += 1;
             let mut params = map.clone();
             params.extend(year.clone());
             params.extend(price.clone());
-            params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_NL.to_owned());
+            params.insert(ID_KEY.to_owned(), counter.to_string());
+            if id == ID_AUTOUNCLE_FR {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_FR.to_owned());
+            } else if id == ID_AUTOUNCLE_NL_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_NL.to_owned());
+            } else if id == ID_AUTOUNCLE_RO_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_RO.to_owned());
+            } else {
+                error!("Invalid id: {}", id);
+            }
             searches.push(params);
         }
+        searches.sort_by(|a, b| a.get(ID_KEY).to_owned().cmp(&b.get(ID_KEY).to_owned()));
     }
     searches
 }
 
-pub fn build_mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
+pub fn build_mobile_bg_all_searches(id: i32) -> Vec<HashMap<String, String>> {
     info!("Building mobile.bg all searches");
     let base = HashMap::from([("f24".to_owned(), "2".to_owned())]);
     let mut searches = vec![];
@@ -214,7 +233,7 @@ pub fn build_mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
     let power_filter = power_filter(MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, POWER.clone());
     let fuel_filter = fuel_filter(MOBILE_BG_FUEL_ID, MOBILE_BG_FUELS.clone());
     let gearbox_filter = gear_box_filter(MOBILE_BG_GEARBOX_ID, MOBILE_BG_GEARBOX.clone());
-
+    let mut counter = id;
     for fuel in fuel_filter.iter() {
         for gearbox in gearbox_filter.iter() {
             for power in power_filter.iter() {
@@ -225,16 +244,19 @@ pub fn build_mobile_bg_all_searches() -> Vec<HashMap<String, String>> {
                     params.extend(power.clone());
                     params.extend(year.clone());
                     params.insert(CRAWLER_KEY.to_owned(), CRAWLER_MOBILE_BG.to_owned());
+                    counter += 1;
+                    params.insert(ID_KEY.to_owned(), counter.to_string());
                     searches.push(params);
                 }
             }
         }
     }
+
     info!("Search builder: searches: {}", searches.len());
     searches
 }
 
-pub fn build_cars_bg_all_searches() -> Vec<HashMap<String, String>> {
+pub fn build_cars_bg_all_searches(id: i32) -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
     map.insert("subm".to_owned(), "1".to_owned());
     map.insert("add_search".to_owned(), "1".to_owned());
@@ -246,16 +268,19 @@ pub fn build_cars_bg_all_searches() -> Vec<HashMap<String, String>> {
     let power_filter = power_filter(CARS_BG_POWER_FROM, CARS_BG_POWER_TO, POWER.clone());
     let fuel_filter = fuel_filter(CARS_BG_FUEL_ID, CARS_BG_FUELS.clone());
     let gearbox_filter = gear_box_filter(CARS_BG_GEARBOX_ID, CARS_BG_GEARBOX.clone());
+    let mut counter = id;
     for fuel in fuel_filter.iter() {
         for gearbox in gearbox_filter.iter() {
             for power in power_filter.iter() {
                 for year in year_filter.iter() {
+                    counter += 1;
                     let mut params = map.clone();
                     params.extend(fuel.clone());
                     params.extend(gearbox.clone());
                     params.extend(power.clone());
                     params.extend(year.clone());
                     params.insert(CRAWLER_KEY.to_owned(), CRAWLER_CARS_BG.to_owned());
+                    params.insert(ID_KEY.to_owned(), counter.to_string());
                     searches.push(params);
                 }
             }

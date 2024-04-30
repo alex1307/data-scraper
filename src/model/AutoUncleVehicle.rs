@@ -13,137 +13,95 @@ pub struct AutoUncleVehicleTest {
     #[serde(rename = "id")]
     pub id: String,
 }
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Root {
+    pub dynamicScriptData: DynamicScriptData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DynamicScriptData {
+    pub cars_search: CarsSearch,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CarsSearch {
+    pub carsPaginated: CarsPaginated,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct CarsPaginated {
+    pub cars: Vec<AutoUncleVehicle>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AutoUncleVehicle {
-    #[serde(rename = "id")]
-    pub id: String,
-
-    #[serde(rename = "announcedAsNew")]
-    pub announced_as_new: bool,
-
-    #[serde(rename = "auRating")]
-    pub au_rating: Option<u8>,
-
-    #[serde(rename = "brand")]
-    pub brand: Option<String>,
-
-    #[serde(rename = "body")]
-    pub body: Option<String>,
-
-    #[serde(rename = "displayableFuelConsumption")]
-    pub displayable_fuel_consumption: Option<String>,
-
-    #[serde(rename = "carModel")]
-    pub car_model: Option<String>,
-
-    #[serde(rename = "co2Emission")]
-    pub co2_emission: Option<f64>,
-
-    #[serde(rename = "createdAt")]
-    pub created_at: Option<String>,
-
-    #[serde(rename = "currency")]
-    pub currency: Option<Currency>,
-
-    #[serde(rename = "featuredAttributesEquipment")]
-    pub featured_attributes_equipment: String,
-
-    #[serde(rename = "featuredAttributesNonEquipment")]
-    pub featured_attributes_non_equipment: String,
-
-    #[serde(rename = "doors")]
-    pub doors: Option<u8>,
-
-    #[serde(rename = "electricDriveRange")]
-    pub electric_drive_range: Option<f64>,
-
-    #[serde(rename = "engineSize")]
-    pub engine_size: Option<f64>,
-
-    #[serde(rename = "equipmentVariant")]
-    pub equipment_variant: Option<String>,
-
-    #[serde(rename = "estimatedPrice")]
-    pub estimated_price: Option<u32>,
-
-    #[serde(rename = "fuel")]
-    pub fuel: Option<String>,
-
-    #[serde(rename = "fuelEconomy")]
-    pub fuel_economy: Option<f64>,
-
-    #[serde(rename = "hasAutoGear")]
-    pub has_auto_gear: Option<bool>,
-
-    #[serde(rename = "headline")]
-    pub headline: Option<String>,
-
-    #[serde(rename = "hp")]
-    pub hp: Option<u16>,
-
-    #[serde(rename = "isFeatured")]
-    pub is_featured: Option<bool>,
-
-    #[serde(rename = "km")]
-    pub km: Option<u32>,
-
-    #[serde(rename = "kw")]
-    pub kw: Option<u16>,
-
-    #[serde(rename = "localizedFuelEconomy")]
-    pub localized_fuel_economy: Option<f64>,
-
-    #[serde(rename = "localizedFuelEconomyLabel")]
-    pub localized_fuel_economy_label: String,
-
-    #[serde(rename = "location")]
-    pub location: String,
-
-    #[serde(rename = "modelGeneration")]
-    pub model_generation: String,
-
-    #[serde(rename = "outgoingPath")]
-    pub outgoing_path: String,
-
-    #[serde(rename = "price")]
-    pub price: Option<u32>,
-
-    //#[serde(rename = "regMonth")]
-    pub reg_month: Option<String>,
-
-    #[serde(rename = "sourceName")]
-    pub source_name: String,
-
-    #[serde(rename = "updatedAt")]
-    pub updated_at: Option<String>,
-
-    #[serde(rename = "vdpPath")]
-    pub vdp_path: String,
-
-    #[serde(rename = "year")]
-    pub year: Option<u16>,
-
-    #[serde(rename = "youSaveDifference")]
-    pub you_save_difference: Option<u32>,
-
-    #[serde(rename = "laytime")]
-    pub laytime: Option<u32>,
-
-    #[serde(rename = "sellerKind")]
-    pub seller_kind: String,
-
-    #[serde(rename = "isElectric")]
-    pub is_electric: bool,
-
-    #[serde(rename = "priceChange")]
-    pub price_change: Option<i32>,
+    announcedAsNew: Option<bool>,
+    auRating: Option<u8>,
+    availableForOnlineSales: Option<bool>,
+    brand: Option<String>,
+    body: Option<String>,
+    carModel: Option<String>,
+    co2Emission: Option<f64>,
+    currency: Option<Currency>,
+    displayableFuelConsumption: Option<String>, // Assuming type
+    displayableImages: Vec<Image>,
+    doors: Option<u8>,
+    electricDriveRange: Option<f64>, // Assuming type
+    engineSize: Option<f64>,
+    equipmentVariant: Option<String>,
+    estimatedPrice: Option<u32>,
+    pub featuredAttributesEquipment: Vec<String>,
+    pub featuredAttributesNonEquipment: Vec<String>,
+    freeDelivery: Option<bool>,
+    fuel: Option<String>,
+    fuelEconomy: Option<f64>, // Assuming type
+    hasAutoGear: Option<bool>,
+    headline: Option<String>,
+    highestPriorityActiveAdvert: HighestPriorityActiveAdvert,
+    hp: Option<u32>,
+    id: String,
+    isElectric: Option<bool>,
+    isFeatured: Option<bool>,
+    km: Option<u32>,
+    kw: Option<u32>,
+    laytime: Option<u32>,
+    localizedFuelEconomyLabel: Option<String>,
+    location: String,
+    mileageUnit: Option<String>,
+    modelGeneration: Option<String>,
+    noRatingReasons: Vec<String>, // Assuming this is correct
+    outgoingPath: Option<String>,
+    price: Option<u32>,
+    priceChange: Option<f64>, // Assuming type
+    regMonth: Option<String>,
+    sellerKind: Option<String>,
+    sourceName: Option<String>,
+    vdpPath: Option<String>,
+    year: Option<u16>,
+    youSaveDifference: Option<u32>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
 
     #[serde(skip)]
     pub source: String,
 
     #[serde(skip)]
     pub equipment: Vec<String>,
+
+    #[serde(skip)]
+    pub searchId: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Image {
+    mediumUrl: String,
+    smallUrl: String,
+    url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct HighestPriorityActiveAdvert {
+    isLocationIndependent: Option<bool>,
 }
 
 impl URLResource for AutoUncleVehicle {
@@ -169,7 +127,7 @@ impl BasicT for AutoUncleVehicle {
         self.brand.clone().unwrap_or("".to_string())
     }
     fn model(&self) -> String {
-        self.car_model.clone().unwrap_or("".to_string())
+        self.carModel.clone().unwrap_or("".to_string())
     }
     fn year(&self) -> u16 {
         self.year.unwrap_or(0)
@@ -178,7 +136,7 @@ impl BasicT for AutoUncleVehicle {
         self.hp.unwrap_or(0) as u32
     }
     fn gearbox(&self) -> Gearbox {
-        if let Some(is_automatic) = self.has_auto_gear {
+        if let Some(is_automatic) = self.hasAutoGear {
             if is_automatic {
                 Gearbox::Automatic
             } else {
@@ -199,7 +157,7 @@ impl BasicT for AutoUncleVehicle {
         self.km
     }
     fn cc(&self) -> u32 {
-        (self.engine_size.unwrap_or(0.0) * 1000.0) as u32
+        (self.engineSize.unwrap_or(0.0) * 1000.0) as u32
     }
     fn power_kw(&self) -> u32 {
         self.kw.unwrap_or(0) as u32
@@ -209,6 +167,9 @@ impl BasicT for AutoUncleVehicle {
     }
     fn title(&self) -> String {
         self.headline.clone().unwrap_or("".to_string())
+    }
+    fn search_id(&self) -> String {
+        self.searchId.clone()
     }
 }
 
@@ -230,24 +191,28 @@ impl DetailsT for AutoUncleVehicle {
     }
 
     fn is_dealer(&self) -> bool {
-        self.seller_kind.to_lowercase() == "dealer"
+        self.sellerKind
+            .clone()
+            .unwrap_or("dealer".to_string())
+            .to_lowercase()
+            == "dealer"
     }
     fn view_count(&self) -> u32 {
         0
     }
     fn fuel_consumption(&self) -> f64 {
-        self.fuel_economy.unwrap_or(0.0)
+        self.fuelEconomy.unwrap_or(0.0)
     }
     fn electric_drive_range(&self) -> f64 {
-        self.electric_drive_range.unwrap_or(0.0)
+        self.electricDriveRange.unwrap_or(0.0)
     }
 
     fn cc(&self) -> u32 {
-        (self.engine_size.unwrap_or(0.0) * 1000.0) as u32
+        (self.engineSize.unwrap_or(0.0) * 1000.0) as u32
     }
 
     fn seller_name(&self) -> String {
-        self.source_name.clone()
+        self.sourceName.clone().unwrap_or_default()
     }
 }
 
@@ -263,17 +228,17 @@ impl PriceT for AutoUncleVehicle {
     }
 
     fn overpriced_difference(&self) -> u32 {
-        self.you_save_difference.unwrap_or(0)
+        self.youSaveDifference.unwrap_or(0)
     }
 
     fn save_difference(&self) -> u32 {
-        self.you_save_difference.unwrap_or(0)
+        self.youSaveDifference.unwrap_or(0)
     }
     fn thresholds(&self) -> Vec<u32> {
         vec![]
     }
     fn estimated_price(&self) -> Option<u32> {
-        self.estimated_price
+        self.estimatedPrice
     }
     fn id(&self) -> String {
         self.id.clone()
@@ -309,6 +274,6 @@ impl ChangeLogT for AutoUncleVehicle {
         false
     }
     fn promoted(&self) -> bool {
-        self.is_featured.unwrap_or(false)
+        self.isFeatured.unwrap_or(false)
     }
 }

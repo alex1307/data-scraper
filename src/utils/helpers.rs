@@ -246,7 +246,7 @@ mod tests {
         let today = Local::now().date_naive();
         let yesterday = today - TimeDelta::try_days(1).unwrap();
         let from_date = yesterday.format(DATE_FORMAT).to_string();
-        let end_date = today.format(DATE_FORMAT).to_string();
+        let _end_date = today.format(DATE_FORMAT).to_string();
         let file_names = get_file_names("test_", &from_date, "", "csv");
         assert_eq!(file_names.len(), 2);
     }

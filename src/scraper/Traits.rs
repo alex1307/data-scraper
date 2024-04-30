@@ -62,13 +62,15 @@ pub trait ScraperTrait {
         None
     }
 
+    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String;
+
     async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String>;
 }
 
 #[derive(Debug, Clone)]
 pub struct Scraper {
     pub url: String,
-    page: String,
+    pub page: String,
     pub headers: Vec<(String, String)>,
     pub wait_time_ms: u64,
 }
@@ -101,17 +103,8 @@ impl Scraper {
         self.headers = headers.clone();
     }
 
-    pub fn search_url(
-        &self,
-        path: Option<String>,
-        params: HashMap<String, String>,
-        page: u32,
-    ) -> String {
-        let mut url = if let Some(path) = path {
-            format!("{}{}", self.url, path)
-        } else {
-            self.url.clone()
-        };
+    pub fn search_url(&self, params: HashMap<String, String>, page: u32) -> String {
+        let mut url = self.url.clone();
 
         if params.is_empty() {
             return url;
@@ -131,11 +124,13 @@ impl Scraper {
             }
             url = format!("{}{}={}&", url, key, value);
         }
+
         if page == 0 {
             return url.trim_end_matches('&').to_owned();
         }
 
         url = format!("{}{}={}", url, self.page, page);
+        info!("URL: {}", url);
         url
     }
 
