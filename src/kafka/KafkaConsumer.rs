@@ -1,11 +1,7 @@
-use futures::StreamExt;
-use log::{error, info};
-use rdkafka::{
-    consumer::{Consumer, StreamConsumer},
-    message::BorrowedMessage,
-    ClientConfig, Message,
+use super::{
+    KafkaProducer::{create_producer, encode_message, send_message},
+    BASE_INFO_TOPIC, CHANGE_LOG_TOPIC,
 };
-
 use crate::{
     helpers::CarGrHTMLHelper::process_listed_links,
     kafka::{CONSUPTION_TOPIC, PRICE_TOPIC},
@@ -14,13 +10,20 @@ use crate::{
         VehicleDataModel::{self, Price},
         VehicleRecord::MobileRecord,
     },
-    protos,
+    protos::{self, vehicle_model::DownloadStatus},
 };
+use futures::StreamExt;
+use log::{error, info};
+use prost::Message;
+use rdkafka::Message as KafkaMessage;
+use std::time::Duration;
 
-use super::{
-    KafkaProducer::{create_producer, encode_message, send_message},
-    BASE_INFO_TOPIC, CHANGE_LOG_TOPIC,
+use rdkafka::{
+    consumer::{Consumer, StreamConsumer},
+    message::BorrowedMessage,
+    ClientConfig,
 };
+use tokio::time;
 
 pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
     let consumer: StreamConsumer = ClientConfig::new()
@@ -63,6 +66,72 @@ pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
             }
             Err(e) => error!("Kafka error: {}", e),
         }
+    }
+}
+
+pub async fn processMessages(
+    broker: &str,
+    group: &str,
+    topic: &str,
+    seconds: u64,
+) -> Vec<VehicleDataModel::DownloadStatus> {
+    let consumer: StreamConsumer = ClientConfig::new()
+        .set("group.id", group.to_owned())
+        .set("bootstrap.servers", broker.to_string())
+        .set("enable.auto.commit", "true")
+        .set("auto.offset.reset", "earliest")
+        .create()
+        .expect("Consumer creation failed");
+
+    consumer
+        .subscribe(&[topic])
+        .expect("Can't subscribe to specified topic");
+    let mut message_stream = consumer.stream();
+    let timeout = time::sleep(Duration::from_secs(seconds));
+    let mut statuses = vec![];
+    tokio::pin!(timeout);
+    loop {
+        tokio::select! {
+            message = message_stream.next() => {
+                if let Some(Ok(message)) = message {
+                    // Process each message
+                    if let Ok(status) = process_kafka_message(&message) {
+                        let download_status = VehicleDataModel::DownloadStatus{
+                            id: status.id,
+                            source: status.source,
+                            url: status.url,
+                            listed: status.listed,
+                            actual: status.actual,
+                            hash: status.hash,
+                         };
+                        statuses.push(download_status);
+                    }
+                } else if let Some(Err(e)) = message {
+                    error!("Kafka error: {}", e);
+                    break; // Break the loop if there is an error
+                } else {
+                    info!("No more messages or consumer has been closed.");
+                    break; // Break if the stream ends
+                }
+            }
+            _ = &mut timeout => {
+                info!("No messages received in {} seconds, stopping consumer.", seconds);
+                break; // Exit the loop if timeout expires
+            }
+        }
+    }
+    consumer.unsubscribe();
+    statuses
+}
+
+fn process_kafka_message(borrowed_message: &BorrowedMessage) -> Result<DownloadStatus, String> {
+    match borrowed_message.payload_view::<[u8]>() {
+        Some(Ok(payload)) => match DownloadStatus::decode(payload) {
+            Ok(download_status) => Ok(download_status),
+            Err(e) => Err(format!("Error decoding message: {:?}", e)),
+        },
+        Some(Err(e)) => Err(format!("Error decoding message: {:?}", e)),
+        None => Err("No message".to_string()),
     }
 }
 

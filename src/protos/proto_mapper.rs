@@ -1,7 +1,4 @@
-use crate::{
-    model::VehicleDataModel::{self, LinkId},
-    services::ScraperAppService,
-};
+use crate::model::VehicleDataModel::{self, LinkId};
 
 use super::vehicle_model::{
     BaseVehicleInfo, Consumption, DetailedVehicleInfo, DownloadStatus, Id, Price,
@@ -95,8 +92,8 @@ impl From<VehicleDataModel::Consumption> for Consumption {
     }
 }
 
-impl From<ScraperAppService::DownloadStatus> for DownloadStatus {
-    fn from(source: ScraperAppService::DownloadStatus) -> Self {
+impl From<VehicleDataModel::DownloadStatus> for DownloadStatus {
+    fn from(source: VehicleDataModel::DownloadStatus) -> Self {
         Self {
             id: source.id,
             source: source.source,

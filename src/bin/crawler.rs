@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 use std::fmt::Debug;
 
-use std::vec;
-
 use data_scraper::kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons};
 use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
 
+use data_scraper::model::Search::Search;
 use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT};
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
@@ -34,7 +33,7 @@ use data_scraper::{
 use log::{error, info};
 
 use clap::{command, Args, Parser, Subcommand};
-use rand::seq::SliceRandom;
+
 use serde::Serialize;
 
 pub const CHUNK_SIZE: usize = 4;
@@ -55,7 +54,6 @@ struct CrawlerArgs {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    ScrapeAll,
     Scrape(CrawlerArgs),
     Puppeteer,
 }
@@ -65,7 +63,6 @@ async fn main() {
     let command = Cli::parse();
 
     match command.command {
-        Commands::ScrapeAll => run().await,
         Commands::Scrape(args) => {
             let source = args.source.clone();
             let threads = args.threads.unwrap_or(1);
@@ -80,33 +77,66 @@ async fn main() {
 
 async fn run_crawler(crawler: String, threads: usize) {
     if crawler == CRAWLER_MOBILE_BG {
-        let searches = build_mobile_bg_all_searches(ID_MOBILE_BG_START);
+        let searches = build_mobile_bg_all_searches("https://www.mobile.bg/obiavi/avtomobili-dzhipove/{engine}/{gearbox}{page}/ot-{yearFrom}/do-{yearTo}{page}?f24=2&&engine_power={powerFrom}&engine_power1={powerTo}{priceFrom}{priceTo}", ID_MOBILE_BG_START);
+        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+        for c in converted {
+            info!("Search: {:?}", c);
+        }
         let crawler = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
-        let searches = build_autouncle_searches("[5]", ID_AUTOUNCLE_FR);
+        let searches = build_autouncle_searches(
+            "https://www.autouncle.fr/en/cars_search?",
+            "[5]",
+            ID_AUTOUNCLE_FR,
+        );
+        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+        for c in converted {
+            info!("Search: {:?}", c);
+        }
         info!("Starting autouncle.fr with #{} searches", searches.len());
         let crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.fr with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_NL {
-        let searches = build_autouncle_searches("[5]", ID_AUTOUNCLE_NL_START);
+        let searches = build_autouncle_searches(
+            "https://www.autouncle.nl/en/cars_search?",
+            "[5]",
+            ID_AUTOUNCLE_NL_START,
+        );
+        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+        for c in converted {
+            info!("Search: {:?}", c);
+        }
         info!("Starting autouncle.nl with #{} searches", searches.len());
         let crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.nl with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_RO {
-        let searches = build_autouncle_searches("[5]", ID_AUTOUNCLE_RO_START);
+        let searches = build_autouncle_searches(
+            "https://www.autouncle.ro/en/cars_search?",
+            "[5]",
+            ID_AUTOUNCLE_RO_START,
+        );
+        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+        for c in converted {
+            info!("Search: {:?}", c);
+        }
         info!("Starting autouncle.ro with #{} searches", searches.len());
         let crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.ro with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_CARS_BG {
-        let searches = build_cars_bg_all_searches(ID_CARS_BG_START);
+        let searches =
+            build_cars_bg_all_searches("https://www.cars.bg/carslist.php?", ID_CARS_BG_START);
+        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+        for c in converted {
+            info!("Search: {:?}", c);
+        }
         let crawler = CarsBGScraper::new("https://www.cars.bg/carslist.php?", 250);
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
@@ -127,7 +157,11 @@ where
     for search in searches {
         chunk_counter += 1;
         let vsearch = search.to_vec();
-        if let Ok(statuses) = download_list_data(crawler.clone(), vsearch).await {
+        let searches = vsearch
+            .iter()
+            .map(|x| Search::from(x.clone()))
+            .collect::<Vec<Search>>();
+        if let Ok(statuses) = download_list_data(crawler.clone(), searches).await {
             for s in statuses {
                 listed += s.listed;
                 actual += s.actual;
@@ -139,133 +173,6 @@ where
             );
         }
     }
-}
-
-async fn run() {
-    let mut all = vec![];
-
-    let random = to_execution_list(
-        build_mobile_bg_all_searches(ID_MOBILE_BG_START),
-        CRAWLER_MOBILE_BG,
-        10,
-    );
-    let mobile_bg_all = random.len();
-    all.extend(random.clone());
-
-    let random = to_execution_list(
-        build_autouncle_searches("[5]", ID_AUTOUNCLE_FR),
-        CRAWLER_AUTOUNCLE_FR,
-        4,
-    );
-    let fr_all = random.len();
-    all.extend(random.clone());
-
-    let random = to_execution_list(
-        build_autouncle_searches("[5]", ID_AUTOUNCLE_NL_START),
-        CRAWLER_AUTOUNCLE_NL,
-        4,
-    );
-    let nl_all = random.len();
-    all.extend(random.clone());
-
-    let random = to_execution_list(
-        build_autouncle_searches("[5]", ID_AUTOUNCLE_RO_START),
-        CRAWLER_AUTOUNCLE_RO,
-        4,
-    );
-    let ro_all = random.len();
-    all.extend(random.clone());
-
-    let random = to_execution_list(
-        build_cars_bg_all_searches(ID_MOBILE_BG_START),
-        CRAWLER_CARS_BG,
-        10,
-    );
-    let cars_bg_all = random.len();
-    all.extend(random.clone());
-
-    all.shuffle(&mut rand::thread_rng());
-
-    let mobile_bg_crawler = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
-    let ro_crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
-    let nl_crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
-    let fr_crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
-    let cars_bg_crawler = CarsBGScraper::new("https://www.cars.bg", 250);
-
-    info!("Starting the scrapers. All serches: {}", all.len());
-    let total_number = all.len();
-    let mut progress = 0;
-    let mut ro_progress = 0;
-    let mut nl_progress = 0;
-    let mut fr_progress = 0;
-    let mut cars_bg_progress = 0;
-    let mut mobile_bg_progress = 0;
-    for (crawler, searches) in all {
-        info!("------->>>>>> Progress <<<<<<<<-------");
-        info!("Overall Progress: {}/{}", progress, total_number);
-        info!(
-            "Progress: mobile.bg: {}/{}",
-            mobile_bg_progress, mobile_bg_all
-        );
-        info!("Progress: autouncle.ro: {}/{}", ro_progress, ro_all);
-        info!("Progress: autouncle.nl: {}/{}", nl_progress, nl_all);
-        info!("Progress: autouncle.fr: {}/{}", fr_progress, fr_all);
-        info!("Progress: cars.bg: {}/{}", cars_bg_progress, cars_bg_all);
-        info!("------->>>>>> ******** <<<<<<<<-------");
-        if crawler == CRAWLER_MOBILE_BG {
-            info!("Starting mobile.bg with #{} searches", searches.len());
-            let _ = download_list_data(mobile_bg_crawler.clone(), searches).await;
-            progress += 1;
-            mobile_bg_progress += 1;
-
-            continue;
-        }
-        if crawler == CRAWLER_AUTOUNCLE_FR {
-            info!("Starting autouncle.fr with #{} searches", searches.len());
-            let _ = download_list_data(fr_crawler.clone(), searches).await;
-            progress += 1;
-            fr_progress += 1;
-            continue;
-        }
-        if crawler == CRAWLER_AUTOUNCLE_NL {
-            info!("Starting autouncle.nl with #{} searches", searches.len());
-            let _ = download_list_data(nl_crawler.clone(), searches).await;
-            progress += 1;
-            nl_progress += 1;
-            continue;
-        }
-        if crawler == CRAWLER_AUTOUNCLE_RO {
-            info!("Starting autouncle.ro with #{} searches", searches.len());
-            let _ = download_list_data(ro_crawler.clone(), searches).await;
-            progress += 1;
-            ro_progress += 1;
-            continue;
-        }
-        if crawler == CRAWLER_CARS_BG {
-            info!("Starting cars.bg with #{} searches", searches.len());
-            let _ = download_list_data(cars_bg_crawler.clone(), searches).await;
-            progress += 1;
-            cars_bg_progress += 1;
-            continue;
-        }
-    }
-
-    info!("The scraper finished. Waiting for 24 hours....");
-    tokio::time::sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;
-}
-
-fn to_execution_list(
-    source: Vec<HashMap<String, String>>,
-    crawler: &str,
-    chunk_size: usize,
-) -> Vec<(String, Vec<HashMap<String, String>>)> {
-    let chunks = source.chunks(chunk_size);
-    let mut random = vec![];
-    for chunk in chunks {
-        let searches = chunk.to_vec();
-        random.push((crawler.to_string(), searches));
-    }
-    random
 }
 
 async fn run_consumers(broker: String) {

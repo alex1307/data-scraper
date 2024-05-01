@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
     sync::Mutex,
@@ -26,19 +25,17 @@ use crate::{
     model::{
         traits::{Identity, URLResource},
         AutoUncleVehicle,
+        Search::Search,
         VehicleDataModel::{
-            BaseVehicleInfo, BasicT, ChangeLogT, DetailedVehicleInfo, DetailsT, Price, PriceT,
-            ScrapedListData, VehicleChangeLogInfo,
+            BaseVehicleInfo, BasicT, ChangeLogT, DetailedVehicleInfo, DetailsT, DownloadStatus,
+            Price, PriceT, ScrapedListData, VehicleChangeLogInfo,
         },
         VehicleRecord::MobileRecord,
     },
     protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
-    services::SearchBuilder::{CRAWLER_KEY, ID_KEY},
     writer::persistance::{MobileData, MobileDataWriter},
 };
-
-use super::ScraperAppService::DownloadStatus;
 
 lazy_static! {
     pub static ref TOTAL_COUNT: Mutex<u32> = Mutex::new(0);
@@ -52,7 +49,7 @@ pub struct ScraperService<T: ScraperTrait + Clone> {
 
 pub async fn process_list<S, T>(
     scraper: Box<S>,
-    searches: Vec<HashMap<String, String>>,
+    searches: Vec<Search>,
     producer: &mut Sender<T>,
 ) -> Result<Vec<DownloadStatus>, String>
 where
@@ -94,7 +91,7 @@ where
 async fn download_all_found_results<S, T>(
     scraper: Box<S>,
     total_number: u32,
-    search: HashMap<String, String>,
+    search: Search,
     producer: Sender<T>,
 ) -> DownloadStatus
 where
@@ -124,7 +121,8 @@ where
                     info!("Get less data {} for page# : {}", list.len(), page_number);
                 }
                 actual_number += list.len() as u32;
-                for data in list {
+                for mut data in list {
+                    data.set_search_id(hash.to_string());
                     if let Err(e) = producer.send(data.clone()).await {
                         error!("Error sending id: {}", e);
                     }
@@ -145,16 +143,9 @@ where
         "FINISHED session: {}, processed vehicles: {}",
         uuid, actual_number
     );
-    let source = if let Some(source) = search.get(CRAWLER_KEY) {
-        source
-    } else {
-        "n.a"
-    };
-    let url = scraper.get_search_url(search.clone(), 1);
-    let mut hasher = DefaultHasher::new();
-    url.hash(&mut hasher);
+    let source = search.source;
     let message = DownloadStatus {
-        id: search.get(ID_KEY).unwrap_or(&"0".to_string()).to_string(),
+        id: search.id,
         source: source.to_string(),
         url,
         listed: total_number,
@@ -419,7 +410,7 @@ pub fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
 
 pub async fn process_list_and_send<S, Source>(
     scraper: Box<&S>,
-    searches: Vec<HashMap<String, String>>, // Same issue with U
+    searches: Vec<Search>, // Same issue with U
     sender: &mut Sender<Source>,
 ) -> Result<(), String>
 where
@@ -450,7 +441,7 @@ where
 
 async fn process_search<Scraper, Source>(
     scraper: Box<&Scraper>,
-    search: HashMap<String, String>, // Same issue with U
+    search: Search, // Same issue with U
     sender: Sender<Source>,
 ) -> Result<u32, String>
 where

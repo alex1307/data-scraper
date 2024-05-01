@@ -3,6 +3,7 @@ use prost::Message;
 use rdkafka::config::ClientConfig;
 use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord};
+
 use std::time::Duration;
 
 use super::broker;
@@ -75,7 +76,7 @@ mod kafka_tests {
                 cc: 3000,
                 power_ps: 300,
                 power_kw: 250,
-                search_id: "search_1".to_string(),
+                search_id: 1.to_string(),
             };
             let encoded_message = encode_message(&message).unwrap();
             send_message(&producer, "base_info", encoded_message).await;
