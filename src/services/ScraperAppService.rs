@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use log::{error, info};
 use serde::Serialize;
@@ -6,7 +6,8 @@ use serde::Serialize;
 use crate::{
     model::{
         AutoUncleVehicle::AutoUncleVehicle,
-        VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT},
+        Search::Search,
+        VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT},
     },
     scraper::{
         AutouncleFRScraper::AutouncleFRScraper,
@@ -15,10 +16,6 @@ use crate::{
         CarsBgScraper::CarsBGScraper,
         MobileBgScraper::MobileBGScraper,
         Traits::{ScrapeListTrait, ScraperTrait},
-    },
-    services::SearchBuilder::{
-        build_autouncle_searches, build_cars_bg_all_searches, build_mobile_bg_all_searches,
-        ID_AUTOUNCLE_FR, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_RO_START, ID_MOBILE_BG_START,
     },
 };
 use lazy_static::lazy_static;
@@ -36,16 +33,7 @@ lazy_static! {
 }
 
 use super::ScraperService::{process_list, send_data};
-#[derive(Debug, Clone)]
 
-pub struct DownloadStatus {
-    pub id: String,
-    pub source: String,
-    pub url: String,
-    pub listed: u32,
-    pub actual: u32,
-    pub hash: u64,
-}
 #[derive(Debug, Clone)]
 pub enum Crawlers {
     CarsBG(String),
@@ -83,95 +71,9 @@ impl FromStr for Crawlers {
     }
 }
 
-pub async fn download_all(crawler: &str) -> Result<(), String> {
-    let crawler = Crawlers::from_str(crawler)?;
-    //info!("Starting crawler (all): {:?}", crawler);
-    match crawler {
-        Crawlers::CarsBG(_) => {
-            info!("Starting cars.bg");
-            let searches = build_cars_bg_all_searches(500_000);
-            let chunks = searches.chunks(10);
-            info!("Starting list processing. chunks: {}", chunks.len());
-            let mut max_10_searches = vec![];
-            for c in chunks {
-                max_10_searches.clear();
-                for search in c {
-                    max_10_searches.push(search.clone());
-                }
-                let _ = download_list_data(CARS_BG_CRAWLER.clone(), max_10_searches.clone()).await;
-            }
-            Ok(())
-        }
-        Crawlers::MobileBG(_) => {
-            info!("Starting mobile.bg");
-            let searches = build_mobile_bg_all_searches(ID_MOBILE_BG_START);
-            let chunks = searches.chunks(10);
-            info!("Starting list processing. chunks: {}", chunks.len());
-            let mut max_10_searches = vec![];
-            for c in chunks {
-                max_10_searches.clear();
-                for search in c {
-                    max_10_searches.push(search.clone());
-                }
-                let _ =
-                    download_list_data(MOBILE_BG_CRAWLER.clone(), max_10_searches.clone()).await;
-            }
-            Ok(())
-        }
-        Crawlers::AutouncleRo(_) => {
-            info!("Starting autouncle.ro");
-            let searches: Vec<HashMap<String, String>> =
-                build_autouncle_searches("[5]", ID_AUTOUNCLE_RO_START);
-            let splitted_searches = searches.chunks(10);
-            let mut max_10_searches = vec![];
-            for chunks in splitted_searches {
-                max_10_searches.clear();
-                for search in chunks {
-                    max_10_searches.push(search.clone());
-                }
-                let _ =
-                    download_list_data(AUTOUNCLE_RO_CRAWLER.clone(), max_10_searches.clone()).await;
-            }
-            Ok(())
-        }
-        Crawlers::AutouncleNL(_) => {
-            info!("Starting autouncle.nl");
-            let searches: Vec<HashMap<String, String>> =
-                build_autouncle_searches("[5]", ID_AUTOUNCLE_NL_START);
-            let splitted_searches = searches.chunks(10);
-            let mut max_10_searches = vec![];
-            for chunks in splitted_searches {
-                max_10_searches.clear();
-                for search in chunks {
-                    max_10_searches.push(search.clone());
-                }
-                let _ =
-                    download_list_data(AUTOUNCLE_NL_CRAWLER.clone(), max_10_searches.clone()).await;
-            }
-            Ok(())
-        }
-        Crawlers::AutouncleFR(_) => {
-            info!("Starting autouncle.fr");
-            let searches: Vec<HashMap<String, String>> =
-                build_autouncle_searches("[5]", ID_AUTOUNCLE_FR);
-            let splitted_searches = searches.chunks(10);
-            let mut max_10_searches = vec![];
-            for chunks in splitted_searches {
-                max_10_searches.clear();
-                for search in chunks {
-                    max_10_searches.push(search.clone());
-                }
-                let _ =
-                    download_list_data(AUTOUNCLE_FR_CRAWLER.clone(), max_10_searches.clone()).await;
-            }
-            Ok(())
-        }
-    }
-}
-
 pub async fn download_autouncle_data<S>(
     scraper: S,
-    searches: Vec<HashMap<String, String>>, // Same issue with U
+    searches: Vec<Search>, // Same issue with U
 ) -> Result<(), String>
 where
     S: ScraperTrait + ScrapeListTrait<AutoUncleVehicle> + Clone + Send + 'static,
@@ -196,7 +98,7 @@ where
 
 pub async fn download_list_data<S, T>(
     scraper: S,
-    searches: Vec<HashMap<String, String>>,
+    searches: Vec<Search>,
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
@@ -217,30 +119,5 @@ where
     } else {
         error!("One or more tasks failed");
         Err("One or more tasks failed".into())
-    }
-}
-
-#[cfg(test)]
-mod app_test {
-    use log::info;
-
-    use crate::scraper::Traits::ScraperTrait;
-    use crate::services::ScraperAppService::CARS_BG_CRAWLER;
-    use crate::services::Searches::cars_bg_new_searches;
-    use crate::utils::helpers::configure_log4rs;
-    use crate::LOG_CONFIG;
-
-    #[tokio::test]
-    async fn test_cars_bg_searches() {
-        configure_log4rs(&LOG_CONFIG);
-        let searches = cars_bg_new_searches();
-        let mut total = 0;
-        for search in searches {
-            let html = CARS_BG_CRAWLER.get_html(search.clone(), 1).await.unwrap();
-            let total_number = CARS_BG_CRAWLER.total_number(&html).unwrap();
-            total += total_number;
-            info!("total_number: {} for search: {:?}", total_number, search);
-        }
-        info!("total: {}", total);
     }
 }

@@ -1,16 +1,14 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use crate::{
     helpers::AutoUncleHelper::get_vehicles,
-    model::{AutoUncleVehicle::AutoUncleVehicle, VehicleDataModel::ScrapedListData},
-    services::SearchBuilder::{CRAWLER_KEY, ID_KEY},
+    model::{
+        AutoUncleVehicle::AutoUncleVehicle, Search::Search, VehicleDataModel::ScrapedListData,
+    },
     BROWSER_USER_AGENT,
 };
 
-use super::{
-    search_url,
-    Traits::{ScrapeListTrait, Scraper, ScraperTrait},
-};
+use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -43,10 +41,10 @@ impl AutouncleFRScraper {
 impl ScrapeListTrait<AutoUncleVehicle> for AutouncleFRScraper {
     async fn process_listed_results(
         &self,
-        params: HashMap<String, String>,
+        search: Search,
         page_number: u32,
     ) -> Result<ScrapedListData<AutoUncleVehicle>, String> {
-        let html = self.get_html(params.clone(), page_number).await?;
+        let html = self.get_html(search.clone(), page_number).await?;
         let mut vehicles = get_vehicles(&html);
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")
@@ -58,15 +56,15 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleFRScraper {
             } else {
                 error!(
                     "No vehicles found. Page: {}, Search: {:?}",
-                    page_number, params
+                    page_number, search
                 );
             }
             info!("*** Waiting 30 seconds ***");
             sleep(Duration::from_secs(30)).await;
         }
         for v in &mut vehicles {
-            v.source = params.get(CRAWLER_KEY).unwrap().to_string();
-            v.searchId = params.get(ID_KEY).unwrap().to_string();
+            v.source = search.clone().source;
+            v.searchId = search.clone().id.to_string();
         }
         let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
@@ -75,13 +73,8 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleFRScraper {
 }
 #[async_trait]
 impl ScraperTrait for AutouncleFRScraper {
-    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
-        let url = search_url(
-            self.parent.url.clone(),
-            self.get_search_path(),
-            params.clone(),
-        );
-        let url = format!("{}&{}={}", url, self.parent.page, page);
+    async fn get_html(&self, search: Search, page: u32) -> Result<String, String> {
+        let url = self.get_search_url(search, page);
         self.parent.html_search(&url, None).await
     }
 
@@ -102,8 +95,11 @@ impl ScraperTrait for AutouncleFRScraper {
         Ok(number_of_pages)
     }
 
-    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
-        self.parent.search_url(params, page)
+    fn get_search_url(&self, search: Search, page: u32) -> String {
+        if page == 1 {
+            return search.url;
+        }
+        format!("{}&page={}", search.url, page)
     }
 }
 

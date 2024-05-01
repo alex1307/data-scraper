@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
@@ -11,7 +11,10 @@ use tokio::time::sleep;
 
 use crate::{
     helpers::CarsBgHTMLHelper::get_vehicles,
-    model::{enums::Gearbox, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
+    model::{
+        enums::Gearbox, Search::Search, VehicleDataModel::ScrapedListData,
+        VehicleRecord::MobileRecord,
+    },
     BROWSER_USER_AGENT,
 };
 
@@ -67,18 +70,20 @@ impl CarsBGScraper {
 impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
     async fn process_listed_results(
         &self,
-        params: HashMap<String, String>,
+        search: Search,
         page_number: u32,
     ) -> Result<ScrapedListData<MobileRecord>, String> {
-        let url = self.parent.search_url(params.clone(), page_number);
-        let html = self.parent.html_search(url.as_str(), None).await?;
-        let value = params.get("gearbox").unwrap().to_string();
+        let url = search.url.clone();
+        let html = self.parent.html_search(&url, None).await?;
+        let value = search.gearbox.clone().unwrap().to_string();
         let gearbox = Gearbox::from_str(&value).unwrap();
-        let power: u32 = params.get("power").unwrap().parse().unwrap();
+        let power: u32 = search.power.clone().unwrap().parse().unwrap();
         let mut vehicles = get_vehicles(&html);
         for vehicle in vehicles.iter_mut() {
             vehicle.gearbox = gearbox;
             vehicle.power = power;
+            vehicle.source = search.source.clone();
+            vehicle.searchId = search.hash.clone();
         }
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")
@@ -90,7 +95,7 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
             } else {
                 error!(
                     "No vehicles found. Page: {}, Search: {:?}",
-                    page_number, params
+                    page_number, search
                 );
             }
             info!("*** Waiting 30 seconds ***");
@@ -105,8 +110,8 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
 
 #[async_trait]
 impl ScraperTrait for CarsBGScraper {
-    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
-        let url = self.parent.search_url(params, page);
+    async fn get_html(&self, search: Search, page: u32) -> Result<String, String> {
+        let url = self.get_search_url(search, page);
         self.parent.html_search(&url, None).await
     }
 
@@ -132,12 +137,11 @@ impl ScraperTrait for CarsBGScraper {
         self.parent.get_number_of_pages(total_number)
     }
 
-    fn get_search_path(&self) -> Option<String> {
-        Some("/carslist.php?".to_string())
-    }
-
-    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
-        self.parent.search_url(params, page)
+    fn get_search_url(&self, search: Search, page: u32) -> String {
+        if page == 1 {
+            return search.url;
+        }
+        format!("{}&page={}", search.url, page)
     }
 }
 
@@ -148,7 +152,7 @@ mod cars_bg_tests {
     use log::info;
 
     use crate::{
-        model::VehicleDataModel::ScrapedListData,
+        model::{Search::Search, VehicleDataModel::ScrapedListData},
         scraper::{
             CarsBgScraper::CarsBGScraper,
             Traits::{ScrapeListTrait, ScraperTrait as _},
@@ -179,10 +183,8 @@ mod cars_bg_tests {
         let total_number = cars_bg.total_number(&html).unwrap();
         assert!(total_number > 0);
         info!("total_number: {}", total_number);
-        let data = cars_bg
-            .process_listed_results(params.clone(), 1)
-            .await
-            .unwrap();
+        let search = Search::from(params);
+        let data = cars_bg.process_listed_results(search, 1).await.unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);
@@ -206,11 +208,8 @@ mod cars_bg_tests {
         params.insert("priceTo".to_owned(), "30000".to_owned());
         params.insert("yearFrom".to_owned(), "2010".to_owned());
         params.insert("yearTo".to_owned(), "2011".to_owned());
-
-        let data = cars_bg
-            .process_listed_results(params.clone(), 1)
-            .await
-            .unwrap();
+        let search = Search::from(params);
+        let data = cars_bg.process_listed_results(search, 1).await.unwrap();
         match data {
             ScrapedListData::Values(ids) => {
                 assert!(ids.len() > 0);

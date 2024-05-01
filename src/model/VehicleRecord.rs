@@ -254,6 +254,9 @@ impl BasicT for MobileRecord {
     fn search_id(&self) -> String {
         self.searchId.clone()
     }
+    fn set_search_id(&mut self, search_id: String) {
+        self.searchId = search_id;
+    }
 }
 
 impl DetailsT for MobileRecord {

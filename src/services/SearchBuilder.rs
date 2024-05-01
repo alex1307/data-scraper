@@ -57,8 +57,15 @@ lazy_static! {
         vec![("1", "Manual"), ("2", "Automatic"),];
     static ref MOBILE_BG_GEARBOX: Vec<(&'static str, &'static str)> =
         vec![("rachna", "Manual"), ("avtomatichna", "Automatic"),];
-    pub static ref EXCLUED: Vec<&'static str> =
-        vec!["seller", "engine", "gearbox", "power", ID_KEY, CRAWLER_KEY];
+    pub static ref EXCLUED: Vec<&'static str> = vec![
+        "seller",
+        "engine",
+        "gearbox",
+        "power",
+        ID_KEY,
+        CRAWLER_KEY,
+        "url"
+    ];
 }
 
 const MOBILE_BG_FUEL_ID: &str = "engine_url";
@@ -180,10 +187,11 @@ fn price_filter(
     searches
 }
 
-pub fn build_autouncle_searches(rating: &str, id: i32) -> Vec<HashMap<String, String>> {
+pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap<String, String>> {
     //https://www.autouncle.nl/en/cars_search?s%5Bmax_price%5D=5000&s%5Bmin_price%5D=1000&s%5Bmin_year%5D=2004&s%5Bnot_damaged%5D=true
     let mut searches = vec![];
     let mut map = HashMap::new();
+    map.insert("url".to_owned(), url.to_owned());
     map.insert("s%5Bnot_damaged%5D".to_owned(), "true".to_owned());
     map.insert("s%5Bseller_kind%5D".to_owned(), "Dealer".to_owned());
     map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), rating.to_owned());
@@ -225,9 +233,13 @@ pub fn build_autouncle_searches(rating: &str, id: i32) -> Vec<HashMap<String, St
     searches
 }
 
-pub fn build_mobile_bg_all_searches(id: i32) -> Vec<HashMap<String, String>> {
+pub fn build_mobile_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, String>> {
     info!("Building mobile.bg all searches");
-    let base = HashMap::from([("f24".to_owned(), "2".to_owned())]);
+    let base = HashMap::from([
+        ("f24".to_owned(), "2".to_owned()),
+        ("url".to_owned(), url.to_owned()),
+    ]);
+
     let mut searches = vec![];
     let year_filter = year_filter(MOBILE_BG_YEARS_FROM, MOBILE_BG_YEARS_TO, YEARS.clone());
     let power_filter = power_filter(MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, POWER.clone());
@@ -256,8 +268,9 @@ pub fn build_mobile_bg_all_searches(id: i32) -> Vec<HashMap<String, String>> {
     searches
 }
 
-pub fn build_cars_bg_all_searches(id: i32) -> Vec<HashMap<String, String>> {
+pub fn build_cars_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, String>> {
     let mut map = HashMap::new();
+    map.insert("url".to_owned(), url.to_owned());
     map.insert("subm".to_owned(), "1".to_owned());
     map.insert("add_search".to_owned(), "1".to_owned());
     map.insert("typeoffer".to_owned(), "1".to_owned());

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 
@@ -13,12 +13,9 @@ use crate::{
     helpers::MobileBgHTMLHelper::get_vehicles,
     model::{
         enums::{Engine, Gearbox},
+        Search::Search,
         VehicleDataModel::ScrapedListData,
         VehicleRecord::MobileRecord,
-    },
-    services::SearchBuilder::{
-        CRAWLER_KEY, ID_KEY, MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, MOBILE_BG_YEARS_FROM,
-        MOBILE_BG_YEARS_TO,
     },
     BROWSER_USER_AGENT,
 };
@@ -44,70 +41,28 @@ impl MobileBGScraper {
             parent: Scraper::new(url, "f1".to_string(), wait_time_ms),
         }
     }
-
-    fn search_url(&self, params: HashMap<String, String>, page: u32) -> String {
-        let url = "https://www.mobile.bg/obiavi/avtomobili-dzhipove/{engine}/{gearbox}{page}/ot-{yearFrom}/do-{yearTo}{page}?f24=2&&engine_power={powerFrom}&engine_power1={powerTo}{priceFrom}{priceTo}";
-        let url = if let Some(from) = params.get("priceFrom") {
-            url.replace("{priceFrom}", format!("&price={}", from).as_str())
-        } else {
-            url.replace("{priceFrom}", "")
-        };
-        let url = if let Some(to) = params.get("priceTo") {
-            url.replace("{priceTo}", format!("&price1={}", to).as_str())
-        } else {
-            url.replace("{priceTo}", "")
-        };
-
-        let url = if let Some(powerTo) = params.get(MOBILE_BG_POWER_TO) {
-            url.replace("{powerTo}", powerTo)
-        } else {
-            url.replace("&engine_power1={powerTo}", "")
-        };
-
-        let fromYear = params.get(MOBILE_BG_YEARS_FROM).unwrap();
-        let toYear = params.get(MOBILE_BG_YEARS_TO).unwrap();
-        let fromPower = params.get(MOBILE_BG_POWER_FROM).unwrap();
-
-        let engine = params.get("engine_url").unwrap();
-        let gearbox = params.get("gearbox_url").unwrap();
-
-        let url = url.replace("{yearFrom}", fromYear);
-        let url = url.replace("{yearTo}", toYear);
-        let url = url.replace("{powerFrom}", fromPower);
-        let url = url.replace("{engine}", engine);
-        let url = url.replace("{gearbox}", gearbox);
-        if page > 1 {
-            url.replace("{page}", &format!("/p-{}", page))
-        } else {
-            url.replace("{page}", "")
-        }
-    }
 }
 
 #[async_trait]
 impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
     async fn process_listed_results(
         &self,
-        params: HashMap<String, String>,
+        search: Search,
         page_number: u32,
     ) -> Result<ScrapedListData<MobileRecord>, String> {
-        let search = params.clone();
-        let url = self.search_url(search, page_number);
+        let url = (&search.url).to_string();
         let html = self
             .parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await?;
 
-        let value = params.get("gearbox").unwrap().to_string();
+        let value = search.gearbox.clone().unwrap().to_string();
         let gearbox = Gearbox::from_str(&value).unwrap();
-        let value = params.get("engine").unwrap().to_string();
+        let value = search.engine.clone().unwrap().to_string();
         let engine = Engine::from_str(&value).unwrap();
-        let power: u32 = params.get("power").unwrap().parse().unwrap();
-        let searchId = params.get(ID_KEY).unwrap_or(&"".to_string()).to_string();
-        let source = params
-            .get(CRAWLER_KEY)
-            .unwrap_or(&"".to_string())
-            .to_string();
+        let power: u32 = search.power.clone().unwrap().parse().unwrap();
+        let searchId = search.hash.clone();
+        let source = search.source.clone();
         let mut vehicles = get_vehicles(&html);
         for vehicle in vehicles.iter_mut() {
             vehicle.gearbox = gearbox;
@@ -126,7 +81,7 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
             } else {
                 error!(
                     "No vehicles found. Page: {}, Search: {:?}",
-                    page_number, params
+                    page_number, search
                 );
             }
             info!("*** Waiting 30 seconds ***");
@@ -141,8 +96,8 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
 
 #[async_trait]
 impl ScraperTrait for MobileBGScraper {
-    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String> {
-        let url = self.search_url(params, page);
+    async fn get_html(&self, search: Search, page: u32) -> Result<String, String> {
+        let url = self.get_search_url(search, page);
         self.parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await
@@ -173,8 +128,11 @@ impl ScraperTrait for MobileBGScraper {
         self.parent.get_number_of_pages(total_number)
     }
 
-    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String {
-        self.search_url(params, page)
+    fn get_search_url(&self, search: Search, page: u32) -> String {
+        if page == 1 {
+            return search.url;
+        }
+        format!("{}/&p-{}", search.url, page)
     }
 }
 
@@ -183,7 +141,7 @@ mod screaper_mobile_bg_test {
     use std::collections::HashMap;
 
     use crate::{
-        model::VehicleDataModel::ScrapedListData,
+        model::{Search::Search, VehicleDataModel::ScrapedListData},
         scraper::{
             MobileBgScraper,
             Traits::{ScrapeListTrait, ScraperTrait as _},
@@ -209,16 +167,16 @@ mod screaper_mobile_bg_test {
             "f94".to_string(),
             "1~%CA%E0%EF%E0%F0%E8%F0%E0%ED%5C%CF%F0%EE%E4%E0%E4%E5%ED".to_string(),
         );
-
-        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
+        let search = Search::from(params.clone());
+        let html = mobile_bg.get_html(search, 1).await.unwrap();
         let total_number = mobile_bg.total_number(&html).unwrap();
         params.clear();
         params.insert("act".to_owned(), "3".to_owned());
         params.insert("rub".to_string(), 1.to_string());
         params.insert("pubtype".to_string(), 1.to_string());
         params.insert("topmenu".to_string(), "1".to_string());
-
-        let html = mobile_bg.get_html(params.clone(), 1).await.unwrap();
+        let search = Search::from(params.clone());
+        let html = mobile_bg.get_html(search.clone(), 1).await.unwrap();
         let slink_totals = mobile_bg.total_number(&html).unwrap();
 
         assert_eq!(total_number, slink_totals);
@@ -227,7 +185,7 @@ mod screaper_mobile_bg_test {
         let mut all = vec![];
         for page in 1..number_of_pages + 1 {
             let data = mobile_bg
-                .process_listed_results(params.clone(), page)
+                .process_listed_results(search.clone(), page)
                 .await
                 .unwrap();
             match data {

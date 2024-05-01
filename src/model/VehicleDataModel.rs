@@ -7,6 +7,16 @@ use super::{
     traits::URLResource,
 };
 
+#[derive(Debug, Clone)]
+pub struct DownloadStatus {
+    pub id: String,
+    pub source: String,
+    pub url: String,
+    pub listed: u32,
+    pub actual: u32,
+    pub hash: u64,
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct BaseVehicleInfo {
     pub id: String,
@@ -233,6 +243,7 @@ pub trait BasicT {
     fn power_ps(&self) -> u32;
     fn power_kw(&self) -> u32;
     fn search_id(&self) -> String;
+    fn set_search_id(&mut self, search_id: String);
 }
 
 pub trait SearchT {

@@ -11,6 +11,7 @@ use serde::Serialize;
 use crate::{
     model::{
         traits::{Identity, URLResource},
+        Search::Search,
         VehicleDataModel::ScrapedListData,
     },
     services::SearchBuilder::EXCLUED,
@@ -30,7 +31,7 @@ pub trait ScrapeListTrait<T: Clone + Debug + Serialize>:
 {
     async fn process_listed_results(
         &self,
-        params: HashMap<String, String>,
+        search: Search,
         page: u32,
     ) -> Result<ScrapedListData<T>, String>;
 }
@@ -62,9 +63,9 @@ pub trait ScraperTrait {
         None
     }
 
-    fn get_search_url(&self, params: HashMap<String, String>, page: u32) -> String;
+    fn get_search_url(&self, search: Search, page: u32) -> String;
 
-    async fn get_html(&self, params: HashMap<String, String>, page: u32) -> Result<String, String>;
+    async fn get_html(&self, search: Search, page: u32) -> Result<String, String>;
 }
 
 #[derive(Debug, Clone)]

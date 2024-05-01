@@ -171,6 +171,9 @@ impl BasicT for AutoUncleVehicle {
     fn search_id(&self) -> String {
         self.searchId.clone()
     }
+    fn set_search_id(&mut self, id: String) {
+        self.searchId = id;
+    }
 }
 
 impl DetailsT for AutoUncleVehicle {
