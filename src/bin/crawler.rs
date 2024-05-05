@@ -3,10 +3,8 @@ use std::fmt::Debug;
 use data_scraper::constants::URL::{
     AUTOUNCLE_FR_URL, AUTOUNCLE_NL_URL, AUTOUNCLE_RO_URL, CARS_BG_URL, MOBILE_BG_URL,
 };
-use data_scraper::kafka::KafkaConsumer::{
-    consumeCarGrHtmlPages, consumeMobileDeJsons, processMessages,
-};
-use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
+use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
+use data_scraper::kafka::{broker, MOBILE_DE_TOPIC};
 
 use data_scraper::model::Search::Search;
 use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT};
@@ -79,7 +77,7 @@ async fn main() {
 }
 
 async fn run_crawler(crawler: String, threads: usize) {
-    let statuses = processMessages(&broker(), "scraper_grp", "status_info", 15).await;
+    let statuses = processMessages(&broker(), &crawler, "status_info", 15).await;
     info!("Statuses: {:?}", statuses.len());
     let mut map = std::collections::HashMap::new();
     for status in statuses {
@@ -207,22 +205,13 @@ where
 }
 
 async fn run_consumers(broker: String) {
-    let broker_gr = broker.clone();
-    let task1 = tokio::spawn(async move {
-        consumeCarGrHtmlPages(&broker_gr, "car.gr.group", CARS_GR_TOPIC).await
-    });
-    let task2 = tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         consumeMobileDeJsons(&broker, "mobile.de.group", MOBILE_DE_TOPIC).await
     });
-    let (r1, r2) = tokio::join!(task1, task2);
+    let r1 = tokio::spawn(task).await;
     if r1.is_ok() {
         info!("car.gr consumer finished");
     } else {
         info!("car.gr consumer failed");
-    }
-    if r2.is_ok() {
-        info!("mobile.de consumer finished");
-    } else {
-        info!("mobile.de consumer failed");
     }
 }
