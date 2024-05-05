@@ -14,7 +14,7 @@ pub struct DownloadStatus {
     pub url: String,
     pub listed: u32,
     pub actual: u32,
-    pub hash: u64,
+    pub hash: String,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -243,7 +243,6 @@ pub trait BasicT {
     fn power_ps(&self) -> u32;
     fn power_kw(&self) -> u32;
     fn search_id(&self) -> String;
-    fn set_search_id(&mut self, search_id: String);
 }
 
 pub trait SearchT {

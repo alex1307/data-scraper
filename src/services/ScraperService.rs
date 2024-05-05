@@ -1,9 +1,4 @@
-use std::{
-    fmt::Debug,
-    hash::{DefaultHasher, Hash, Hasher},
-    sync::Mutex,
-    time::Duration,
-};
+use std::{fmt::Debug, sync::Mutex, time::Duration};
 
 use futures::future::join_all;
 use log::{debug, error, info};
@@ -83,7 +78,7 @@ where
             Err(e) => {
                 error!("Error processing search: {}", e);
             }
-        } // Handle or log errors as needed
+        }
     }
     Ok(download_status)
 }
@@ -102,11 +97,8 @@ where
 
     let number_of_pages = scraper.get_number_of_pages(total_number).unwrap();
     let mut actual_number = 0;
-    let url = scraper.get_search_url(search.clone(), 1);
-    let mut hasher = DefaultHasher::new();
-    url.hash(&mut hasher);
-    let hash = hasher.finish();
-
+    let url = search.url.clone();
+    let hash = search.hash.clone();
     info!(
         "STARTING async session: {}. Expected number of results: {}. Number of pages: {}",
         uuid, total_number, number_of_pages
@@ -121,8 +113,7 @@ where
                     info!("Get less data {} for page# : {}", list.len(), page_number);
                 }
                 actual_number += list.len() as u32;
-                for mut data in list {
-                    data.set_search_id(hash.to_string());
+                for data in list {
                     if let Err(e) = producer.send(data.clone()).await {
                         error!("Error sending id: {}", e);
                     }

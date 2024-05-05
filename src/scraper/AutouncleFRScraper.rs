@@ -64,7 +64,7 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleFRScraper {
         }
         for v in &mut vehicles {
             v.source = search.clone().source;
-            v.searchId = search.clone().id.to_string();
+            v.searchId = search.clone().hash;
         }
         let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
@@ -93,13 +93,6 @@ impl ScraperTrait for AutouncleFRScraper {
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         let number_of_pages = (total_number as f32 / 25.0).ceil() as u32;
         Ok(number_of_pages)
-    }
-
-    fn get_search_url(&self, search: Search, page: u32) -> String {
-        if page == 1 {
-            return search.url;
-        }
-        format!("{}&page={}", search.url, page)
     }
 }
 

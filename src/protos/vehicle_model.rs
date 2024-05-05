@@ -209,6 +209,6 @@ pub struct DownloadStatus {
     pub listed: u32,
     #[prost(uint32, tag = "5")]
     pub actual: u32,
-    #[prost(uint64, tag = "6")]
-    pub hash: u64,
+    #[prost(string, tag = "6")]
+    pub hash: ::prost::alloc::string::String,
 }
