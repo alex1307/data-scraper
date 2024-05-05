@@ -50,7 +50,7 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         search: Search,
         page_number: u32,
     ) -> Result<ScrapedListData<MobileRecord>, String> {
-        let url = (&search.url).to_string();
+        let url: String = self.get_search_url(search.clone(), page_number);
         let html = self
             .parent
             .html_search(&url, Some("windows-1251".to_string()))
@@ -63,6 +63,10 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         let power: u32 = search.power.clone().unwrap().parse().unwrap();
         let searchId = search.hash.clone();
         let source = search.source.clone();
+        if searchId.is_empty() {
+            error!("Search ID is empty");
+            return Err("Search ID is empty".to_string());
+        }
         let mut vehicles = get_vehicles(&html);
         for vehicle in vehicles.iter_mut() {
             vehicle.gearbox = gearbox;
@@ -130,9 +134,10 @@ impl ScraperTrait for MobileBGScraper {
 
     fn get_search_url(&self, search: Search, page: u32) -> String {
         if page == 1 {
-            return search.url;
+            search.url.replace("{page}", "")
+        } else {
+            search.url.replace("{page}", &format!("/p-{}", page))
         }
-        format!("{}/&p-{}", search.url, page)
     }
 }
 

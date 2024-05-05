@@ -126,10 +126,5 @@ fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {
     let url = url.replace("{powerFrom}", fromPower);
     let url = url.replace("{engine}", engine);
     let url = url.replace("{gearbox}", gearbox);
-    // if page > 1 {
-    //     url.replace("{page}", &format!("/p-{}", page))
-    // } else {
-    //     url.replace("{page}", "")
-    // }
     url
 }

@@ -63,7 +63,12 @@ pub trait ScraperTrait {
         None
     }
 
-    fn get_search_url(&self, search: Search, page: u32) -> String;
+    fn get_search_url(&self, search: Search, page: u32) -> String {
+        if page == 1 {
+            return search.url;
+        }
+        format!("{}&page={}", search.url, page)
+    }
 
     async fn get_html(&self, search: Search, page: u32) -> Result<String, String>;
 }

@@ -105,5 +105,5 @@ message DownloadStatus{
     string url = 3;
     uint32 listed = 4;
     uint32 actual = 5;
-    uint64 hash = 6;
+    string hash = 6;
 }

@@ -23,7 +23,7 @@ use rdkafka::{
     message::BorrowedMessage,
     ClientConfig,
 };
-use tokio::time;
+use tokio::time::timeout;
 
 pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
     let consumer: StreamConsumer = ClientConfig::new()
@@ -87,51 +87,61 @@ pub async fn processMessages(
         .subscribe(&[topic])
         .expect("Can't subscribe to specified topic");
     let mut message_stream = consumer.stream();
-    let timeout = time::sleep(Duration::from_secs(seconds));
+    let mut empty_polls = 0; // Counter for empty polls
     let mut statuses = vec![];
-    tokio::pin!(timeout);
     loop {
-        tokio::select! {
-            message = message_stream.next() => {
-                if let Some(Ok(message)) = message {
-                    // Process each message
-                    if let Ok(status) = process_kafka_message(&message) {
-                        let download_status = VehicleDataModel::DownloadStatus{
-                            id: status.id,
-                            source: status.source,
-                            url: status.url,
-                            listed: status.listed,
-                            actual: status.actual,
-                            hash: status.hash,
-                         };
-                        statuses.push(download_status);
-                    }
-                } else if let Some(Err(e)) = message {
-                    error!("Kafka error: {}", e);
-                    break; // Break the loop if there is an error
-                } else {
-                    info!("No more messages or consumer has been closed.");
-                    break; // Break if the stream ends
+        match timeout(Duration::from_secs(seconds), message_stream.next()).await {
+            Ok(Some(Ok(message))) => {
+                let detached = message.detach();
+                let binary = detached.payload().unwrap_or(&[]);
+
+                // Process each message
+                if let Ok(status) = process_kafka_message(binary) {
+                    let download_status = VehicleDataModel::DownloadStatus {
+                        id: status.id,
+                        source: status.source,
+                        url: status.url,
+                        listed: status.listed,
+                        actual: status.actual,
+                        hash: status.hash,
+                    };
+                    statuses.push(download_status);
+                } else if let Err(e) = process_kafka_message(binary) {
+                    error!("Error processing message: {}", e);
+                }
+                empty_polls = 0; // Reset empty poll counter on message receipt
+            }
+            Ok(Some(Err(e))) => {
+                error!("Kafka error: {}", e);
+                break;
+            }
+            Ok(None) => {
+                info!("No more messages or consumer has been closed.");
+                empty_polls += 1; // Increment empty polls counter
+                if empty_polls >= 1 {
+                    // Check if we've waited enough polls without messages
+                    break;
                 }
             }
-            _ = &mut timeout => {
-                info!("No messages received in {} seconds, stopping consumer.", seconds);
-                break; // Exit the loop if timeout expires
+            Err(_) => {
+                // Timeout reached
+                info!(
+                    "No messages received in {} seconds, stopping consumer.",
+                    seconds
+                );
+                break;
             }
         }
     }
+
     consumer.unsubscribe();
     statuses
 }
 
-fn process_kafka_message(borrowed_message: &BorrowedMessage) -> Result<DownloadStatus, String> {
-    match borrowed_message.payload_view::<[u8]>() {
-        Some(Ok(payload)) => match DownloadStatus::decode(payload) {
-            Ok(download_status) => Ok(download_status),
-            Err(e) => Err(format!("Error decoding message: {:?}", e)),
-        },
-        Some(Err(e)) => Err(format!("Error decoding message: {:?}", e)),
-        None => Err("No message".to_string()),
+fn process_kafka_message(payload: &[u8]) -> Result<DownloadStatus, String> {
+    match DownloadStatus::decode(payload) {
+        Ok(download_status) => Ok(download_status),
+        Err(e) => Err(format!("Error decoding message: {:?}", e)),
     }
 }
 

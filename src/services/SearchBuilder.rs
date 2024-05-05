@@ -275,7 +275,7 @@ pub fn build_cars_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, Str
     map.insert("add_search".to_owned(), "1".to_owned());
     map.insert("typeoffer".to_owned(), "1".to_owned());
     map.insert("conditions[]".to_owned(), "1".to_owned());
-
+    map.insert(CRAWLER_KEY.to_owned(), CRAWLER_CARS_BG.to_owned());
     let mut searches = vec![];
     let year_filter = year_filter(CARS_BG_YEARS_FROM, CARS_BG_YEARS_TO, YEARS.clone());
     let power_filter = power_filter(CARS_BG_POWER_FROM, CARS_BG_POWER_TO, POWER.clone());
@@ -292,7 +292,6 @@ pub fn build_cars_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, Str
                     params.extend(gearbox.clone());
                     params.extend(power.clone());
                     params.extend(year.clone());
-                    params.insert(CRAWLER_KEY.to_owned(), CRAWLER_CARS_BG.to_owned());
                     params.insert(ID_KEY.to_owned(), counter.to_string());
                     searches.push(params);
                 }

@@ -1,12 +1,15 @@
-use std::collections::HashMap;
-
 use std::fmt::Debug;
 
-use data_scraper::kafka::KafkaConsumer::{consumeCarGrHtmlPages, consumeMobileDeJsons};
+use data_scraper::constants::URL::{
+    AUTOUNCLE_FR_URL, AUTOUNCLE_NL_URL, AUTOUNCLE_RO_URL, CARS_BG_URL, MOBILE_BG_URL,
+};
+use data_scraper::kafka::KafkaConsumer::{
+    consumeCarGrHtmlPages, consumeMobileDeJsons, processMessages,
+};
 use data_scraper::kafka::{broker, CARS_GR_TOPIC, MOBILE_DE_TOPIC};
 
 use data_scraper::model::Search::Search;
-use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT};
+use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT};
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
 use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
@@ -76,76 +79,107 @@ async fn main() {
 }
 
 async fn run_crawler(crawler: String, threads: usize) {
+    let statuses = processMessages(&broker(), "scraper_grp", "status_info", 15).await;
+    info!("Statuses: {:?}", statuses.len());
+    let mut map = std::collections::HashMap::new();
+    for status in statuses {
+        map.entry(status.source.clone())
+            .or_insert_with(Vec::new)
+            .push(status);
+    }
+
     if crawler == CRAWLER_MOBILE_BG {
-        let searches = build_mobile_bg_all_searches("https://www.mobile.bg/obiavi/avtomobili-dzhipove/{engine}/{gearbox}{page}/ot-{yearFrom}/do-{yearTo}{page}?f24=2&&engine_power={powerFrom}&engine_power1={powerTo}{priceFrom}{priceTo}", ID_MOBILE_BG_START);
-        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
-        for c in converted {
-            info!("Search: {:?}", c);
-        }
-        let crawler = MobileBGScraper::new("https://www.mobile.bg/pcgi/mobile.cgi?", 250);
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+
+        let crawler = MobileBGScraper::new(MOBILE_BG_URL, 250);
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
-        let searches = build_autouncle_searches(
-            "https://www.autouncle.fr/en/cars_search?",
-            "[5]",
-            ID_AUTOUNCLE_FR,
-        );
-        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
-        for c in converted {
-            info!("Search: {:?}", c);
-        }
-        info!("Starting autouncle.fr with #{} searches", searches.len());
-        let crawler = AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleFRScraper::new(AUTOUNCLE_FR_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.fr with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_NL {
-        let searches = build_autouncle_searches(
-            "https://www.autouncle.nl/en/cars_search?",
-            "[5]",
-            ID_AUTOUNCLE_NL_START,
-        );
-        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
-        for c in converted {
-            info!("Search: {:?}", c);
-        }
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleNLScraper::new(AUTOUNCLE_NL_URL, 250);
         info!("Starting autouncle.nl with #{} searches", searches.len());
-        let crawler = AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
         let searches = searches.chunks(threads);
-        info!("Starting autouncle.nl with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_RO {
-        let searches = build_autouncle_searches(
-            "https://www.autouncle.ro/en/cars_search?",
-            "[5]",
-            ID_AUTOUNCLE_RO_START,
-        );
-        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
-        for c in converted {
-            info!("Search: {:?}", c);
-        }
-        info!("Starting autouncle.ro with #{} searches", searches.len());
-        let crawler = AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleROScraper::new(AUTOUNCLE_RO_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.ro with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_CARS_BG {
-        let searches =
-            build_cars_bg_all_searches("https://www.cars.bg/carslist.php?", ID_CARS_BG_START);
-        let converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
-        for c in converted {
-            info!("Search: {:?}", c);
-        }
-        let crawler = CarsBGScraper::new("https://www.cars.bg/carslist.php?", 250);
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = CarsBGScraper::new(CARS_BG_URL, 250);
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler).await;
     } else {
         error!("Invalid crawler: {}", crawler);
     }
 }
+fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
+    let searches = match source {
+        CRAWLER_AUTOUNCLE_FR => build_autouncle_searches(AUTOUNCLE_FR_URL, "[5]", ID_AUTOUNCLE_FR),
+        CRAWLER_AUTOUNCLE_NL => {
+            build_autouncle_searches(AUTOUNCLE_NL_URL, "[5]", ID_AUTOUNCLE_NL_START)
+        }
+        CRAWLER_AUTOUNCLE_RO => {
+            build_autouncle_searches(AUTOUNCLE_RO_URL, "[5]", ID_AUTOUNCLE_RO_START)
+        }
+        CRAWLER_CARS_BG => build_cars_bg_all_searches(CARS_BG_URL, ID_CARS_BG_START),
+        CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),
 
-async fn log_and_search<S, T>(searches: std::slice::Chunks<'_, HashMap<String, String>>, crawler: S)
+        _ => vec![],
+    };
+
+    let mut converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
+    for f in filter {
+        let search = converted
+            .iter()
+            .find(|x| x.url == f.url || x.hash == f.hash);
+        if let Some(s) = search {
+            let index = converted.iter().position(|x| x.id == s.id).unwrap();
+            converted.remove(index);
+        }
+    }
+    info!(
+        "Starting autouncle.ro with #{} searches and filtered: {}",
+        searches.len(),
+        converted.len()
+    );
+    converted
+}
+
+async fn log_and_search<S, T>(searches: std::slice::Chunks<'_, Search>, crawler: S)
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
     T: BasicT + DetailsT + PriceT + ChangeLogT + Send + Serialize + Clone + Debug + 'static,
@@ -157,10 +191,7 @@ where
     for search in searches {
         chunk_counter += 1;
         let vsearch = search.to_vec();
-        let searches = vsearch
-            .iter()
-            .map(|x| Search::from(x.clone()))
-            .collect::<Vec<Search>>();
+        let searches = vsearch.to_vec();
         if let Ok(statuses) = download_list_data(crawler.clone(), searches).await {
             for s in statuses {
                 listed += s.listed;

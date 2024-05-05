@@ -136,13 +136,6 @@ impl ScraperTrait for CarsBGScraper {
     fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String> {
         self.parent.get_number_of_pages(total_number)
     }
-
-    fn get_search_url(&self, search: Search, page: u32) -> String {
-        if page == 1 {
-            return search.url;
-        }
-        format!("{}&page={}", search.url, page)
-    }
 }
 
 #[cfg(test)]

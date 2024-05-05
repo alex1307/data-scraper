@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 pub mod config;
+pub mod constants;
 pub mod helpers;
 pub mod kafka;
 pub mod model;
