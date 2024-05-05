@@ -1,14 +1,12 @@
 use super::{
     KafkaProducer::{create_producer, encode_message, send_message},
-    BASE_INFO_TOPIC, CHANGE_LOG_TOPIC,
+    BASE_INFO_TOPIC,
 };
 use crate::{
-    helpers::CarGrHTMLHelper::process_listed_links,
     kafka::{CONSUPTION_TOPIC, PRICE_TOPIC},
     model::{
         MobileDe::{MobileDeResults, SearchItem},
         VehicleDataModel::{self, Price},
-        VehicleRecord::MobileRecord,
     },
     protos::{self, vehicle_model::DownloadStatus},
 };
@@ -24,50 +22,6 @@ use rdkafka::{
     ClientConfig,
 };
 use tokio::time::timeout;
-
-pub async fn consumeCarGrHtmlPages(broker: &str, group: &str, topic: &str) {
-    let consumer: StreamConsumer = ClientConfig::new()
-        .set("group.id", group.to_owned())
-        .set("bootstrap.servers", broker.to_string())
-        .set("enable.auto.commit", "true")
-        .set("auto.offset.reset", "earliest")
-        .create()
-        .expect("Consumer creation failed");
-
-    consumer
-        .subscribe(&[topic])
-        .expect("Can't subscribe to specified topic");
-
-    let producer = create_producer(broker);
-
-    let mut message_stream = consumer.stream();
-
-    while let Some(message) = message_stream.next().await {
-        match message {
-            Ok(borrowed_message) => {
-                let list = handle_carg_gr_html(&borrowed_message);
-                for item in list {
-                    let basic_info = VehicleDataModel::BaseVehicleInfo::from(item.clone());
-                    let price_info = VehicleDataModel::Price::from(item.clone());
-                    let change_log_info =
-                        VehicleDataModel::VehicleChangeLogInfo::from(item.clone());
-
-                    let basic_message = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
-                    let price_message = protos::vehicle_model::Price::from(price_info);
-                    let change_log_message =
-                        protos::vehicle_model::VehicleChangeLogInfo::from(change_log_info);
-                    let message = encode_message(&basic_message).unwrap();
-                    send_message(&producer, BASE_INFO_TOPIC, message).await;
-                    let message = encode_message(&price_message).unwrap();
-                    send_message(&producer, PRICE_TOPIC, message).await;
-                    let message = encode_message(&change_log_message).unwrap();
-                    send_message(&producer, CHANGE_LOG_TOPIC, message).await;
-                }
-            }
-            Err(e) => error!("Kafka error: {}", e),
-        }
-    }
-}
 
 pub async fn processMessages(
     broker: &str,
@@ -201,19 +155,6 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
             info!("Base info: {}", consumption_info_counter);
         }
     }
-}
-
-fn handle_carg_gr_html(message: &BorrowedMessage) -> Vec<MobileRecord> {
-    match message.payload_view::<str>() {
-        Some(Ok(payload)) => {
-            let list = process_listed_links(payload);
-            return list;
-            // Here you can process the message or forward it to another system
-        }
-        Some(Err(e)) => error!("Error while deserializing message payload: {:?}", e),
-        None => info!("Received message with empty payload"),
-    }
-    vec![]
 }
 
 fn handle_mobile_de_json(message: &BorrowedMessage) -> Vec<SearchItem> {

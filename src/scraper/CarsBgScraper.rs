@@ -73,7 +73,7 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
         search: Search,
         page_number: u32,
     ) -> Result<ScrapedListData<MobileRecord>, String> {
-        let url = search.url.clone();
+        let url = self.get_search_url(search.clone(), page_number);
         let html = self.parent.html_search(&url, None).await?;
         let value = search.gearbox.clone().unwrap().to_string();
         let gearbox = Gearbox::from_str(&value).unwrap();
