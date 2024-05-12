@@ -203,11 +203,11 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
             if y == "2014" || y == "2015" {
                 map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
             } else if y == "2016" || y == "2017" {
-                map.insert("s%5Bmax_km%5D".to_owned(), "150000".to_owned());
+                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
             } else if y == "2018" || y == "2019" || y == "2020" {
-                map.insert("s%5Bmax_km%5D".to_owned(), "100000".to_owned());
+                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
             } else {
-                map.insert("s%5Bmax_km%5D".to_owned(), "50000".to_owned());
+                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
             }
         }
 

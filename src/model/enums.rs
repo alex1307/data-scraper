@@ -173,6 +173,7 @@ impl FromStr for Engine {
             "el_benzin" => Ok(Engine::HybridPetrol),
             "хибрид" => Ok(Engine::Hybrid),
             "hybrid petrol" => Ok(Engine::HybridPetrol),
+            "el_diesel" => Ok(Engine::HybridDiesel),
             "hybrid diesel" => Ok(Engine::HybridDiesel),
             "plug-in hybrid petrol" => Ok(Engine::PlugInHybridPetrol),
             "plug-in hybrid diesel" => Ok(Engine::PlugInHybridDiesel),
