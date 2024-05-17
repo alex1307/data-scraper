@@ -1,45 +1,20 @@
-use crate::config::Equipment::get_equipment_as_u64;
-use crate::helpers::CURRENCY_KEY;
-use crate::helpers::DEALER_KEY;
-use crate::helpers::ENGINE_KEY;
-use crate::helpers::EQUIPMENT_KEY;
-use crate::helpers::GEARBOX_KEY;
-use crate::helpers::LOCATION_KEY;
-use crate::helpers::MAKE_KEY;
-use crate::helpers::MILEAGE_KEY;
-use crate::helpers::MODEL_KEY;
-use crate::helpers::PHONE_KEY;
-use crate::helpers::POWER_KEY;
-use crate::helpers::PRICE_KEY;
-use crate::helpers::PUBLISHED_ON_KEY;
-use crate::helpers::SOLD_KEY;
-use crate::helpers::TOP_KEY;
-use crate::helpers::VIEW_COUNT_KEY;
-use crate::helpers::VIP_KEY;
-use crate::helpers::YEAR_KEY;
-use crate::model::enums::Currency;
-
+use crate::model::enums::Engine;
+use crate::model::enums::Gearbox;
 use crate::model::VehicleRecord::MobileRecord;
 
-use crate::services::SearchBuilder::CRAWLER_KEY;
 use crate::utils::helpers::extract_ascii_latin;
-use crate::utils::helpers::extract_date;
-use crate::utils::helpers::extract_integers;
 use crate::utils::helpers::extract_make;
-use crate::ENGINE_TXT;
-use crate::GEARBOX_TXT;
-use crate::POWER_TXT;
-use crate::{BROWSER_USER_AGENT, MILLAGE_TXT, YEAR_TXT};
+use crate::BROWSER_USER_AGENT;
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 
-use log::{debug, error};
+use log::debug;
 
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
-use std::collections::HashMap;
+use std::str::FromStr;
 
 lazy_static! {
     static ref TABLERESET_SELECTOR: Selector = Selector::parse("table.tablereset").unwrap();
@@ -63,156 +38,6 @@ lazy_static! {
     static ref INPUT_TYPE_HIDDEN: Selector = Selector::parse("input[name=slink]").unwrap();
     static ref DIV_MARGIN_SELECTOR: Selector =
         Selector::parse("div[style*=\"margin-bottom:5px;\"]").unwrap();
-}
-
-pub fn details2map(document: Html) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    map.insert(CRAWLER_KEY.to_owned(), "mobile.bg".to_owned());
-    let phone = if let Some(txt) = document.select(&PHONE_SELECTOR).next() {
-        txt.text().collect::<Vec<_>>().join("")
-    } else {
-        "0000000000".to_string()
-    };
-
-    let address = if let Some(txt) = document.select(&ADDRESS_SELECTOR).next() {
-        let location = txt.text().collect::<Vec<_>>().join("");
-        location.split(',').collect::<Vec<_>>()[0].to_string()
-    } else {
-        "Unknown".to_string()
-    };
-    let is_dealer = document.select(&DEALER_SELECTOR).next().is_some();
-    map.insert(PHONE_KEY.to_string(), phone);
-    map.insert(DEALER_KEY.to_string(), (!is_dealer).to_string());
-    map.insert(LOCATION_KEY.to_string(), address);
-
-    if let Some(h1_element) = document.select(&DETAILS_HEADER_SELECTOR).next() {
-        let text = h1_element.text().collect::<Vec<_>>().join(";");
-        let values = text.split_whitespace().collect::<Vec<&str>>();
-
-        for v in values.clone() {
-            debug!("v: {}", v);
-        }
-        if values.len() < 2 {
-            return HashMap::new();
-        }
-        map.insert(MAKE_KEY.to_string(), values[0].to_string());
-        map.insert(MODEL_KEY.to_string(), values[1].to_string());
-    }
-
-    if document.select(&KAPARO_SELECTOR).count() > 0 {
-        map.insert(SOLD_KEY.to_string(), "true".to_string());
-    } else {
-        map.insert(SOLD_KEY.to_string(), "false".to_string());
-    }
-
-    if let Some(element) = document.select(&UPDATED_ON_SELECTOR).next() {
-        let txt = element.text().collect::<Vec<_>>().join(" ");
-        if let Some(updated_on) = extract_date(&txt) {
-            map.insert(PUBLISHED_ON_KEY.to_string(), updated_on);
-        } else {
-            map.insert(PUBLISHED_ON_KEY.to_string(), "".to_string());
-        }
-    }
-
-    if document.select(&TOP_SELECTOR).count() > 0 {
-        map.insert(TOP_KEY.to_string(), "true".to_string());
-    } else if document.select(&VIP_SELECTOR).count() > 0 {
-        map.insert(VIP_KEY.to_string(), "true".to_string());
-    } else {
-        map.insert(TOP_KEY.to_string(), "false".to_string());
-        map.insert(VIP_KEY.to_string(), "false".to_string());
-    }
-
-    for element in document.select(&DILAR_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("_");
-        let lines = txt.lines();
-
-        for l in lines {
-            if l.contains('_') {
-                let v = l.split('_').collect::<Vec<&str>>();
-                if v.len() >= 3 {
-                    if ENGINE_TXT == v[1] {
-                        map.insert(ENGINE_KEY.to_string(), v[2].to_string());
-                    }
-                    if GEARBOX_TXT == v[1] {
-                        map.insert(GEARBOX_KEY.to_string(), v[2].to_string());
-                    }
-
-                    if v[1].contains(POWER_TXT) {
-                        map.insert(POWER_KEY.to_string(), extract_integers(v[2])[0].to_string());
-                    }
-
-                    if v[1].contains(MILLAGE_TXT) {
-                        if let Some(numeric_part) = v[2].split_whitespace().next() {
-                            // Remove any non-numeric characters and convert to an integer
-                            if let Ok(numeric_value) = numeric_part
-                                .chars()
-                                .filter(|&c| c.is_numeric())
-                                .collect::<String>()
-                                .parse::<i32>()
-                            {
-                                map.insert(MILEAGE_KEY.to_string(), numeric_value.to_string());
-                            } else {
-                                map.insert(MILEAGE_KEY.to_string(), "0".to_string());
-                            }
-                        } else {
-                            error!("Milage not found for");
-                        }
-                    }
-
-                    if v[1].contains(YEAR_TXT) {
-                        debug!("v[2]: {}", v[2]);
-
-                        // Remove any non-numeric characters and convert to an integer
-                        if let Ok(numeric_value) = v[2]
-                            .chars()
-                            .filter(|&c| c.is_numeric())
-                            .collect::<String>()
-                            .parse::<i32>()
-                        {
-                            map.insert(YEAR_KEY.to_string(), numeric_value.to_string());
-                        } else {
-                            map.insert(YEAR_KEY.to_string(), "0".to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    debug!("--> map: {:?}", map);
-    for element in document.select(&ADV_ACT_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join(" ");
-        map.insert(
-            VIEW_COUNT_KEY.to_string(),
-            extract_integers(&txt)[0].to_string(),
-        );
-    }
-
-    for element in document.select(&DETAILS_PRICE_SELECTOR) {
-        let txt = element.text().collect::<Vec<_>>().join("");
-        let (price, currency) = process_price(txt);
-        map.insert(CURRENCY_KEY.to_string(), currency.to_string());
-        map.insert(PRICE_KEY.to_string(), price.to_string());
-    }
-
-    let divs = document.select(&DIV_MARGIN_SELECTOR);
-    let mut extras = vec![];
-    for div in divs {
-        extras.push(
-            div.text()
-                .collect::<String>()
-                .replace('•', "")
-                .trim()
-                .to_string(),
-        );
-    }
-    if !&extras.is_empty() {
-        map.insert(
-            EQUIPMENT_KEY.to_string(),
-            get_equipment_as_u64(extras).to_string(),
-        );
-    }
-    map
 }
 
 pub fn get_header_data(html: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -239,27 +64,6 @@ pub fn get_metadata_links(html: &str) -> Result<Vec<String>, Box<dyn std::error:
         links.push(txt.to_string());
     }
     Ok(links)
-}
-
-fn process_price(text: String) -> (u32, Currency) {
-    let contains_numeric = text.chars().any(|c| c.is_numeric());
-    if !contains_numeric {
-        return (0, Currency::BGN);
-    }
-    let v = text.replace(' ', "");
-    let v1 = v.replace("&nbsp;", "");
-    let (price_str, currency) = if v1.contains("USD") {
-        (v1.trim_end_matches("USD"), Currency::USD)
-    } else if v1.contains("EUR") {
-        (v1.trim_end_matches("EUR"), Currency::EUR)
-    } else {
-        (v1.trim_end_matches("лв."), Currency::BGN)
-    };
-    let price = match price_str.parse::<f32>() {
-        Ok(p) => p.floor() as u32,
-        Err(_) => return (0, Currency::BGN), // return None if the string cannot be parsed as u32
-    };
-    (price, currency)
 }
 
 pub fn get_url(element: &ElementRef) -> Option<String> {
@@ -322,55 +126,6 @@ pub fn slink(html: &str) -> String {
     result
 }
 
-pub fn make_and_mode(
-    element: &ElementRef,
-    models: HashMap<&str, Vec<&str>>,
-) -> Option<(String, String)> {
-    let selector = Selector::parse("td.valgtop a.mmm").unwrap();
-    for e in element.select(&selector) {
-        let inner_html = e.inner_html();
-        let strings = inner_html.split_ascii_whitespace().collect::<Vec<&str>>();
-        if strings.is_empty() || strings.len() < 2 {
-            continue;
-        }
-        if models.is_empty() {
-            return Some((strings[0].to_string(), strings[1].to_string()));
-        }
-    }
-
-    None
-}
-
-pub fn is_top_or_vip(element: &ElementRef) -> bool {
-    let top = vec!["top", "vip"];
-    for value in top {
-        let filter = format!(r#"img[alt="{}"][class="noborder"]"#, value);
-        let selector = Selector::parse(&filter).unwrap();
-        let img_element_exists = element.select(&selector).next().is_some();
-        if img_element_exists {
-            return true;
-        }
-    }
-
-    false
-}
-
-pub fn is_sold(element: &ElementRef) -> bool {
-    let filter = r#"img"#;
-    let selector = Selector::parse(filter).unwrap();
-    let images = element.select(&selector);
-
-    for img_element in images {
-        if let Some(src) = img_element.value().attr("src") {
-            if src.contains("kaparirano.svg") {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
 pub fn get_milllage_and_year(element: &ElementRef, is_promoted: bool) -> (u32, u32) {
     let filter = match is_promoted {
         true => r#"td[colspan="3"]"#,
@@ -417,44 +172,38 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
     let document = Html::parse_document(html_content);
     // Selector to find the price
-    let price_selector = Selector::parse("span.price").unwrap();
+    let price_selector = Selector::parse("div.price div").unwrap();
     // Selector to find the description
-    let rows_selector = Selector::parse("table.tablereset").unwrap();
-    let make_model_selector = Selector::parse("td.valgtop > a.mmmL").unwrap(); // Adjusted to be mo
-    let a_selector = Selector::parse("a.mmmL").unwrap();
-    let logo_selector = Selector::parse("a.logoLink").unwrap();
-    let mut resumes = vec![];
-    let mut counter = 0;
-    for element in document.select(&rows_selector) {
-        let id: String;
-        if let Some(link_el) = element.select(&a_selector).next() {
-            let href = link_el.value().attr("href").unwrap();
-            let arr = href.split('-').collect::<Vec<&str>>();
-            if arr.len() < 2 {
-                continue;
-            }
-            id = arr[1].to_string();
-        } else {
-            continue;
-        }
+    let rows_selector = Selector::parse("div.item").unwrap();
+    let make_model_selector = Selector::parse("div.zaglavie a.title").unwrap(); // Adjusted to be mo
+    let params_selector = Selector::parse("div.params span").unwrap();
+    let seller_name = Selector::parse("div.sInfo div.name a").unwrap();
+    let location = Selector::parse("div.sInfo div.location").unwrap();
+    let mut vehicles = vec![];
 
-        if id == "" {
-            continue;
-        }
-        let mut resume = MobileRecord {
-            id,
+    for element in document.select(&rows_selector) {
+        let mut vehicle = MobileRecord {
+            id: "".to_string(),
             dealer: true,
             ..Default::default()
         };
-
-        if counter > 20 {
-            break;
-        }
-
         if let Some(make_model_element) = element.select(&make_model_selector).next() {
-            counter += 1;
-            let txt = make_model_element.text().collect::<Vec<_>>().join("");
-            let mut make_model = txt.split_whitespace().collect::<Vec<_>>();
+            if let Some(href) = make_model_element.value().attr("href") {
+                // Extract the ID from the URL
+                let parts: Vec<&str> = href.split('-').collect();
+                if let Some(id_part) = parts.get(1) {
+                    let id = id_part.split('/').next().unwrap_or("");
+                    vehicle.id = id.to_string();
+                } else {
+                    continue;
+                }
+            }
+            let title_txt = make_model_element
+                .text()
+                .collect::<String>()
+                .trim()
+                .to_string();
+            let mut make_model = title_txt.split_whitespace().collect::<Vec<_>>();
             if let Some(last) = make_model.last() {
                 if last.ends_with("...")
                     || regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]")
@@ -466,85 +215,81 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
             }
 
             let (make, model, title) = extract_make(make_model);
-            resume.make = make;
-            resume.model = model;
-            resume.title = title;
+            vehicle.make = make;
+            vehicle.model = model;
+            vehicle.title = title;
         }
 
         if let Some(price_element) = element.select(&price_selector).next() {
-            let price_text = price_element.text().collect::<Vec<_>>().join("");
-            if price_text.contains("лв.") {
-                resume.currency = Currency::BGN;
-            } else if price_text.contains("EUR") {
-                resume.currency = Currency::EUR;
-            } else if price_text.contains("USD") {
-                resume.currency = Currency::USD;
+            let inner = price_element.inner_html();
+            let price = inner.chars().filter(|c| c.is_numeric()).collect::<String>();
+            vehicle.price = price.parse::<u32>().unwrap_or(0);
+        }
+
+        for param in element.select(&params_selector) {
+            let txt = param.text().collect::<String>().trim().to_string();
+            if txt.contains("г.") {
+                let year = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
+                vehicle.year = year.parse::<u16>().unwrap_or(0);
+                continue;
             }
-            let mut price = price_text.replace(" лв.", "").replace(' ', ""); // Remove currency and spaces
-            price = price.replace("EUR", "").replace(' ', ""); // Remove currency and spaces
-            price = price.replace("USD", "").replace(' ', ""); // Remove currency and spaces
-            resume.price = price.trim().parse::<u32>().unwrap_or(0);
-        }
 
-        let txt = element.inner_html();
-        if let Some(start) = txt.find(r#"дата на произв."#) {
-            let substr = &txt[start..];
-            if let Some(end) = substr.find(r#"</td>"#) {
-                let desc = &substr[..end];
-                let (y, m) = extract_year_and_mileage(desc);
-                resume.year = y.parse::<u16>().unwrap_or(0);
-                resume.mileage = m.parse::<u32>().unwrap_or(0);
-                resume.location = extract_region(desc).trim().to_string();
+            if txt.contains("км") {
+                let mileage = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
+                vehicle.mileage = mileage.parse::<u32>().unwrap_or(0);
+                continue;
             }
-        } else {
-            error!(
-                "Failed to find the year and mileage for the vehicle with id: {}",
-                resume.id
-            );
-            continue;
+
+            if txt.contains("к.с.") {
+                let power = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
+                vehicle.power = power.parse::<u32>().unwrap_or(0);
+                continue;
+            }
+
+            if txt.contains("куб.см") {
+                let cc = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
+                vehicle.cc = cc.parse::<u32>().unwrap_or(0);
+                continue;
+            }
+            if let Ok(engine) = Engine::from_str(&txt) {
+                vehicle.engine = engine.clone();
+                continue;
+            }
+
+            if let Ok(gearbox) = Gearbox::from_str(&txt) {
+                vehicle.gearbox = gearbox;
+                continue;
+            }
         }
 
-        if let Some(link) = element.select(&logo_selector).next() {
-            resume.name = link.value().attr("href").unwrap().to_string();
+        if let Some(seller_name_element) = element.select(&seller_name).next() {
+            let url = seller_name_element.value().attr("href").unwrap_or("");
+            vehicle.dealer_url = url.to_string();
+            vehicle.name = seller_name_element
+                .text()
+                .collect::<String>()
+                .trim()
+                .to_string();
         }
 
-        resumes.push(resume.clone());
+        if let Some(location_element) = element.select(&location).next() {
+            vehicle.location = location_element
+                .text()
+                .collect::<String>()
+                .trim()
+                .to_string();
+        }
+
+        vehicles.push(vehicle);
     }
-    resumes
-}
-
-fn extract_region(text: &str) -> String {
-    let region_regex = Regex::new(r"Регион: (.+?)\s").unwrap();
-    region_regex
-        .captures(text)
-        .and_then(|cap| cap.get(1))
-        .map(|match_| match_.as_str().to_string())
-        .unwrap_or_default()
-}
-
-fn extract_year_and_mileage(text: &str) -> (String, String) {
-    let year_regex = Regex::new(r"(\d{4}) г\.").unwrap();
-    let mileage_regex = Regex::new(r"пробег - (\d+) км").unwrap();
-
-    let year = year_regex
-        .captures(text)
-        .and_then(|cap| cap.get(1))
-        .map(|match_| match_.as_str().to_string());
-
-    let mileage = mileage_regex
-        .captures(text)
-        .and_then(|cap| cap.get(1))
-        .map(|match_| match_.as_str().to_string());
-
-    (
-        year.unwrap_or("0".to_string()),
-        mileage.unwrap_or("0".to_string()),
-    )
+    vehicles
 }
 
 #[cfg(test)]
 mod test_listing {
-    use encoding_rs::Encoding;
+
+    use std::io::Read;
+
     use log::info;
 
     use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
@@ -554,14 +299,11 @@ mod test_listing {
     #[test]
     fn test_get_pages() {
         configure_log4rs(&LOG_CONFIG);
-        let file = std::fs::read("resources/test-data/mobile.bg/test.html").unwrap();
+        let mut file = std::fs::File::open("resources/test-data/mobile.bg/test.html").unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
 
-        //"windows-1251"
-        let encoding = Encoding::for_label("windows-1251".as_bytes()).unwrap();
-        let (decoded, _, _) = encoding.decode(&file);
-        let utf8_html = UTF_8.encode(&decoded).0;
-        let content = String::from_utf8_lossy(&utf8_html);
-        let data = get_vehicles(&content.to_string());
+        let data = get_vehicles(&contents.to_string());
         info!("data: {:?}", data);
     }
 }

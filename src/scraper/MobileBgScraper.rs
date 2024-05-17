@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use async_trait::async_trait;
 
@@ -11,12 +11,7 @@ use tokio::time::sleep;
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
     helpers::MobileBgHTMLHelper::get_vehicles,
-    model::{
-        enums::{Engine, Gearbox},
-        Search::Search,
-        VehicleDataModel::ScrapedListData,
-        VehicleRecord::MobileRecord,
-    },
+    model::{Search::Search, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
     BROWSER_USER_AGENT,
 };
 use lazy_static::lazy_static;
@@ -55,12 +50,6 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
             .parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await?;
-
-        let value = search.gearbox.clone().unwrap().to_string();
-        let gearbox = Gearbox::from_str(&value).unwrap();
-        let value = search.engine.clone().unwrap().to_string();
-        let engine = Engine::from_str(&value).unwrap();
-        let power: u32 = search.power.clone().unwrap().parse().unwrap();
         let searchId = search.hash.clone();
         let source = search.source.clone();
         if searchId.is_empty() {
@@ -69,9 +58,6 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         }
         let mut vehicles = get_vehicles(&html);
         for vehicle in vehicles.iter_mut() {
-            vehicle.gearbox = gearbox;
-            vehicle.power = power;
-            vehicle.engine = engine;
             vehicle.searchId = searchId.clone();
             vehicle.source = source.clone();
         }
@@ -113,16 +99,21 @@ impl ScraperTrait for MobileBGScraper {
 
         if let Some(element) = document.select(&selector).next() {
             if let Some(content) = element.value().attr("content") {
-                let re = Regex::new(r"(\d+) « предложения").unwrap();
+                let re = Regex::new(r"»\s*(\d+)\s*«").unwrap();
                 if let Some(caps) = re.captures(content) {
                     if let Some(matched) = caps.get(1) {
-                        return matched
+                        let total_number = matched
                             .as_str()
                             .parse::<u32>()
                             .map_err(|_| "Failed to parse number from string".to_string());
+                        return total_number;
                     }
+                } else {
+                    error!("Number not found");
                 }
             }
+        } else {
+            error!("Total number not found");
         }
 
         Err("Number not found".to_string())

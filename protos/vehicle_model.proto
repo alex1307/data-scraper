@@ -34,15 +34,10 @@ message VehicleChangeLogInfo {
 message DetailedVehicleInfo {
     string id = 1;
     string source = 2;
-    string phone = 3;
-    string location = 4;
-    uint32 view_count = 5;
-    uint32 cc = 6;
-    double fuel_consumption = 7;
-    double electric_drive_range = 8;
-    string equipment = 9;
-    bool is_dealer = 10;
-    string seller_name = 11;
+    string location = 3;
+    string equipment = 4;
+    string seller_name = 5;
+    string seller_url = 6;
 }
 
 message Price {

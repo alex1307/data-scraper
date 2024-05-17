@@ -140,7 +140,7 @@ impl FromStr for Gearbox {
             "ръчни скорости" => Ok(Gearbox::Manual),
             "полуавтоматична" => Ok(Gearbox::Semiautomatic),
             "semiauto" => Ok(Gearbox::Semiautomatic),
-            _ => Ok(Gearbox::NotAvailable),
+            _ => Err("not found".to_string()),
         }
     }
 }
@@ -180,10 +180,7 @@ impl FromStr for Engine {
             "el" => Ok(Engine::Electric),
             "cng_hybrid" => Ok(Engine::Hybrid),
             "ethanol_benzin" => Ok(Engine::Petrol),
-            _ => {
-                log::error!("ENGINE ERROR: Invalid type: {}", s);
-                Ok(Engine::NotAvailable)
-            }
+            _ => Err("not found".to_string()),
         }
     }
 }

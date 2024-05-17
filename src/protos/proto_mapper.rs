@@ -33,15 +33,10 @@ impl From<VehicleDataModel::DetailedVehicleInfo> for DetailedVehicleInfo {
         Self {
             id: detailed_vehicle_info.id,
             source: detailed_vehicle_info.source,
-            phone: detailed_vehicle_info.phone,
             location: detailed_vehicle_info.location,
-            view_count: detailed_vehicle_info.view_count,
-            cc: detailed_vehicle_info.cc,
-            fuel_consumption: detailed_vehicle_info.fuel_consumption,
-            electric_drive_range: detailed_vehicle_info.electric_drive_range,
             equipment: detailed_vehicle_info.equipment,
-            is_dealer: detailed_vehicle_info.is_dealer,
             seller_name: detailed_vehicle_info.seller_name,
+            seller_url: detailed_vehicle_info.seller_url,
         }
     }
 }

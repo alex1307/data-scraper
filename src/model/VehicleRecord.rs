@@ -40,6 +40,7 @@ pub struct MobileRecord {
     pub phone: String,
     pub name: String,
     pub location: String,
+    pub dealer_url: String,
     pub view_count: u32,
     pub equipment: String,
     pub top: bool,
@@ -269,27 +270,15 @@ impl DetailsT for MobileRecord {
     fn location(&self) -> String {
         self.location.clone()
     }
-    fn view_count(&self) -> u32 {
-        self.view_count
-    }
-    fn cc(&self) -> u32 {
-        0
-    }
-    fn fuel_consumption(&self) -> f64 {
-        0.0
-    }
-    fn electric_drive_range(&self) -> f64 {
-        0.0
-    }
 
-    fn is_dealer(&self) -> bool {
-        self.dealer
-    }
     fn seller_name(&self) -> String {
         self.name.clone()
     }
     fn equipment(&self) -> String {
         self.equipment.clone()
+    }
+    fn seller_url(&self) -> String {
+        self.dealer_url.clone()
     }
 }
 

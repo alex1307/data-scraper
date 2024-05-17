@@ -68,8 +68,6 @@ lazy_static! {
     ];
 }
 
-const MOBILE_BG_FUEL_ID: &str = "engine_url";
-const MOBILE_BG_GEARBOX_ID: &str = "gearbox_url";
 pub const MOBILE_BG_POWER_FROM: &str = "powerFrom";
 pub const MOBILE_BG_POWER_TO: &str = "powerTo";
 pub const MOBILE_BG_YEARS_FROM: &str = "yearFrom";
@@ -235,32 +233,21 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
 
 pub fn build_mobile_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, String>> {
     info!("Building mobile.bg all searches");
-    let base = HashMap::from([
-        ("f24".to_owned(), "2".to_owned()),
-        ("url".to_owned(), url.to_owned()),
-    ]);
+    let base = HashMap::from([("url".to_owned(), url.to_owned())]);
 
     let mut searches = vec![];
     let year_filter = year_filter(MOBILE_BG_YEARS_FROM, MOBILE_BG_YEARS_TO, YEARS.clone());
-    let power_filter = power_filter(MOBILE_BG_POWER_FROM, MOBILE_BG_POWER_TO, POWER.clone());
-    let fuel_filter = fuel_filter(MOBILE_BG_FUEL_ID, MOBILE_BG_FUELS.clone());
-    let gearbox_filter = gear_box_filter(MOBILE_BG_GEARBOX_ID, MOBILE_BG_GEARBOX.clone());
     let mut counter = id;
-    for fuel in fuel_filter.iter() {
-        for gearbox in gearbox_filter.iter() {
-            for power in power_filter.iter() {
-                for year in year_filter.iter() {
-                    let mut params = base.clone();
-                    params.extend(fuel.clone());
-                    params.extend(gearbox.clone());
-                    params.extend(power.clone());
-                    params.extend(year.clone());
-                    params.insert(CRAWLER_KEY.to_owned(), CRAWLER_MOBILE_BG.to_owned());
-                    counter += 1;
-                    params.insert(ID_KEY.to_owned(), counter.to_string());
-                    searches.push(params);
-                }
-            }
+    let price_filter = price_filter("priceFrom", "priceTo", PRICES.clone());
+    for year in year_filter.iter() {
+        for price in price_filter.iter() {
+            let mut params = base.clone();
+            params.extend(year.clone());
+            params.extend(price.clone());
+            params.insert(CRAWLER_KEY.to_owned(), CRAWLER_MOBILE_BG.to_owned());
+            counter += 1;
+            params.insert(ID_KEY.to_owned(), counter.to_string());
+            searches.push(params);
         }
     }
 
