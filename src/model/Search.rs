@@ -98,7 +98,7 @@ fn search_url(url: &str, params: HashMap<String, String>) -> String {
 
 fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {
     let url = if let Some(from) = params.get("priceFrom") {
-        url.replace("{priceFrom}", format!("&price={}", from).as_str())
+        url.replace("{priceFrom}", format!("price={}", from).as_str())
     } else {
         url.replace("{priceFrom}", "")
     };
@@ -108,23 +108,10 @@ fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {
         url.replace("{priceTo}", "")
     };
 
-    let url = if let Some(powerTo) = params.get(MOBILE_BG_POWER_TO) {
-        url.replace("{powerTo}", powerTo)
-    } else {
-        url.replace("&engine_power1={powerTo}", "")
-    };
-
     let fromYear = params.get(MOBILE_BG_YEARS_FROM).unwrap();
     let toYear = params.get(MOBILE_BG_YEARS_TO).unwrap();
-    let fromPower = params.get(MOBILE_BG_POWER_FROM).unwrap();
-
-    let engine = params.get("engine_url").unwrap();
-    let gearbox = params.get("gearbox_url").unwrap();
 
     let url = url.replace("{yearFrom}", fromYear);
     let url = url.replace("{yearTo}", toYear);
-    let url = url.replace("{powerFrom}", fromPower);
-    let url = url.replace("{engine}", engine);
-    let url = url.replace("{gearbox}", gearbox);
     url
 }

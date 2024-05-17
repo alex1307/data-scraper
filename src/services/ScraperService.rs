@@ -55,7 +55,6 @@ where
     for search in searches {
         let html = scraper.get_html(search.clone(), 1).await?;
         let total_number = scraper.total_number(&html)?;
-
         let cloned_scraper = scraper.clone();
         let cloned_params = search.clone();
         let cloned_producer = producer.clone();
@@ -149,7 +148,6 @@ where
         message.clone(),
     )
     .await;
-    info!("Download status sent to kafka: {:?}", message);
     message
 }
 

@@ -70,23 +70,13 @@ pub struct DetailedVehicleInfo {
     #[prost(string, tag = "2")]
     pub source: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub phone: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
     pub location: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "5")]
-    pub view_count: u32,
-    #[prost(uint32, tag = "6")]
-    pub cc: u32,
-    #[prost(double, tag = "7")]
-    pub fuel_consumption: f64,
-    #[prost(double, tag = "8")]
-    pub electric_drive_range: f64,
-    #[prost(string, tag = "9")]
+    #[prost(string, tag = "4")]
     pub equipment: ::prost::alloc::string::String,
-    #[prost(bool, tag = "10")]
-    pub is_dealer: bool,
-    #[prost(string, tag = "11")]
+    #[prost(string, tag = "5")]
     pub seller_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub seller_url: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

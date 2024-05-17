@@ -96,6 +96,7 @@ async fn run_crawler(crawler: String, threads: usize) {
 
         let crawler = MobileBGScraper::new(MOBILE_BG_URL, 250);
         let searches = searches.chunks(threads);
+        info!("Starting mobile.bg with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
         let filter = if let Some(found) = map.get(&crawler) {
@@ -158,7 +159,7 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
 
         _ => vec![],
     };
-
+    info!("Converting {} to #{} searches", source, searches.len());
     let mut converted: Vec<Search> = searches.iter().map(|x| Search::from(x.clone())).collect();
     for f in filter {
         let search = converted
@@ -170,7 +171,8 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
         }
     }
     info!(
-        "Starting autouncle.ro with #{} searches and filtered: {}",
+        "Starting {} with #{} searches and filtered: {}",
+        source,
         searches.len(),
         converted.len()
     );

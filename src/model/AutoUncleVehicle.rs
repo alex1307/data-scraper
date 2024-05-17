@@ -190,29 +190,12 @@ impl DetailsT for AutoUncleVehicle {
         self.equipment.join(",")
     }
 
-    fn is_dealer(&self) -> bool {
-        self.sellerKind
-            .clone()
-            .unwrap_or("dealer".to_string())
-            .to_lowercase()
-            == "dealer"
-    }
-    fn view_count(&self) -> u32 {
-        0
-    }
-    fn fuel_consumption(&self) -> f64 {
-        self.fuelEconomy.unwrap_or(0.0)
-    }
-    fn electric_drive_range(&self) -> f64 {
-        self.electricDriveRange.unwrap_or(0.0)
-    }
-
-    fn cc(&self) -> u32 {
-        (self.engineSize.unwrap_or(0.0) * 1000.0) as u32
-    }
-
     fn seller_name(&self) -> String {
         self.sourceName.clone().unwrap_or_default()
+    }
+
+    fn seller_url(&self) -> String {
+        "".to_string()
     }
 }
 
