@@ -35,6 +35,7 @@ pub struct BaseVehicleInfo {
     pub power_ps: u32,
     pub power_kw: u32,
     pub search_id: String,
+    pub url: String,
 }
 
 impl BaseVehicleInfo {
@@ -234,6 +235,7 @@ pub trait BasicT {
     fn power_ps(&self) -> u32;
     fn power_kw(&self) -> u32;
     fn search_id(&self) -> String;
+    fn url(&self) -> String;
 }
 
 pub trait SearchT {
@@ -308,6 +310,7 @@ where
             power_ps: item.power_ps(),
             power_kw: item.power_kw(),
             search_id: item.search_id(),
+            url: item.url(),
         }
     }
 }

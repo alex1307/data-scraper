@@ -106,7 +106,7 @@ impl Scraper {
                 }
             }
         }
-        self.headers = headers.clone();
+        self.headers.clone_from(&headers);
     }
 
     pub fn search_url(&self, params: HashMap<String, String>, page: u32) -> String {
