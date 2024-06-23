@@ -197,18 +197,7 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
     let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
     let mut counter = id;
     for year in year_filter {
-        if let Some(y) = year.get("s%5Bmin_year%5D") {
-            if y == "2014" || y == "2015" {
-                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
-            } else if y == "2016" || y == "2017" {
-                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
-            } else if y == "2018" || y == "2019" || y == "2020" {
-                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
-            } else {
-                map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
-            }
-        }
-
+        map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
         for price in price_filter.iter() {
             counter += 1;
             let mut params = map.clone();

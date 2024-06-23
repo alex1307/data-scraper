@@ -18,6 +18,7 @@ message BaseVehicleInfo {
     uint32 power_ps = 14;
     uint32 power_kw = 15;
     string search_id = 16;
+    string url = 17;
 }
 
 message VehicleChangeLogInfo {

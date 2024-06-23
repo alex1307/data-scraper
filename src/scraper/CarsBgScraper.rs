@@ -82,8 +82,8 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
         for vehicle in vehicles.iter_mut() {
             vehicle.gearbox = gearbox;
             vehicle.power = power;
-            vehicle.source = search.source.clone();
-            vehicle.searchId = search.hash.clone();
+            vehicle.source.clone_from(&search.source);
+            vehicle.searchId.clone_from(&search.hash);
         }
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")

@@ -255,6 +255,14 @@ impl BasicT for MobileRecord {
     fn search_id(&self) -> String {
         self.searchId.clone()
     }
+
+    fn url(&self) -> String {
+        match self.source.as_str() {
+            "mobile.bg" => format!("https://www.mobile.bg/obiava-{}", self.id),
+            "cars.bg" => format!("https://www.cars.bg/offer/{}", self.id),
+            _ => "".to_string(),
+        }
+    }
 }
 
 impl DetailsT for MobileRecord {

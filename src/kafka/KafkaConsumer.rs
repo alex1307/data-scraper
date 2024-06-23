@@ -11,10 +11,12 @@ use crate::{
     protos::{self, vehicle_model::DownloadStatus},
 };
 use futures::StreamExt;
-use log::{error, info};
+use log::{debug, error, info};
 use prost::Message;
 use rdkafka::Message as KafkaMessage;
-use std::time::Duration;
+use serde_ignored::Path;
+use serde_json::Value;
+use std::{fs, time::Duration};
 
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
@@ -100,6 +102,7 @@ fn process_kafka_message(payload: &[u8]) -> Result<DownloadStatus, String> {
 }
 
 pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
+    info!("Starting consumer for topic: {}", topic);
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", group.to_owned())
         .set("bootstrap.servers", broker.to_string())
@@ -130,10 +133,15 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
                         price_info_counter += 1;
                     };
                     if let Ok(consumption) = VehicleDataModel::Consumption::try_from(item.clone()) {
-                        let proto_message = protos::vehicle_model::Consumption::from(consumption);
+                        let proto_message =
+                            protos::vehicle_model::Consumption::from(consumption.clone());
                         let message = encode_message(&proto_message).unwrap();
                         send_message(&producer, CONSUPTION_TOPIC, message).await;
                         consumption_info_counter += 1;
+                        info!("Consumption: {:?}", consumption);
+                    } else if let Err(err) = VehicleDataModel::Consumption::try_from(item.clone()) {
+                        error!("Error converting consumption: {:?}", err);
+                        info!("Item: {:?}", item);
                     };
                     if let Ok(base) = VehicleDataModel::BaseVehicleInfo::try_from(item.clone()) {
                         let proto_message = protos::vehicle_model::BaseVehicleInfo::from(base);
@@ -157,10 +165,71 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
     }
 }
 
+fn parse_json(json: &str) -> Result<MobileDeResults, serde_json::Error> {
+    let mut ignored = Vec::new();
+    //let json_value: Value = serde_json::from_str(json)?;
+    //let pretty_json = serde_json::to_string_pretty(&json_value)?;
+
+    // Write the pretty JSON string to the file
+    //let mut file = File::create("~/Software/prety_json.json").unwrap();
+    //file.write_all(pretty_json.as_bytes()).unwrap();
+
+    let deserializer = &mut serde_json::Deserializer::from_str(json);
+    let result = serde_ignored::deserialize(deserializer, |path: Path| {
+        ignored.push(path.to_string());
+    });
+
+    match result {
+        Ok(parsed) => {
+            info!("Successfully parsed JSON");
+            for path in ignored {
+                debug!("Ignored field: {}", path);
+            }
+            Ok(parsed)
+        }
+        Err(e) => {
+            error!("Error parsing JSON: {:?}", e);
+            to_pretty_string(json);
+            Err(e)
+        }
+    }
+}
+
+fn to_pretty_string(json: &str) {
+    let json_value: Value = match serde_json::from_str(json) {
+        Ok(json_value) => json_value,
+        Err(e) => {
+            error!("Error parsing JSON: {:?}", e);
+            return;
+        }
+    };
+
+    let pretty_json = match serde_json::to_string_pretty(&json_value) {
+        Ok(pretty_json) => pretty_json,
+        Err(e) => {
+            error!("Error pretty printing JSON: {:?}", e);
+            return;
+        }
+    };
+    //let json_value: Value = serde_json::from_str(json)?;
+    //let pretty_json = serde_json::to_string_pretty(&json_value)?;
+
+    // Write the pretty JSON string to the file
+    let filename =
+        "_log/prety_json_".to_string() + uuid::Uuid::new_v4().to_string().as_str() + ".json";
+    match fs::write(filename.clone(), pretty_json.as_bytes()) {
+        Ok(_) => debug!(
+            "Successfully wrote pretty JSON to file: {}",
+            filename.clone()
+        ),
+        Err(e) => error!("Error writing pretty JSON to file: {:?}", e),
+    }
+}
+
 fn handle_mobile_de_json(message: &BorrowedMessage) -> Vec<SearchItem> {
     match message.payload_view::<str>() {
         Some(Ok(json)) => {
-            match serde_json::from_str::<MobileDeResults>(json) {
+            match parse_json(json) {
                 Ok(json) => {
                     let list = json.search.srp.data.search_result.items;
                     info!("Mobile.de search items: {:?}", list.len());

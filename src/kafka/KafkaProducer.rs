@@ -77,6 +77,7 @@ mod kafka_tests {
                 power_ps: 300,
                 power_kw: 250,
                 search_id: 1.to_string(),
+                url: "https://www.mobile.bg/obiava-1".to_string(),
             };
             let encoded_message = encode_message(&message).unwrap();
             send_message(&producer, "base_info", encoded_message).await;

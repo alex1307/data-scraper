@@ -36,6 +36,7 @@ use log::{error, info};
 use clap::{command, Args, Parser, Subcommand};
 
 use serde::Serialize;
+use uuid::Uuid;
 
 pub const CHUNK_SIZE: usize = 4;
 #[derive(Parser, Debug)]
@@ -77,7 +78,8 @@ async fn main() {
 }
 
 async fn run_crawler(crawler: String, threads: usize) {
-    let statuses = processMessages(&broker(), &crawler, "status_info", 15).await;
+    let new_group = Uuid::new_v4().to_string();
+    let statuses = processMessages(&broker(), &new_group, "status_info", 15).await;
     info!("Statuses: {:?}", statuses.len());
     let mut map = std::collections::HashMap::new();
     for status in statuses {
@@ -208,7 +210,8 @@ where
 
 async fn run_consumers(broker: String) {
     let task = tokio::spawn(async move {
-        consumeMobileDeJsons(&broker, "mobile.de.group", MOBILE_DE_TOPIC).await
+        let group = uuid::Uuid::new_v4().to_string();
+        consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC).await
     });
     let r1 = tokio::spawn(task).await;
     if r1.is_ok() {

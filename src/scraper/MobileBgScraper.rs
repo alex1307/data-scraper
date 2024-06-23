@@ -58,8 +58,8 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
         }
         let mut vehicles = get_vehicles(&html);
         for vehicle in vehicles.iter_mut() {
-            vehicle.searchId = searchId.clone();
-            vehicle.source = source.clone();
+            vehicle.searchId.clone_from(&searchId);
+            vehicle.source.clone_from(&source);
         }
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")

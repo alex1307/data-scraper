@@ -40,6 +40,8 @@ pub struct BaseVehicleInfo {
     pub power_kw: u32,
     #[prost(string, tag = "16")]
     pub search_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "17")]
+    pub url: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

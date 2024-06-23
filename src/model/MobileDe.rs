@@ -31,7 +31,6 @@ pub struct SRPData {
 
     #[serde(rename = "aggregations")]
     pub aggregations: Aggregations,
-
     #[serde(rename = "searchResults")]
     pub search_result: SearchResult,
 }
@@ -49,21 +48,20 @@ pub struct Aggregations {
     pub(crate) st: Vec<KeyCount>,
     pub(crate) clim: Vec<KeyCount>,
     pub(crate) fe: Vec<KeyCount>,
-    // Assuming `dm` is similar in structure to `st`, `clim`, etc.
+    // /Assuming `dm` is similar in structure to `st`, `clim`, etc.
     pub(crate) dm: Vec<KeyCount>,
     pub(crate) sr: Vec<KeyCount>,
-    // Add other fields if needed
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyCount {
-    pub(crate) key: String,
+    //pub(crate) key: String,
     pub(crate) count: u64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Breadcrumb {
     pub(crate) label: String,
-    pub(crate) href: Option<String>,
+    //    pub(crate) href: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -97,16 +95,16 @@ pub struct SearchItem {
     //financePlans: Vec<FinancePlan>,
     // sellerId: u64,
     pub priceRating: Option<PriceRating>,
-    pub segment: Option<String>,
+    //pub segment: Option<String>,
     pub title: Option<String>,
-    pub vc: Option<String>,
-    pub category: Option<String>,
+    //pub vc: Option<String>,
+    //pub category: Option<String>,
     pub id: Option<u64>,
     // customDimensions: std::collections::HashMap<String, String>,
     // obsUrl: String,
     // relativeUrl: String,
-    pub attributes: Option<Vec<String>>,
-    pub contactInfo: Option<ContactInfo>,
+    attributes: Option<Vec<Vec<Attribute>>>,
+    //pub contactInfo: Option<ContactInfo>,
     // //    previewImage: Image,
     // //    previewThumbnails: Vec<Image>,
     pub price: Option<Price>,
@@ -118,18 +116,24 @@ pub struct SearchItem {
     // emailLink: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct Attribute {
+    value: String,
+    bold: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct FinancePlan {
     #[serde(rename = "type")]
     plan_type: String,
     url: String,
     showInGallery: bool,
-    offer: FinanceOffer,
+    //offer: FinanceOffer,
     budgetStatus: String,
     fallback: bool,
     downPayment: u32,
     loanDuration: u32,
-    localized: FinanceLocalized,
+    //localized: FinanceLocalized,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -159,7 +163,7 @@ struct FinanceLocalized {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PriceRating {
     pub(crate) rating: String,
-    pub(crate) ratingLabel: String,
+    //    pub(crate) ratingLabel: String,
     pub(crate) thresholdLabels: Option<Vec<String>>,
     pub(crate) vehiclePriceOffset: Option<u32>,
 }
@@ -286,14 +290,13 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
         if let Some(id) = item.id {
             let mut base_info = VehicleDataModel::BaseVehicleInfo::new(id.to_string());
             base_info.source = "mobile.de".to_string();
-            if let Some(attributes) = item.attributes {
-                let flattened_attributes: Vec<String> = attributes
+            if let Some(attr) = item.attributes {
+                let flattened_values: Vec<String> = attr
                     .iter()
-                    .flat_map(|a| a.split(" • "))
-                    .map(|s| s.to_string())
+                    .flat_map(|inner| inner.iter().map(|attr| attr.value.clone()))
                     .collect();
 
-                let milage = match flattened_attributes[1]
+                let milage = match flattened_values[1]
                     .chars()
                     .filter(|c| c.is_ascii_digit())
                     .collect::<String>()
@@ -304,10 +307,10 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
                 };
 
                 base_info.millage = Some(milage);
-                base_info.year = get_year(&flattened_attributes[0]);
+                base_info.year = get_year(&flattened_values[0]);
 
-                if flattened_attributes[2].contains("kW") {
-                    let kw_ps = flattened_attributes[2].split("kW").collect::<Vec<&str>>();
+                if flattened_values[2].contains("kW") {
+                    let kw_ps = flattened_values[2].split("kW").collect::<Vec<&str>>();
                     let mut power = vec![];
                     for s in kw_ps {
                         let number = match s
@@ -333,27 +336,27 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
                     }
                 }
 
-                let mut engine: Engine = Engine::NotAvailable;
-                let mut gearbox: Gearbox = Gearbox::NotAvailable;
-                for attr in &flattened_attributes {
-                    engine = Engine::from_str(attr.as_str()).unwrap();
-                    if Engine::NotAvailable == engine {
-                        continue;
-                    } else {
-                        break;
+                for attr in &flattened_values {
+                    if let Ok(engine) = Engine::from_str(attr.as_str()) {
+                        if Engine::NotAvailable == engine {
+                            continue;
+                        } else {
+                            base_info.engine = engine;
+                            break;
+                        }
                     }
                 }
 
-                for attr in &flattened_attributes {
-                    gearbox = Gearbox::from_str(attr.as_str()).unwrap();
-                    if Gearbox::NotAvailable == gearbox {
-                        continue;
-                    } else {
-                        break;
+                for attr in &flattened_values {
+                    if let Ok(gearbox) = Gearbox::from_str(attr.as_str()) {
+                        if Gearbox::NotAvailable == gearbox {
+                            continue;
+                        } else {
+                            base_info.gearbox = gearbox;
+                            break;
+                        }
                     }
                 }
-                base_info.engine = engine;
-                base_info.gearbox = gearbox;
             }
             if let Some(model) = item.model {
                 base_info.model = model;
@@ -369,6 +372,11 @@ impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
                 base_info.price = Some(itemPrice.gross_amount as u32);
                 base_info.currency = Currency::EUR;
             }
+
+            base_info.url = format!(
+                "https://suchen.mobile.de/fahrzeuge/details.html?id={}&lang=de&utm_source=DirectMail&utm_medium=textlink&utm_campaign=Recommend_DES&vc=Car",
+                item.id.unwrap_or(0).to_string()
+            );
 
             Ok(base_info)
         } else {
@@ -392,75 +400,75 @@ impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
                 consumption.model = model;
             }
 
-            if let Some(attrbutes) = item.attributes {
-                let flattened_attributes: Vec<String> = attrbutes
-                    .iter()
-                    .flat_map(|a| a.split(" • "))
-                    .map(|s| s.to_string())
-                    .collect();
-                consumption.year = get_year(&flattened_attributes[0]);
+            // if let Some(attrbutes) = item.attributes {
+            //     let flattened_attributes: Vec<String> = attrbutes
+            //         .iter()
+            //         .flat_map(|a| a.split(" • "))
+            //         .map(|s| s.to_string())
+            //         .collect();
+            //     consumption.year = get_year(&flattened_attributes[0]);
 
-                for attr in flattened_attributes {
-                    if attr.contains("kWh/100km") {
-                        let kWh = attr.split("kWh/100km").collect::<Vec<&str>>()[0].trim();
-                        if kWh.contains('.') {
-                            consumption.kw_consuption = match kWh.parse::<f32>() {
-                                Ok(kw) => Some(kw),
-                                Err(e) => {
-                                    info!("Error: {:?}", e);
-                                    None
-                                }
-                            };
-                        } else if kWh.contains(',') {
-                            consumption.kw_consuption = match kWh.replace(',', ".").parse::<f32>() {
-                                Ok(kw) => Some(kw),
-                                Err(e) => {
-                                    info!("Error: {:?}", e);
-                                    None
-                                }
-                            };
-                        }
-                    } else if attr.contains("l/100km") {
-                        let l = attr.split("l/100km").collect::<Vec<&str>>()[0].trim();
-                        let l = l.replace("ca.", "ca:");
-                        let l = l
-                            .chars()
-                            .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
-                            .collect::<String>();
-                        if l.contains('.') {
-                            consumption.fuel_consumption = match l.parse::<f32>() {
-                                Ok(fuel) => Some(fuel),
-                                Err(e) => {
-                                    info!("Error: {:?}", e);
-                                    None
-                                }
-                            };
-                        } else if l.contains(',') {
-                            consumption.fuel_consumption = match l.replace(',', ".").parse::<f32>()
-                            {
-                                Ok(fuel) => Some(fuel),
-                                Err(e) => {
-                                    info!("Error: {:?}", e);
-                                    None
-                                }
-                            };
-                        }
-                    } else if attr.contains("CO₂/km") {
-                        consumption.co2_emission = match attr
-                            .chars()
-                            .filter(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .parse::<u32>()
-                        {
-                            Ok(co2) => co2,
-                            Err(e) => {
-                                info!("Error: {:?}", e);
-                                0
-                            }
-                        };
-                    }
-                }
-            }
+            //     for attr in flattened_attributes {
+            //         if attr.contains("kWh/100km") {
+            //             let kWh = attr.split("kWh/100km").collect::<Vec<&str>>()[0].trim();
+            //             if kWh.contains('.') {
+            //                 consumption.kw_consuption = match kWh.parse::<f32>() {
+            //                     Ok(kw) => Some(kw),
+            //                     Err(e) => {
+            //                         info!("Error: {:?}", e);
+            //                         None
+            //                     }
+            //                 };
+            //             } else if kWh.contains(',') {
+            //                 consumption.kw_consuption = match kWh.replace(',', ".").parse::<f32>() {
+            //                     Ok(kw) => Some(kw),
+            //                     Err(e) => {
+            //                         info!("Error: {:?}", e);
+            //                         None
+            //                     }
+            //                 };
+            //             }
+            //         } else if attr.contains("l/100km") {
+            //             let l = attr.split("l/100km").collect::<Vec<&str>>()[0].trim();
+            //             let l = l.replace("ca.", "ca:");
+            //             let l = l
+            //                 .chars()
+            //                 .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
+            //                 .collect::<String>();
+            //             if l.contains('.') {
+            //                 consumption.fuel_consumption = match l.parse::<f32>() {
+            //                     Ok(fuel) => Some(fuel),
+            //                     Err(e) => {
+            //                         info!("Error: {:?}", e);
+            //                         None
+            //                     }
+            //                 };
+            //             } else if l.contains(',') {
+            //                 consumption.fuel_consumption = match l.replace(',', ".").parse::<f32>()
+            //                 {
+            //                     Ok(fuel) => Some(fuel),
+            //                     Err(e) => {
+            //                         info!("Error: {:?}", e);
+            //                         None
+            //                     }
+            //                 };
+            //             }
+            //         } else if attr.contains("CO₂/km") {
+            //             consumption.co2_emission = match attr
+            //                 .chars()
+            //                 .filter(|c| c.is_ascii_digit())
+            //                 .collect::<String>()
+            //                 .parse::<u32>()
+            //             {
+            //                 Ok(co2) => co2,
+            //                 Err(e) => {
+            //                     info!("Error: {:?}", e);
+            //                     0
+            //                 }
+            //             };
+            //         }
+            //     }
+            // }
             Ok(consumption)
         } else {
             Err("No id found".into())

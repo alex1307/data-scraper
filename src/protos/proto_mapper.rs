@@ -24,6 +24,7 @@ impl From<VehicleDataModel::BaseVehicleInfo> for BaseVehicleInfo {
             power_ps: base_vehicle_info.power_ps,
             power_kw: base_vehicle_info.power_kw,
             search_id: base_vehicle_info.search_id,
+            url: base_vehicle_info.url,
         }
     }
 }

@@ -1,0 +1,884 @@
+
+use serde::{Deserialize, Serialize};
+
+use super::VehicleDataModel;
+
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+pub struct MobileDeResults {
+    advertising: Advertising,
+    home: Home,
+    insurance: Insurance,
+    parkings: Parkings,
+    pub search: Search,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Advertising {
+    isSecondAdvertisingLayerVisible: bool,
+    stickyBillboardStatus: i32,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Home {
+    data: Option<serde_json::Value>,
+    status: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Insurance {
+    estimatedRates: EstimatedRates,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct EstimatedRates {
+    data: serde_json::Value,
+    status: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Parkings {
+    parkedAds: ParkedAds,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct ParkedAds {
+    data: ParkedData,
+    status: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct ParkedData {
+    items: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+pub struct Search {
+    dsp: Dsp,
+    pub srp: Srp,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Dsp {
+    activeSectionId: Option<serde_json::Value>,
+    data: Option<serde_json::Value>,
+    editSavedSearch: EditSavedSearch,
+    modelData: serde_json::Value,
+    obsBannerIsVisible: bool,
+    pageUrl: Option<serde_json::Value>,
+    powerUnit: String,
+    referenceData: serde_json::Value,
+    status: String,
+    truckPriceType: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct EditSavedSearch {
+    error: Option<serde_json::Value>,
+    name: String,
+    search: Option<serde_json::Value>,
+    status: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Srp {
+    data: SrpData,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct SrpData {
+    advertisingConfig: AdvertisingConfig,
+    adsenseCsa: AdsenseCsa,
+    gpt: Gpt,
+    group: Group,
+    links: Links,
+    page: Page,
+    resources: Resources,
+    aggregations: Aggregations,
+    isSeoSrp: bool,
+    metaData: MetaData,
+    searchResults: SearchResults,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AdvertisingConfig {
+    adex: Adex,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Adex {
+    placements: Vec<Placement>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Placement {
+    id: String,
+    options: String,
+    pushParameters: Vec<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AdsenseCsa {
+    page: AdsenseCsaPage,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AdsenseCsaPage {
+    ads: Vec<Ad>,
+    multiHeadline: String,
+    singleHeadline: String,
+    siteId: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Ad {
+    id: String,
+    isAdblockFallback: Option<bool>,
+    units: Vec<Unit>,
+    vars: AdVars,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Unit {
+    container: String,
+    number: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AdVars {
+    channel: String,
+    hl: String,
+    linkTarget: String,
+    pubId: String,
+    query: String,
+    styleId: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Gpt {
+    aps: Aps,
+    page: GptPage,
+    placements: Vec<GptPlacement>,
+    ppid: String,
+    prebid: Prebid,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Aps {
+    slots: Vec<Slot>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Slot {
+    sizes: Vec<serde_json::Value>,
+    slotID: String,
+    slotName: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct GptPage {
+    targeting: Targeting,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Targeting {
+    ab: String,
+    ch: String,
+    ch24cat: String,
+    ch24fuel: String,
+    ch24reg: String,
+    city: String,
+    coSt: String,
+    ct: String,
+    ez: String,
+    fid: String,
+    fuel: String,
+    g_cy: String,
+    g_hd: String,
+    g_pn: String,
+    gear: String,
+    geo: String,
+    hn: String,
+    km: String,
+    lang: String,
+    li: String,
+    ma: String,
+    p: String,
+    pr: String,
+    price: String,
+    pt: String,
+    reg: String,
+    regy: String,
+    restr: String,
+    tuev: String,
+    typ: String,
+    ug: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct GptPlacement {
+    id: String,
+    options: String,
+    path: String,
+    size: Vec<serde_json::Value>,
+    sizeMappings: Option<Vec<serde_json::Value>>,
+    targeting: GptTargeting,
+    placeholder: Option<bool>,
+    placeholderHeight: Option<i32>,
+    oop: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct GptTargeting {
+    a: serde_json::Value,
+    pos: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Prebid {
+    adUnits: Vec<AdUnit>,
+    identitiesJson: String,
+    prebidTimeout: i32,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AdUnit {
+    bids: Vec<Bid>,
+    code: String,
+    mediaTypes: MediaTypes,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Bid {
+    bidder: String,
+    params: BidParams,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct BidParams {
+    placementId: Option<String>,
+    networkId: Option<i32>,
+    siteId: Option<String>,
+    size: Option<Vec<i32>>,
+    delDomain: Option<String>,
+    unit: Option<String>,
+    adSlot: Option<String>,
+    pmzoneid: Option<String>,
+    publisherId: Option<String>,
+    accountId: Option<String>,
+    inventory: Option<Inventory>,
+    keywords: Option<Vec<String>>,
+    position: Option<String>,
+    sizes: Option<Vec<i32>>,
+    zoneId: Option<String>,
+    adslotId: Option<String>,
+    customParams: Option<CustomParams>,
+    supplyId: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Inventory {
+    Baujahr: Option<String>,
+    Channel: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct CustomParams {
+    gp: bool,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct MediaTypes {
+    banner: Banner,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Banner {
+    sizes: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Group {
+    ug: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Links {
+    placements: Vec<LinkPlacement>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct LinkPlacement {
+    href: String,
+    id: String,
+    options: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Page {
+    pageType: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Resources {
+    async: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Aggregations {
+    clim: Vec<AggregationItem>,
+    dm: Vec<serde_json::Value>,
+    fe: Vec<AggregationItem>,
+    sr: Vec<AggregationItem>,
+    st: Vec<AggregationItem>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct AggregationItem {
+    count: i32,
+    key: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct MetaData {
+    breadcrumbs: Vec<Breadcrumb>,
+    crossChannelSearch: String,
+    description: String,
+    headline: String,
+    jsonLdData: JsonLdData,
+    keywords: String,
+    plsUrl: PlsUrl,
+    thumbnail: Thumbnail,
+    title: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Breadcrumb {
+    href: Option<String>,
+    label: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct JsonLdData {
+    context: String,
+    graph: Vec<GraphItem>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct GraphItem {
+    r#type: String,
+    itemListElement: Option<Vec<ItemListElement>>,
+    bodyType: Option<String>,
+    description: Option<String>,
+    name: Option<String>,
+    offers: Option<Offers>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct ItemListElement {
+    r#type: String,
+    item: Item,
+    position: i32,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Item {
+    id: String,
+    name: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Offers {
+    r#type: String,
+    highPrice: String,
+    lowPrice: String,
+    offerCount: i32,
+    priceCurrency: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct PlsUrl {
+    href: String,
+    path: String,
+    pathEnding: String,
+    r#type: String,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct Thumbnail {
+    height: i32,
+    src: String,
+    width: i32,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+struct SearchResults {
+    hasNextPage: bool,
+    items: Vec<SearchResultItem>,
+}
+
+#[derive(Debug, Deserialize, Debug, Clone)]
+pub struct SearchResultItem {
+    attr: Attr,
+    attributes: Vec<Vec<Attribute>>,
+    category:String,
+    contactInfo: ContactInfo,
+    customDimensions: CustomDimensions,
+    emailLink: String,
+    financePlans: Vec,
+    id: i32,
+    isEyeCatcher: bool,
+    isFinancingAvailable: bool,
+    isNew: bool,
+    isVideoEnabled: bool,
+    leasingDealType: Option<serde_json::Value>,
+    leasingLender: Option<serde_json::Value>,
+    leasingRate: Option<serde_json::Value>,
+    make: String,
+    model: String,
+    numImages: i32,
+    obsUrl: String,
+    previewImage: PreviewImage,
+    previewThumbnails: Vec,
+    price: Price,
+    priceRating: PriceRating,
+    relativeUrl: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Attr {
+    c: String,
+    cc: String,
+    cn: String,
+    door: String,
+    ecol: String,
+    emc: String,
+    eu: String,
+    fr: String,
+    ft: String,
+    gi: String,
+    loc: String,
+    ml: String,
+    pvo: String,
+    pw: String,
+    sc: String,
+    tr: String,
+    z: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Attribute {
+    value: String,
+    bold: Option,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct ContactInfo {
+    contactPhone: String,
+    country: String,
+    hasContactPhones: bool,
+    location: String,
+    logo: Logo,
+    name: String,
+    rating: Rating,
+    sellerType: String,
+    typeLocalized: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Logo {
+    alt: String,
+    src: String,
+    srcSet: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Rating {
+    count: i32,
+    score: f64,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct CustomDimensions {
+    #[serde(rename = “10”)]
+    dim_10: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct FinancePlan {
+    bankId: Option,
+    budgetStatus: String,
+    downPayment: i32,
+    fallback: bool,
+    loanDuration: i32,
+    localized: Localized,
+    offer: FinanceOffer,
+    showInGallery: bool,
+    r#type: String,
+    url: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Localized {
+    bankName: Option,
+    downPayment: String,
+    creditAmount: Option,
+    creditTerm: Option,
+    creditTermInYears: Option,
+    disclaimer: Option,
+    downPaymentInPercent: Option,
+    finalInstallment: Option,
+    interestRateEffective: Option,
+    interestRateNominal: Option,
+    monthlyInstallment: Option,
+    totalAmount: Option,
+    totalInterest: Option,
+    yearlyMileage: Option,
+    maxInterestRate: Option,
+    maxMonthlyRate: Option,
+    minInterestRate: Option,
+    minMonthlyRate: Option,
+    representativeExample: Option,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct FinanceOffer {
+    bankId: Option,
+    bankName: Option,
+    creditAmount: f64,
+    creditTerm: i32,
+    downPayment: f64,
+    finalInstallment: f64,
+    interestRateEffective: f64,
+    interestRateNominal: f64,
+    loanType: String,
+    monthlyInstallment: f64,
+    totalAmount: f64,
+    totalInterest: f64,
+    yearlyMileage: i32,
+    loanBroker: Option,
+    maxInterestRateEffective: Option,
+    maxInterestRateNominal: Option,
+    maxMonthlyInstallment: Option,
+    minInterestRateEffective: Option,
+    minInterestRateNominal: Option,
+    minMonthlyInstallment: Option,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct PreviewImage {
+    alt: String,
+    src: String,
+    srcSet: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct PreviewThumbnail {
+    alt: String,
+    src: String,
+    srcSet: String,
+    }
+    
+    #[derive(Debug, Deserialize, Debug, Clone)]
+    struct Price {
+    gross: String,
+    grossAmount: f64,
+    grossCurrency: String,
+    net: String,
+    netAmount: f64,
+    vat: String,
+    }
+    
+    
+
+    impl TryFrom<SearchItem> for VehicleDataModel::Price {
+        type Error = String;
+    
+        fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
+            if let Some(id) = item.id {
+                let mut price = VehicleDataModel::Price::new(id.to_string(), "mobile.de".to_string());
+                if let Some(itemPrice) = item.price {
+                    price.price = itemPrice.gross_amount as u32;
+                    price.currency = Currency::EUR;
+                }
+                if let Some(rating) = item.priceRating {
+                    if let Some(threshold_labels) = rating.thresholdLabels {
+                        let mut thresholds = vec![];
+                        for s in &threshold_labels {
+                            let number = s.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
+                            match number.parse::<u32>() {
+                                Ok(number) => thresholds.push(number),
+                                Err(e) => {
+                                    info!("Error: {:?}", e);
+                                    continue;
+                                }
+                            }
+                        }
+                        price.thresholds = thresholds.clone();
+    
+                        if thresholds.len() == 6 {
+                            let p1 = (thresholds[0] + thresholds[5]) / 2;
+                            let p2 = (thresholds[1] + thresholds[4]) / 2;
+                            let p3 = (thresholds[2] + thresholds[3]) / 2;
+                            price.estimated_price = Some((p1 + p2 + p3) / 3);
+                            price.ranges = Some(format!(
+                                "[{},{},{},{},{},{}]",
+                                thresholds[0],
+                                thresholds[1],
+                                thresholds[2],
+                                thresholds[3],
+                                thresholds[4],
+                                thresholds[5]
+                            ));
+                        } else {
+                            price.estimated_price =
+                                Some((thresholds[0] + thresholds[thresholds.len() - 1]) / 2);
+                            price.ranges = Some(
+                                thresholds
+                                    .iter()
+                                    .map(|t| t.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(",")
+                                    .to_string(),
+                            );
+                        }
+                        if price.price < price.estimated_price.unwrap() {
+                            price.save_difference = price.estimated_price.unwrap() - price.price;
+                        } else {
+                            price.overpriced_difference = price.price - price.estimated_price.unwrap();
+                        }
+                    }
+                    price.rating = Some(rating.rating);
+                }
+                Ok(price)
+            } else {
+                Err("No id found".into())
+            }
+        }
+    }
+    
+    impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
+        type Error = String;
+    
+        fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
+            if let Some(id) = item.id {
+                let mut base_info = VehicleDataModel::BaseVehicleInfo::new(id.to_string());
+                base_info.source = "mobile.de".to_string();
+                if let Some(attributes) = item.attributes {
+                    let flattened_attributes: Vec<String> = attributes
+                        .iter()
+                        .flat_map(|a| a.split(" • "))
+                        .map(|s| s.to_string())
+                        .collect();
+                    let milage = match flattened_attributes[1]
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse::<u32>()
+                    {
+                        Ok(milage) => milage,
+                        Err(_e) => 0,
+                    };
+    
+                    base_info.millage = Some(milage);
+                    base_info.year = get_year(&flattened_attributes[0]);
+    
+                    if flattened_attributes[2].contains("kW") {
+                        let kw_ps = flattened_attributes[2].split("kW").collect::<Vec<&str>>();
+                        let mut power = vec![];
+                        for s in kw_ps {
+                            let number = match s
+                                .chars()
+                                .filter(|c| c.is_ascii_digit())
+                                .collect::<String>()
+                                .parse::<u32>()
+                            {
+                                Ok(number) => number,
+                                Err(e) => {
+                                    info!("Error: {:?}", e);
+                                    0
+                                }
+                            };
+    
+                            power.push(number);
+                        }
+                        if power.len() == 2 {
+                            base_info.power_kw = power[0];
+                            base_info.power_ps = power[1];
+                        } else {
+                            base_info.power_kw = power[0];
+                        }
+                    }
+    
+                    for attr in &flattened_attributes {
+                        if let Ok(engine) = Engine::from_str(attr.as_str()) {
+                            if Engine::NotAvailable == engine {
+                                continue;
+                            } else {
+                                base_info.engine = engine;
+                                break;
+                            }
+                        }
+                    }
+    
+                    for attr in &flattened_attributes {
+                        if let Ok(gearbox) = Gearbox::from_str(attr.as_str()) {
+                            if Gearbox::NotAvailable == gearbox {
+                                continue;
+                            } else {
+                                base_info.gearbox = gearbox;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if let Some(model) = item.model {
+                    base_info.model = model;
+                }
+                if let Some(make) = item.make {
+                    base_info.make = make;
+                }
+                if let Some(title) = item.title {
+                    base_info.title = title;
+                }
+    
+                if let Some(itemPrice) = item.price {
+                    base_info.price = Some(itemPrice.gross_amount as u32);
+                    base_info.currency = Currency::EUR;
+                }
+    
+                base_info.url = format!(
+                    "https://suchen.mobile.de/fahrzeuge/details.html?id={}&lang=de&utm_source=DirectMail&utm_medium=textlink&utm_campaign=Recommend_DES&vc=Car",
+                    item.id.unwrap_or(0).to_string()
+                );
+    
+                Ok(base_info)
+            } else {
+                Err("No id found".into())
+            }
+        }
+    }
+    
+    impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
+        type Error = String;
+    
+        fn try_from(item: SearchResultItem) -> Result<Self, Self::Error> {
+            if let Some(id) = item.id {
+                let mut consumption =
+                    VehicleDataModel::Consumption::new(id.to_string(), "mobile.de".to_string());
+                if let Some(make) = item.make {
+                    consumption.make = make;
+                }
+    
+                if let Some(model) = item.model {
+                    consumption.model = model;
+                }
+    
+                if let Some(attrbutes) = item.attributes {
+                    let flattened_attributes: Vec<String> = attrbutes
+                        .iter()
+                        .flat_map(|a| a.split(" • "))
+                        .map(|s| s.to_string())
+                        .collect();
+                    consumption.year = get_year(&flattened_attributes[0]);
+    
+                    for attr in flattened_attributes {
+                        if attr.contains("kWh/100km") {
+                            let kWh = attr.split("kWh/100km").collect::<Vec<&str>>()[0].trim();
+                            if kWh.contains('.') {
+                                consumption.kw_consuption = match kWh.parse::<f32>() {
+                                    Ok(kw) => Some(kw),
+                                    Err(e) => {
+                                        info!("Error: {:?}", e);
+                                        None
+                                    }
+                                };
+                            } else if kWh.contains(',') {
+                                consumption.kw_consuption = match kWh.replace(',', ".").parse::<f32>() {
+                                    Ok(kw) => Some(kw),
+                                    Err(e) => {
+                                        info!("Error: {:?}", e);
+                                        None
+                                    }
+                                };
+                            }
+                        } else if attr.contains("l/100km") {
+                            let l = attr.split("l/100km").collect::<Vec<&str>>()[0].trim();
+                            let l = l.replace("ca.", "ca:");
+                            let l = l
+                                .chars()
+                                .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
+                                .collect::<String>();
+                            if l.contains('.') {
+                                consumption.fuel_consumption = match l.parse::<f32>() {
+                                    Ok(fuel) => Some(fuel),
+                                    Err(e) => {
+                                        info!("Error: {:?}", e);
+                                        None
+                                    }
+                                };
+                            } else if l.contains(',') {
+                                consumption.fuel_consumption = match l.replace(',', ".").parse::<f32>()
+                                {
+                                    Ok(fuel) => Some(fuel),
+                                    Err(e) => {
+                                        info!("Error: {:?}", e);
+                                        None
+                                    }
+                                };
+                            }
+                        } else if attr.contains("CO₂/km") {
+                            consumption.co2_emission = match attr
+                                .chars()
+                                .filter(|c| c.is_ascii_digit())
+                                .collect::<String>()
+                                .parse::<u32>()
+                            {
+                                Ok(co2) => co2,
+                                Err(e) => {
+                                    info!("Error: {:?}", e);
+                                    0
+                                }
+                            };
+                        }
+                    }
+                }
+                Ok(consumption)
+            } else {
+                Err("No id found".into())
+            }
+        }
+    }
+    
+    fn get_year(year: &str) -> u16 {
+        if "new car" == year.trim().to_lowercase() || "neuwagen" == year.trim().to_lowercase() {
+            return 2024;
+        }
+    
+        if year.contains('/') {
+            let month_year = year.split(' ').collect::<Vec<&str>>();
+            if month_year.len() > 1 {
+                let prod_year = month_year[1].split('/').collect::<Vec<&str>>();
+                if prod_year.len() == 1 {
+                    return match prod_year[0].parse::<u16>() {
+                        Ok(year) => year,
+                        Err(e) => {
+                            info!("Error: {:?}", e);
+                            0
+                        }
+                    };
+                } else {
+                    return match prod_year[1].parse::<u16>() {
+                        Ok(year) => year,
+                        Err(e) => {
+                            info!("Error: {:?}", e);
+                            0
+                        }
+                    };
+                }
+            }
+        }
+    
+        0
+    }
+    

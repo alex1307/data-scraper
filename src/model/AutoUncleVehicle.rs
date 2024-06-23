@@ -70,7 +70,7 @@ pub struct AutoUncleVehicle {
     mileageUnit: Option<String>,
     modelGeneration: Option<String>,
     noRatingReasons: Vec<String>, // Assuming this is correct
-    outgoingPath: Option<String>,
+    pub outgoingPath: Option<String>,
     price: Option<u32>,
     priceChange: Option<f64>, // Assuming type
     regMonth: Option<String>,
@@ -170,6 +170,18 @@ impl BasicT for AutoUncleVehicle {
     }
     fn search_id(&self) -> String {
         self.searchId.clone()
+    }
+    fn url(&self) -> String {
+        if let Some(url) = &self.outgoingPath {
+            match self.source.as_str() {
+                "autouncle.ro" => return format!("https://www.autouncle.ro{}", url),
+                "autouncle.fr" => return format!("https://www.autouncle.fr{}", url),
+                "autouncle.nl" => return format!("https://www.autouncle.nl{}", url),
+                _ => "".to_string(),
+            }
+        } else {
+            "".to_string()
+        }
     }
 }
 
