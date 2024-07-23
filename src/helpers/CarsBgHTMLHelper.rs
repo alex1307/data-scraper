@@ -6,7 +6,7 @@ use scraper::{Html, Selector};
 
 use crate::{
     model::{
-        enums::{Engine, Gearbox},
+        enums::{Currency, Engine, Gearbox},
         VehicleRecord::MobileRecord,
     },
     utils::helpers::extract_make,
@@ -152,6 +152,7 @@ pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
                     .collect::<String>()
                     .parse::<u32>()
                     .unwrap_or(0);
+                record.currency = Currency::BGN;
             }
             fragment_counter += 1;
         }
@@ -218,15 +219,34 @@ pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
 }
 
 pub async fn get_ids(url: String) -> Result<Vec<String>, reqwest::Error> {
+    // Fetch the HTML content from the URL
     let html = get_pages_async(&url, false).await.unwrap();
     let document = Html::parse_document(&html);
-    let selector = Selector::parse("div.offer-item").unwrap();
+
+    // Debug: Print fetched HTML
+    println!("Fetched HTML: {}", &html);
+
+    // Parse the HTML to find the elements
+    let selector = Selector::parse("div.mdc-card.offer-item").unwrap();
     let mut ids = vec![];
-    for element in document.select(&selector) {
-        if let Some(id) = element.value().attr("data-id") {
+
+    // Debug: Check the number of elements selected
+    let elements: Vec<_> = document.select(&selector).collect();
+    info!("Number of elements found: {}", elements.len());
+
+    for element in elements {
+        if let Some(id) = element.value().attr("data-reference") {
+            info!("id: {}", id);
             ids.push(id.to_owned());
+        } else {
+            // Debug: Print if the data-reference attribute is not found
+            info!(
+                "No data-reference attribute found in element: {:?}",
+                element
+            );
         }
     }
+
     Ok(ids)
 }
 

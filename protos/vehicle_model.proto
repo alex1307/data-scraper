@@ -1,5 +1,6 @@
 syntax = "proto3";
 package vehicle_model;
+option go_package = "internal/proto_model";
 
 message BaseVehicleInfo {
     string id = 1;
@@ -102,4 +103,10 @@ message DownloadStatus{
     uint32 listed = 4;
     uint32 actual = 5;
     string hash = 6;
+}
+
+message EurExchangeRate {
+    string currency = 1;
+    float eur_exchange_rate = 2;
+    string created_on = 3;
 }

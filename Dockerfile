@@ -22,6 +22,9 @@ RUN apk --no-cache add \
 # set the workdir and copy the source into it
 WORKDIR /app
 COPY ./ /app
+RUN echo "Current directory:" && pwd
+RUN ls -la ./protos
+
 # do a release build
 RUN cargo build --release
 RUN strip target/release/crawler

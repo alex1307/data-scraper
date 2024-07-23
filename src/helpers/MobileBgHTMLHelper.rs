@@ -1,3 +1,4 @@
+use crate::model::enums::Currency;
 use crate::model::enums::Engine;
 use crate::model::enums::Gearbox;
 use crate::model::VehicleRecord::MobileRecord;
@@ -224,6 +225,13 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
             let inner = price_element.inner_html();
             let price = inner.chars().filter(|c| c.is_numeric()).collect::<String>();
             vehicle.price = price.parse::<u32>().unwrap_or(0);
+            if inner.contains("USD") {
+                vehicle.currency = Currency::BGN;
+            } else if inner.contains("EUR") {
+                vehicle.currency = Currency::EUR;
+            } else {
+                vehicle.currency = Currency::BGN;
+            }
         }
 
         for param in element.select(&params_selector) {

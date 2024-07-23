@@ -1,4 +1,5 @@
 pub mod CrawlerTrait;
+pub mod ExchangeRateService;
 pub mod ScraperAppService;
 pub mod ScraperService;
 pub mod SearchBuilder;

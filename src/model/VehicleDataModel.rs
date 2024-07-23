@@ -320,20 +320,13 @@ where
     T: PriceT,
 {
     fn from(item: T) -> Self {
-        let price = if item.currency() == Currency::BGN {
-            (item.price() as f64 / 1.95583) as u32
-        } else if item.currency() == Currency::USD {
-            0
-        } else {
-            item.price()
-        };
         Price {
             // Assuming `Price` has these fields. You need to adjust according to the actual struct fields.
             id: item.id(),
             source: item.source(),
             estimated_price: item.estimated_price(),
-            price,
-            currency: Currency::EUR,
+            price: item.price(),
+            currency: item.currency(),
             save_difference: item.save_difference(),
             overpriced_difference: item.overpriced_difference(),
             ranges: item.ranges(),
