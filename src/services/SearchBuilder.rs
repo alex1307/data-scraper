@@ -90,10 +90,16 @@ pub const CRAWLER_CARS_BG: &str = "cars.bg";
 pub const CRAWLER_AUTOUNCLE_RO: &str = "autouncle.ro";
 pub const CRAWLER_AUTOUNCLE_NL: &str = "autouncle.nl";
 pub const CRAWLER_AUTOUNCLE_FR: &str = "autouncle.fr";
+pub const CRAWLER_AUTOUNCLE_PL: &str = "autouncle.pl";
+pub const CRAWLER_AUTOUNCLE_CH: &str = "autouncle.ch";
 
 pub const ID_AUTOUNCLE_FR: i32 = 100_000;
 pub const ID_AUTOUNCLE_NL_START: i32 = 200_000;
 pub const ID_AUTOUNCLE_RO_START: i32 = 300_000;
+
+pub const ID_AUTOUNCLE_CH_START: i32 = 600_000;
+pub const ID_AUTOUNCLE_PL_START: i32 = 700_000;
+
 pub const ID_CARS_BG_START: i32 = 400_000;
 pub const ID_MOBILE_BG_START: i32 = 500_000;
 
@@ -210,6 +216,10 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
                 params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_NL.to_owned());
             } else if id == ID_AUTOUNCLE_RO_START {
                 params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_RO.to_owned());
+            } else if id == ID_AUTOUNCLE_PL_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_PL.to_owned());
+            } else if id == ID_AUTOUNCLE_CH_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_CH.to_owned());
             } else {
                 error!("Invalid id: {}", id);
             }

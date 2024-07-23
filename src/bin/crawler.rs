@@ -1,18 +1,23 @@
 use std::fmt::Debug;
 
 use data_scraper::constants::URL::{
-    AUTOUNCLE_FR_URL, AUTOUNCLE_NL_URL, AUTOUNCLE_RO_URL, CARS_BG_URL, MOBILE_BG_URL,
+    AUTOUNCLE_CH_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_NL_URL, AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL,
+    CARS_BG_URL, MOBILE_BG_URL,
 };
 use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
 use data_scraper::kafka::{broker, MOBILE_DE_TOPIC};
 
 use data_scraper::model::Search::Search;
 use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT};
+use data_scraper::scraper::AutouncleCHScraper::AutouncleCHScraper;
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
+use data_scraper::scraper::AutounclePLScraper::AutounclePLScraper;
 use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
+use data_scraper::services::ExchangeRateService::sync_exchange_rates;
 use data_scraper::services::SearchBuilder::{
-    build_autouncle_searches, ID_AUTOUNCLE_FR, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_RO_START,
+    build_autouncle_searches, CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_PL, ID_AUTOUNCLE_CH_START,
+    ID_AUTOUNCLE_FR, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START,
     ID_CARS_BG_START, ID_MOBILE_BG_START,
 };
 use data_scraper::LOG_CONFIG;
@@ -58,6 +63,7 @@ struct CrawlerArgs {
 enum Commands {
     Scrape(CrawlerArgs),
     Puppeteer,
+    ExchangeRate,
 }
 #[tokio::main]
 async fn main() {
@@ -73,6 +79,10 @@ async fn main() {
         Commands::Puppeteer => {
             info!("Puppeteer command is not implemented yet");
             run_consumers(broker()).await;
+        }
+        Commands::ExchangeRate => {
+            info!("Getting exchange rates for BGN, PLN, CHF");
+            sync_exchange_rates().await;
         }
     }
 }
@@ -133,6 +143,28 @@ async fn run_crawler(crawler: String, threads: usize) {
         let searches = searches.chunks(threads);
         info!("Starting autouncle.ro with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_PL {
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutounclePLScraper::new(AUTOUNCLE_PL_URL, 250);
+        let searches = searches.chunks(threads);
+        info!("Starting autouncle.pl with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_CH {
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleCHScraper::new(AUTOUNCLE_CH_URL, 250);
+        let searches = searches.chunks(threads);
+        info!("Starting autouncle.pl with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_CARS_BG {
         let filter = if let Some(found) = map.get(&crawler) {
             found.to_vec()
@@ -155,6 +187,12 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
         }
         CRAWLER_AUTOUNCLE_RO => {
             build_autouncle_searches(AUTOUNCLE_RO_URL, "[5]", ID_AUTOUNCLE_RO_START)
+        }
+        CRAWLER_AUTOUNCLE_CH => {
+            build_autouncle_searches(AUTOUNCLE_CH_URL, "[5]", ID_AUTOUNCLE_CH_START)
+        }
+        CRAWLER_AUTOUNCLE_PL => {
+            build_autouncle_searches(AUTOUNCLE_PL_URL, "[5]", ID_AUTOUNCLE_PL_START)
         }
         CRAWLER_CARS_BG => build_cars_bg_all_searches(CARS_BG_URL, ID_CARS_BG_START),
         CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),

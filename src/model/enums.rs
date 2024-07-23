@@ -6,15 +6,19 @@ use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, Vehic
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
-    #[default]
     #[serde(rename = "BGN")]
     BGN,
 
+    #[default]
     #[serde(rename = "EUR")]
     EUR,
 
     #[serde(rename = "USD")]
     USD,
+    #[serde(rename = "CHF")]
+    CHF,
+    #[serde(rename = "PLN")]
+    PLN,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
@@ -191,6 +195,8 @@ impl ToString for Currency {
             Currency::BGN => "BGN".to_string(),
             Currency::EUR => "EUR".to_string(),
             Currency::USD => "USD".to_string(),
+            Currency::CHF => "CHF".to_string(),
+            Currency::PLN => "PLN".to_string(),
         }
     }
 }
@@ -203,6 +209,8 @@ impl FromStr for Currency {
             "BGN" => Ok(Currency::BGN),
             "EUR" => Ok(Currency::EUR),
             "USD" => Ok(Currency::USD),
+            "CHF" => Ok(Currency::CHF),
+            "PLN" => Ok(Currency::PLN),
             _ => Err(format!("Invalid currency code: {}", s)),
         }
     }

@@ -204,3 +204,13 @@ pub struct DownloadStatus {
     #[prost(string, tag = "6")]
     pub hash: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EurExchangeRate {
+    #[prost(string, tag = "1")]
+    pub currency: ::prost::alloc::string::String,
+    #[prost(float, tag = "2")]
+    pub eur_exchange_rate: f32,
+    #[prost(string, tag = "3")]
+    pub created_on: ::prost::alloc::string::String,
+}

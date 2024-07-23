@@ -9,6 +9,7 @@ pub static IDS_TOPIC: &str = "ids";
 pub static CHANGE_LOG_TOPIC: &str = "change_log";
 pub static MOBILE_DE_TOPIC: &str = "mobile_de";
 pub static CARS_GR_TOPIC: &str = "car_gr";
+pub static EUR_EXCHANGE_RATE_TOPIC: &str = "exchange_rate";
 
 pub fn broker() -> String {
     match std::env::var("KAFKA_BROKER") {
