@@ -177,6 +177,8 @@ impl BasicT for AutoUncleVehicle {
                 "autouncle.ro" => return format!("https://www.autouncle.ro{}", url),
                 "autouncle.fr" => return format!("https://www.autouncle.fr{}", url),
                 "autouncle.nl" => return format!("https://www.autouncle.nl{}", url),
+                "autouncle.ch" => return format!("https://www.autouncle.ch{}", url),
+                "autouncle.pl" => return format!("https://www.autouncle.pl{}", url),
                 _ => "".to_string(),
             }
         } else {

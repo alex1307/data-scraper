@@ -1,5 +1,6 @@
+use std::path::PathBuf;
+
 use prost_build::Config;
-use std::path::{self, PathBuf};
 
 fn main() {
     let mut config = Config::new();
