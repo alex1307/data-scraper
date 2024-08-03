@@ -161,8 +161,8 @@ pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
         if let Some(v) = html_fragment.select(&card_2nd_line_selector).next() {
             let holder = v
                 .inner_html()
-                .split_ascii_whitespace()
-                .map(|s| s.trim_end_matches(',').to_owned())
+                .split(',')
+                .map(|s| s.trim().to_owned())
                 .collect::<Vec<String>>();
             record.year = holder[0]
                 .chars()

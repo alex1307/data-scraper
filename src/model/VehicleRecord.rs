@@ -1,15 +1,9 @@
-use std::{collections::HashMap, str::FromStr};
-
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    helpers::{
-        CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
-        MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY,
-        TOP_KEY, VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,
-    },
-    services::SearchBuilder::CRAWLER_KEY,
-    CREATED_ON,
+use crate::helpers::{
+    CURRENCY_KEY, DEALER_KEY, ENGINE_KEY, EQUIPMENT_KEY, GEARBOX_KEY, LOCATION_KEY, MAKE_KEY,
+    MILEAGE_KEY, MODEL_KEY, PHONE_KEY, POWER_KEY, PRICE_KEY, PUBLISHED_ON_KEY, SOLD_KEY, TOP_KEY,
+    VIEW_COUNT_KEY, VIP_KEY, YEAR_KEY,
 };
 
 use super::{
@@ -86,126 +80,6 @@ impl Identity for MobileRecord {
     }
 }
 
-impl From<HashMap<String, String>> for MobileRecord {
-    fn from(map: HashMap<String, String>) -> Self {
-        let default_0 = &"0".to_owned();
-        let default_str = &"none".to_owned();
-        let id = map.get("id").unwrap_or(default_str).to_owned();
-        let phone = map
-            .get(&PHONE_KEY.to_owned())
-            .unwrap_or(default_str)
-            .to_string();
-        let engine = Engine::from_str(
-            map.get(&ENGINE_KEY.to_owned())
-                .unwrap_or(default_str)
-                .as_str(),
-        )
-        .unwrap_or(Engine::NotAvailable);
-        let gearbox = Gearbox::from_str(
-            map.get(&GEARBOX_KEY.to_owned())
-                .unwrap_or(default_str)
-                .as_str(),
-        )
-        .unwrap_or(Gearbox::NotAvailable);
-        let power = map
-            .get(&POWER_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u32>()
-            .unwrap_or(0);
-        let view_count = map
-            .get(&VIEW_COUNT_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u32>()
-            .unwrap_or(0);
-        let equipment = map
-            .get(&EQUIPMENT_KEY.to_owned())
-            .unwrap_or(default_str)
-            .to_string();
-        let price = map
-            .get(&PRICE_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u32>()
-            .unwrap_or(0);
-        let currency = Currency::from_str(
-            map.get(&CURRENCY_KEY.to_owned())
-                .unwrap_or(default_str)
-                .as_str(),
-        )
-        .unwrap_or(Currency::BGN);
-        let millage = map
-            .get(&MILEAGE_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u32>()
-            .unwrap();
-        let year = map
-            .get(&YEAR_KEY.to_owned())
-            .unwrap_or(default_0)
-            .parse::<u16>()
-            .unwrap_or(0);
-        let top = map
-            .get(&TOP_KEY.to_owned())
-            .unwrap_or(&"false".to_string())
-            .parse::<bool>()
-            .unwrap();
-        let vip = map
-            .get(&VIP_KEY.to_owned())
-            .unwrap_or(&"false".to_string())
-            .parse::<bool>()
-            .unwrap();
-        let dealer = map
-            .get(&DEALER_KEY.to_owned())
-            .unwrap_or(&"false".to_string())
-            .parse::<bool>()
-            .unwrap_or(false);
-        let sold = map
-            .get(&SOLD_KEY.to_owned())
-            .unwrap_or(&"false".to_string())
-            .parse::<bool>()
-            .unwrap();
-        let location = map
-            .get(&LOCATION_KEY.to_string())
-            .unwrap_or(default_str)
-            .to_string();
-        let make = map
-            .get(&MAKE_KEY.to_string())
-            .unwrap_or(default_str)
-            .to_string();
-        let model = map
-            .get(&MODEL_KEY.to_string())
-            .unwrap_or(default_str)
-            .to_string();
-        let updated_on = map
-            .get(&PUBLISHED_ON_KEY.to_string())
-            .unwrap_or(default_str)
-            .to_string();
-        let source = map.get(CRAWLER_KEY).unwrap_or(default_str).to_string();
-        MobileRecord {
-            id,
-            engine,
-            gearbox,
-            currency,
-            price,
-            power,
-            phone,
-            location,
-            view_count,
-            equipment,
-            mileage: millage,
-            year,
-            top,
-            vip,
-            sold,
-            dealer,
-            make,
-            model,
-            created_on: CREATED_ON.to_string(),
-            updated_on,
-            source,
-            ..Default::default()
-        }
-    }
-}
-
 impl BasicT for MobileRecord {
     fn id(&self) -> String {
         self.id.clone()
@@ -244,7 +118,7 @@ impl BasicT for MobileRecord {
         self.gearbox
     }
     fn cc(&self) -> u32 {
-        0
+        self.cc
     }
     fn power_ps(&self) -> u32 {
         self.power
