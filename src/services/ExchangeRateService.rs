@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub async fn sync_exchange_rates() {
-    let currencies = vec![Currency::CHF, Currency::BGN, Currency::PLN];
+    let currencies = vec![Currency::CHF, Currency::BGN, Currency::PLN, Currency::EUR];
     let producer = create_producer(&broker());
     for currency in currencies {
         let rate = getRates(currency).await.unwrap();
