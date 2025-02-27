@@ -1,10 +1,14 @@
 use std::str::FromStr;
 
 use log::info;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::{ok_or_default, ok_or_err, unwrap_or_empty, unwrap_or_err};
 
 use super::{
     enums::{Currency, Engine, Gearbox},
+    DataConversionError::ConversionError,
     VehicleDataModel,
 };
 
@@ -87,6 +91,7 @@ pub struct SearchResult {
     #[serde(rename = "items")]
     pub items: Vec<SearchItem>,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchItem {
     pub isEyeCatcher: Option<bool>,
@@ -97,6 +102,8 @@ pub struct SearchItem {
     pub priceRating: Option<PriceRating>,
     //pub segment: Option<String>,
     pub title: Option<String>,
+    #[serde(rename = "subTitle")]
+    pub subTitle: Option<String>,
     //pub vc: Option<String>,
     //pub category: Option<String>,
     pub id: Option<u64>,
@@ -104,7 +111,7 @@ pub struct SearchItem {
     // obsUrl: String,
     // relativeUrl: String,
     attributes: Option<Vec<Vec<Attribute>>>,
-    //pub contactInfo: Option<ContactInfo>,
+    pub contactInfo: Option<ContactInfo>,
     // //    previewImage: Image,
     // //    previewThumbnails: Vec<Image>,
     pub price: Option<Price>,
@@ -114,6 +121,50 @@ pub struct SearchItem {
     #[serde(rename = "type")]
     pub modelType: Option<String>,
     // emailLink: String,
+    #[serde(rename = "attr")]
+    pub details: Option<VehicleDetails>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VehicleDetails {
+    #[serde(rename = "cn")]
+    pub country: Option<String>,
+    #[serde(rename = "fr")]
+    pub year: Option<String>,
+    #[serde(rename = "z")]
+    pub zip: Option<String>,
+    #[serde(rename = "loc")]
+    pub location: Option<String>,
+    #[serde(rename = "pw")]
+    pub power: Option<String>,
+    #[serde(rename = "ft")]
+    pub fuel_type: Option<String>,
+    #[serde(rename = "ml")]
+    pub mileage: Option<String>,
+    #[serde(rename = "cc")]
+    pub cubic_capacity: Option<String>,
+    #[serde(rename = "csmpt")]
+    pub consumption: Option<String>,
+    #[serde(rename = "emiss")]
+    pub emission: Option<String>,
+    #[serde(rename = "co2class")]
+    pub co2: Option<String>,
+    #[serde(rename = "tr")]
+    pub gearbox: Option<String>,
+    #[serde(rename = "con")]
+    pub condition: Option<String>,
+    #[serde(rename = "ecol")]
+    pub color: Option<String>,
+    #[serde(rename = "eu")]
+    pub edition: Option<String>,
+    #[serde(rename = "door")]
+    pub doors: Option<String>,
+    #[serde(rename = "c")]
+    pub category: Option<String>,
+    #[serde(rename = "pvo")]
+    pub previousOwners: Option<String>,
+    #[serde(rename = "nw")]
+    pub weight: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -284,226 +335,242 @@ impl TryFrom<SearchItem> for VehicleDataModel::Price {
 }
 
 impl TryFrom<SearchItem> for VehicleDataModel::BaseVehicleInfo {
-    type Error = String;
+    type Error = ConversionError;
+
+    fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
+        let id = unwrap_or_err!(item.id, "id");
+        let mut base_info =
+            VehicleDataModel::BaseVehicleInfo::new(id.to_string(), "mobile.de".to_string());
+
+        if let Some(data) = &item.details {
+            // Extract power
+
+            // Extract consumption values
+            let engine = ok_or_err!(Engine::from_str(unwrap_or_empty!(data.fuel_type)), "engine");
+
+            // Extract gearbox
+            let gearbox = ok_or_err!(Gearbox::from_str(unwrap_or_empty!(data.gearbox)), "gearbox");
+
+            // Extract year
+            let year = ok_or_err!(extract_year(unwrap_or_empty!(data.year)), "year");
+
+            // Required fields
+            let model = unwrap_or_err!(item.model.clone(), "model");
+            let make = unwrap_or_err!(item.make.clone(), "make");
+            let subtitle = unwrap_or_err!(item.title.clone(), "title");
+            let (power_kw, power_ps) =
+                ok_or_err!(extract_power(unwrap_or_empty!(data.power)), "power");
+            let mileage = ok_or_default!(extract_ccm(unwrap_or_empty!(data.mileage)));
+            let cc = ok_or_default!(extract_ccm(unwrap_or_empty!(data.cubic_capacity)));
+            info!("Mileage: {} km", mileage);
+            // Assign to base_info
+            base_info.engine = engine;
+            base_info.gearbox = gearbox;
+            base_info.mileage = Some(mileage);
+            base_info.model = model;
+            base_info.make = make;
+            base_info.power_kw = power_kw;
+            base_info.power_ps = power_ps;
+            base_info.year = year as u16;
+            base_info.title = subtitle;
+            base_info.cc = cc;
+        }
+
+        // Extract price safely
+        base_info.price = Some(unwrap_or_err!(item.price, "price").gross_amount as u32);
+
+        base_info.currency = Currency::EUR;
+
+        base_info.url = format!(
+            "https://suchen.mobile.de/fahrzeuge/details.html?id={}&lang=de&utm_source=DirectMail&utm_medium=textlink&utm_campaign=Recommend_DES&vc=Car",
+            id
+        );
+        info!("URL: {:?}", &base_info);
+        Ok(base_info)
+    }
+}
+
+impl TryFrom<SearchItem> for VehicleDataModel::DetailedVehicleInfo {
+    type Error = ConversionError;
 
     fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
         if let Some(id) = item.id {
-            let mut base_info = VehicleDataModel::BaseVehicleInfo::new(id.to_string());
-            base_info.source = "mobile.de".to_string();
-            if let Some(attr) = item.attributes {
-                let flattened_values: Vec<String> = attr
-                    .iter()
-                    .flat_map(|inner| inner.iter().map(|attr| attr.value.clone()))
-                    .collect();
+            let mut details =
+                VehicleDataModel::DetailedVehicleInfo::new(id.to_string(), "mobile.de".to_string());
+            details.source = "mobile.de".to_string();
 
-                let milage = match flattened_values[1]
-                    .chars()
-                    .filter(|c| c.is_ascii_digit())
-                    .collect::<String>()
-                    .parse::<u32>()
-                {
-                    Ok(milage) => milage,
-                    Err(_e) => 0,
-                };
+            let contact = unwrap_or_err!(item.contactInfo, "contactInfo");
+            details.location = contact.location;
+            details.seller_name = contact.name.unwrap_or("".to_string());
 
-                base_info.millage = Some(milage);
-                base_info.year = get_year(&flattened_values[0]);
+            if let Some(data) = item.details {
+                if let Ok((consumption_kw, consumption_fuel)) = extract_consumption(
+                    data.consumption.as_ref().unwrap_or(&String::new()).as_str(),
+                ) {
+                    details.consumption_kw = consumption_kw;
+                    details.consumption_fuel = consumption_fuel;
+                }
+            }
+            Ok(details)
+        } else {
+            Err(ConversionError::MissingField("id".into()))
+        }
+    }
+}
 
-                if flattened_values[2].contains("kW") {
-                    let kw_ps = flattened_values[2].split("kW").collect::<Vec<&str>>();
-                    let mut power = vec![];
-                    for s in kw_ps {
-                        let number = match s
-                            .chars()
-                            .filter(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .parse::<u32>()
-                        {
-                            Ok(number) => number,
-                            Err(e) => {
-                                info!("Error: {:?}", e);
-                                0
-                            }
-                        };
+fn extract_year(input: &str) -> Result<u16, Box<dyn std::error::Error>> {
+    let re = Regex::new(r"\b(\d{4})\b")?; // Match a 4-digit year
 
-                        power.push(number);
-                    }
-                    if power.len() == 2 {
-                        base_info.power_kw = power[0];
-                        base_info.power_ps = power[1];
+    if let Some(caps) = re.captures(input) {
+        let year = caps.get(1).unwrap().as_str().parse::<u16>()?;
+        return Ok(year);
+    }
+
+    Ok(0) // Default to 0 if no year is found
+}
+
+fn extract_integer(input: &str) -> Result<u32, Box<dyn std::error::Error>> {
+    let re = Regex::new(r"\d+")?;
+    if let Some(mat) = re.find(input) {
+        Ok(mat.as_str().parse::<u32>()?)
+    } else {
+        Ok(0)
+    }
+}
+
+fn extract_ccm(input: &str) -> Result<u32, Box<dyn std::error::Error>> {
+    let filtered = input.replace(",", "");
+    extract_integer(&filtered)
+}
+
+// Extracts power values (kW and PS) from a string
+fn extract_power(input: &str) -> Result<(u32, u32), Box<dyn std::error::Error>> {
+    let re = Regex::new(r"(\d+)\s*kW\s*\((\d+)\s*hp\)")?;
+    if let Some(caps) = re.captures(input) {
+        let kw = caps.get(1).unwrap().as_str().parse::<u32>()?;
+        let ps = caps.get(2).unwrap().as_str().parse::<u32>()?;
+        Ok((kw, ps))
+    } else {
+        Ok((0, 0))
+    }
+}
+
+// Extracts consumption values (kWh/100km and l/100km)
+fn extract_consumption(input: &str) -> Result<(f32, f32), Box<dyn std::error::Error>> {
+    let re = Regex::new(r"([\d\.]+)\s*kWh.*?([\d\.]+)\s*l")?;
+    if let Some(caps) = re.captures(input) {
+        let kw = caps
+            .get(1)
+            .unwrap()
+            .as_str()
+            .replace(',', ".")
+            .parse::<f32>()?;
+        let fuel = caps
+            .get(2)
+            .unwrap()
+            .as_str()
+            .replace(',', ".")
+            .parse::<f32>()?;
+        Ok((kw, fuel))
+    } else {
+        Ok((0.0, 0.0))
+    }
+}
+
+#[cfg(test)]
+mod test_mobile_de {
+
+    use log::{error, info};
+
+    use super::{extract_ccm, extract_consumption, extract_integer, extract_power};
+
+    // Extracts the first integer from a string
+
+    // Extracts power values (kW and PS) from a string
+
+    // Extracts consumption values (kWh/100km and l/100km)
+
+    #[cfg(test)]
+    mod tests {
+        use std::{fs::File, io::Read};
+
+        use crate::{
+            model::{
+                MobileDe::MobileDeResults,
+                VehicleDataModel::{self, BaseVehicleInfo},
+            },
+            utils::helpers::configure_log4rs,
+            LOG_CONFIG,
+        };
+
+        use super::*;
+
+        #[test]
+        fn test_extract_car_attributes() {
+            configure_log4rs(&LOG_CONFIG);
+            let mut file = File::open("mob.json").unwrap();
+            let mut contents = String::new();
+            let _ = file.read_to_string(&mut contents);
+
+            let data: MobileDeResults = serde_json::from_str(&contents).unwrap();
+            let mut counter = 0;
+            data.search
+                .srp
+                .data
+                .search_result
+                .items
+                .iter()
+                .for_each(|item| {
+                    if let Ok(result) = BaseVehicleInfo::try_from(item.clone()) {
+                        info!("Basic Info {:?}", result);
+                        counter += 1;
                     } else {
-                        base_info.power_kw = power[0];
+                        error!("Error: {:?}", item);
                     }
-                }
 
-                for attr in &flattened_values {
-                    if let Ok(engine) = Engine::from_str(attr.as_str()) {
-                        if Engine::NotAvailable == engine {
-                            continue;
-                        } else {
-                            base_info.engine = engine;
-                            break;
-                        }
+                    if let Ok(result) =
+                        VehicleDataModel::DetailedVehicleInfo::try_from(item.clone())
+                    {
+                        info!("Detailed Info {:?}", result);
+                    } else {
+                        error!("Error");
                     }
-                }
 
-                for attr in &flattened_values {
-                    if let Ok(gearbox) = Gearbox::from_str(attr.as_str()) {
-                        if Gearbox::NotAvailable == gearbox {
-                            continue;
-                        } else {
-                            base_info.gearbox = gearbox;
-                            break;
-                        }
+                    if let Ok(price) = VehicleDataModel::Price::try_from(item.clone()) {
+                        info!("Price Info {:?}", price);
+                    } else {
+                        error!("Error");
                     }
-                }
-            }
-            if let Some(model) = item.model {
-                base_info.model = model;
-            }
-            if let Some(make) = item.make {
-                base_info.make = make;
-            }
-            if let Some(title) = item.title {
-                base_info.title = title;
-            }
+                });
+            info!("Total: {}", counter);
+        }
 
-            if let Some(itemPrice) = item.price {
-                base_info.price = Some(itemPrice.gross_amount as u32);
-                base_info.currency = Currency::EUR;
-            }
+        #[test]
+        fn test_extract_integer() {
+            assert_eq!(extract_integer("26 g CO₂/km").unwrap(), 26);
+            assert_eq!(extract_ccm("2,894 ccm").unwrap(), 2894);
+            assert_eq!(extract_integer("0 km").unwrap(), 0);
+            assert_eq!(extract_integer("").unwrap(), 0);
+        }
 
-            base_info.url = format!(
-                "https://suchen.mobile.de/fahrzeuge/details.html?id={}&lang=de&utm_source=DirectMail&utm_medium=textlink&utm_campaign=Recommend_DES&vc=Car",
-                item.id.unwrap_or(0).to_string()
+        #[test]
+        fn test_extract_power() {
+            assert_eq!(extract_power("400 kW (544 hp)").unwrap(), (400, 544));
+            assert_eq!(extract_power("250 kW (340 hp)").unwrap(), (250, 340));
+            assert_eq!(extract_power("").unwrap(), (0, 0));
+        }
+
+        #[test]
+        fn test_extract_consumption() {
+            assert_eq!(
+                extract_consumption("26.8 kWh\u{002F10}0km + 1.2 l\u{002F10}0km (wgt. comb.), 9.5 l\u{002F10}0km (discharged, comb.)").unwrap(),
+                (26.8, 1.2)
             );
-
-            Ok(base_info)
-        } else {
-            Err("No id found".into())
+            assert_eq!(
+                extract_consumption("15.3 kWh/100km + 5.5 l/100km").unwrap(),
+                (15.3, 5.5)
+            );
+            assert_eq!(extract_consumption("").unwrap(), (0.0, 0.0));
         }
     }
-}
-
-impl TryFrom<SearchItem> for VehicleDataModel::Consumption {
-    type Error = String;
-
-    fn try_from(item: SearchItem) -> Result<Self, Self::Error> {
-        if let Some(id) = item.id {
-            let mut consumption =
-                VehicleDataModel::Consumption::new(id.to_string(), "mobile.de".to_string());
-            if let Some(make) = item.make {
-                consumption.make = make;
-            }
-
-            if let Some(model) = item.model {
-                consumption.model = model;
-            }
-
-            // if let Some(attrbutes) = item.attributes {
-            //     let flattened_attributes: Vec<String> = attrbutes
-            //         .iter()
-            //         .flat_map(|a| a.split(" • "))
-            //         .map(|s| s.to_string())
-            //         .collect();
-            //     consumption.year = get_year(&flattened_attributes[0]);
-
-            //     for attr in flattened_attributes {
-            //         if attr.contains("kWh/100km") {
-            //             let kWh = attr.split("kWh/100km").collect::<Vec<&str>>()[0].trim();
-            //             if kWh.contains('.') {
-            //                 consumption.kw_consuption = match kWh.parse::<f32>() {
-            //                     Ok(kw) => Some(kw),
-            //                     Err(e) => {
-            //                         info!("Error: {:?}", e);
-            //                         None
-            //                     }
-            //                 };
-            //             } else if kWh.contains(',') {
-            //                 consumption.kw_consuption = match kWh.replace(',', ".").parse::<f32>() {
-            //                     Ok(kw) => Some(kw),
-            //                     Err(e) => {
-            //                         info!("Error: {:?}", e);
-            //                         None
-            //                     }
-            //                 };
-            //             }
-            //         } else if attr.contains("l/100km") {
-            //             let l = attr.split("l/100km").collect::<Vec<&str>>()[0].trim();
-            //             let l = l.replace("ca.", "ca:");
-            //             let l = l
-            //                 .chars()
-            //                 .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
-            //                 .collect::<String>();
-            //             if l.contains('.') {
-            //                 consumption.fuel_consumption = match l.parse::<f32>() {
-            //                     Ok(fuel) => Some(fuel),
-            //                     Err(e) => {
-            //                         info!("Error: {:?}", e);
-            //                         None
-            //                     }
-            //                 };
-            //             } else if l.contains(',') {
-            //                 consumption.fuel_consumption = match l.replace(',', ".").parse::<f32>()
-            //                 {
-            //                     Ok(fuel) => Some(fuel),
-            //                     Err(e) => {
-            //                         info!("Error: {:?}", e);
-            //                         None
-            //                     }
-            //                 };
-            //             }
-            //         } else if attr.contains("CO₂/km") {
-            //             consumption.co2_emission = match attr
-            //                 .chars()
-            //                 .filter(|c| c.is_ascii_digit())
-            //                 .collect::<String>()
-            //                 .parse::<u32>()
-            //             {
-            //                 Ok(co2) => co2,
-            //                 Err(e) => {
-            //                     info!("Error: {:?}", e);
-            //                     0
-            //                 }
-            //             };
-            //         }
-            //     }
-            // }
-            Ok(consumption)
-        } else {
-            Err("No id found".into())
-        }
-    }
-}
-
-fn get_year(year: &str) -> u16 {
-    if "new car" == year.trim().to_lowercase() || "neuwagen" == year.trim().to_lowercase() {
-        return 2024;
-    }
-
-    if year.contains('/') {
-        let month_year = year.split(' ').collect::<Vec<&str>>();
-        if month_year.len() > 1 {
-            let prod_year = month_year[1].split('/').collect::<Vec<&str>>();
-            if prod_year.len() == 1 {
-                return match prod_year[0].parse::<u16>() {
-                    Ok(year) => year,
-                    Err(e) => {
-                        info!("Error: {:?}", e);
-                        0
-                    }
-                };
-            } else {
-                return match prod_year[1].parse::<u16>() {
-                    Ok(year) => year,
-                    Err(e) => {
-                        info!("Error: {:?}", e);
-                        0
-                    }
-                };
-            }
-        }
-    }
-
-    0
 }

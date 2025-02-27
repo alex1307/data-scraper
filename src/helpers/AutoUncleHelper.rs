@@ -3,72 +3,95 @@ use std::{collections::HashMap, fmt::Write, vec};
 use log::error;
 use regex::Regex;
 use scraper::{Html, Selector};
-use serde::Deserialize;
 
-use crate::model::AutoUncleVehicle::{AutoUncleVehicle, Root};
-#[derive(Deserialize, Debug)]
-struct PaginatedCars {
-    #[serde(rename = "carsPaginated")]
-    paginated: Cars,
-}
+use crate::model::{
+    enums::Engine,
+    AutouncleJsonModel::{
+        CarData, DIESEL_ENGINE_REGEX, ELECTRIC_ENGINE_REGEX, HYBRID_ENGINE_REGEX, LPG_ENGINE_REGEX,
+        PETROL_ENGINE_REGEX,
+    },
+};
 
-#[derive(Deserialize, Debug)]
-struct Cars {
-    cars: Vec<AutoUncleVehicle>,
-}
+fn find_json_bounds(content: &str) -> Option<String> {
+    // Find the first index of '{'
+    let first_index = content.find('{')?;
 
-pub fn list_vehicles_from_text(txt: &str) -> Vec<AutoUncleVehicle> {
-    let start = txt.find("carsPaginated").unwrap();
-    let end = txt.find("pagination").unwrap();
-    let paginated = txt[start - 1..end - 1].to_string();
-    let processed = paginated.replace(r#"\""#, r#"""#);
-    let processed = processed.replace('\\', "");
-    let processed = processed.replace(r#"\\"#, r#"\"#);
-    let processed = processed.replace(r#"\n"#, r#""#);
-    let processed = processed.replace(r#"\t"#, r#""#);
-    let processed = processed.replace(r#"\r"#, r#""#);
-    let processed = processed.replace(r#""""#, r#"""#);
-    let processed = processed.replace("}],", "}],\n");
-    let processed = processed.replace("},", "},\n");
-    let processed = processed.replace("],", "],\n");
-    let processed = processed.replace('{', "{\n");
-    let mut show_it = false;
+    // Find the last index of '}'
+    let last_index = content.rfind('}')?;
 
-    let mut acc = vec!["{".to_string()];
-    for line in processed.lines() {
-        if line.contains("carsPaginated") {
-            show_it = true;
-        } else if line.contains("pagination") {
-            break;
-        }
-
-        if show_it {
-            if line.trim().is_empty() {
-                continue;
-            }
-            acc.push(line.to_string());
-            continue;
-        }
+    // Extract the substring between these indices
+    if first_index < last_index {
+        Some(content[first_index..=last_index].to_string())
+    } else {
+        None // Handle case where indices are invalid
     }
-    let len = acc.len();
-    let last = acc[len - 1].clone();
-    let last = last.replace("}],", "}]");
-    acc[len - 1] = last.to_string();
-    acc.push("}\n}".to_string());
-    let lines = acc.join("\n");
-    let json = match serde_json::from_str::<PaginatedCars>(&lines) {
+}
+pub fn process_html(content: &str) -> Vec<CarData> {
+    let scripts = get_scripts(content, "carId");
+    let mut data = vec![];
+    for js in scripts {
+        let value = match process_js(js) {
+            Some(value) => value,
+            None => continue,
+        };
+
+        data.push(value);
+    }
+    data
+}
+
+fn process_js(js: String) -> Option<CarData> {
+    let content = find_json_bounds(&js).unwrap();
+    let json = content.replace("\\\"", "\"").replace(r"\\", r"\\");
+    let mut value = match serde_json::from_str::<CarData>(&json) {
         Ok(json) => json,
         Err(e) => {
-            error!("Error: {:?}", e);
-            let l = e.line();
-            error!("Line: {:?}", lines.lines().nth(l - 1).unwrap());
-            return vec![];
+            error!("Failed to deserialize: {:?}", e.to_string());
+            return None;
         }
     };
-    json.paginated.cars
+    if DIESEL_ENGINE_REGEX.captures(&content).is_some() {
+        value.engine = Engine::Diesel;
+    } else if PETROL_ENGINE_REGEX.captures(&content).is_some() {
+        value.engine = Engine::Petrol;
+    } else if HYBRID_ENGINE_REGEX.captures(&content).is_some() {
+        value.engine = Engine::Hybrid;
+    } else if ELECTRIC_ENGINE_REGEX.captures(&content).is_some() {
+        value.engine = Engine::Electric;
+    } else if LPG_ENGINE_REGEX.captures(&content).is_some() {
+        value.engine = Engine::LPG;
+    } else {
+        error!("Unknown engine type");
+        return None;
+    }
+    let re = Regex::new(r"\d+(\.\d+)? L/100km").unwrap();
+    if let Some(caps) = re.captures(&json) {
+        if let Some(full_match) = caps.get(0) {
+            value.fuel_consumption = Some(full_match.as_str().to_string());
+        }
+    }
+    let re = Regex::new(r"\d+(\.\d+)? Kwh/100 km").unwrap();
+    if let Some(caps) = re.captures(&json) {
+        if let Some(full_match) = caps.get(0) {
+            value.fuel_consumption = Some(full_match.as_str().to_string());
+        }
+    }
+    let re = Regex::new(r"(\d+) g CO2/km (c|k)omb").unwrap();
+    if let Some(caps) = re.captures(&json) {
+        if let Some(full_match) = caps.get(0) {
+            value.co2_emission = Some(full_match.as_str().to_string());
+        }
+    }
+    let re = Regex::new(r"≈ \d+ km").unwrap();
+    if let Some(caps) = re.captures(&json) {
+        if let Some(full_match) = caps.get(0) {
+            value.range = Some(full_match.as_str().to_string());
+        }
+    }
+    Some(value)
 }
 
-pub fn get_scripts(html: &str) -> Vec<String> {
+pub fn get_scripts(html: &str, filter: &str) -> Vec<String> {
     let document = Html::parse_document(html);
 
     let script_selector = Selector::parse("script").unwrap();
@@ -77,63 +100,9 @@ pub fn get_scripts(html: &str) -> Vec<String> {
         .map(|script| script.inner_html())
         .collect::<Vec<String>>()
         .into_iter()
-        .filter(|s| s.contains("announcedAsNew"))
+        .filter(|s| s.contains(filter))
         .collect();
     scripts
-}
-
-pub fn get_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
-    let mut vehicles = parse_vehicles(content);
-    for v in &mut vehicles {
-        v.equipment = v.featuredAttributesEquipment.clone();
-        v.equipment.extend(v.featuredAttributesNonEquipment.clone());
-    }
-    vehicles
-}
-
-fn extract_json(js_content: &str) -> Vec<AutoUncleVehicle> {
-    let re = Regex::new(r"\{[\s\S]*}}}}").unwrap(); // Adjust regex to capture JSON correctly
-    let jsons: Vec<&str> = re
-        .find_iter(js_content)
-        .map(|mat| mat.as_str().trim_end_matches(");")) // Removing trailing characters if any
-        .collect();
-    for js in jsons {
-        let js = js.to_string().replace("\\\"", "\""); // Correcting escape sequences for quotes
-        let js = js.replace(r"\\", r"\");
-        let js = js + "}";
-        match serde_json::from_str::<Root>(&js) {
-            Ok(json) => return json.dynamicScriptData.cars_search.carsPaginated.cars,
-            Err(e) => {
-                error!("Failed to deserialize: {:?}", e);
-                continue;
-                // This will show the error why deserialization failed
-            }
-        }
-    }
-    vec![]
-}
-
-pub fn parse_vehicles(content: &str) -> Vec<AutoUncleVehicle> {
-    let script_selector = Selector::parse("script").unwrap();
-    let mut vehicles = vec![];
-    let html = Html::parse_document(content);
-
-    let scripts = html
-        .select(&script_selector)
-        .map(|script| script.inner_html())
-        .collect::<Vec<String>>()
-        .into_iter()
-        .filter(|s| s.contains("announcedAsNew"))
-        .collect::<Vec<String>>();
-
-    for s in scripts {
-        let found = extract_json(&s);
-        if found.is_empty() {
-            continue;
-        }
-        vehicles.extend(found);
-    }
-    vehicles
 }
 
 pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<String>> {
@@ -159,7 +128,7 @@ pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<
             if s.contains(id) {
                 let js = s.replace(r#"\""#, r#"""#);
                 let js = js.replace(r#"\n"#, r#"$"#);
-                re.find(&js).and_then(|caps| -> Option<()> {
+                re.find(&js).map(|caps| -> Option<()> {
                     {
                         let matched = &js[caps.start() + id.len() + 2..caps.end()];
                         let mut json_str = String::new();
@@ -190,20 +159,17 @@ mod auto_uncle_tests {
 
     use log::{error, info};
 
-    use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{
+        model::{
+            AutouncleJsonModel::CarData,
+            VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price},
+        },
+        protos::{self},
+        utils::helpers::configure_log4rs,
+        LOG_CONFIG,
+    };
 
     use super::*;
-
-    #[test]
-    fn test_list_vehicles_from_text() {
-        configure_log4rs(&LOG_CONFIG);
-        let content = fs::read_to_string("resources/test-data/autouncle/nl_1.html").unwrap();
-        let vehicles = get_vehicles(&content);
-        info!("Vehicles: {}", vehicles.len());
-        for v in &vehicles {
-            info!("Vehicle: {:?}", v);
-        }
-    }
 
     #[test]
     fn unique_equipments() {
@@ -390,5 +356,62 @@ mod auto_uncle_tests {
         let data: EquipmentMap =
             serde_yaml::from_str(&contents).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         Ok(data)
+    }
+
+    #[test]
+    fn test_extract_car_id() {
+        configure_log4rs(&LOG_CONFIG);
+        let content = fs::read_to_string("resources/test-data/autouncle/2025_script.js").unwrap();
+        let content = find_json_bounds(&content).unwrap();
+        let json = content.replace("\\\"", "\"").replace(r"\\", r"\\"); // Sanitize JSON
+        let value = match serde_json::from_str::<CarData>(&json) {
+            Ok(json) => json,
+            Err(e) => {
+                error!("Failed to deserialize: {:?}", e);
+                return;
+            }
+        };
+        info!("Value: {:?}", value);
+    }
+
+    #[test]
+    fn test_process_html() {
+        configure_log4rs(&LOG_CONFIG);
+        let content = fs::read_to_string("resources/test-data/autouncle/electric-de.html").unwrap();
+        let data = process_html(&content);
+        assert_eq!(data.len(), 25 as usize);
+        info!("Total: {}", data.len());
+        for d in data.into_iter() {
+            let basic_info = BaseVehicleInfo::from(d.clone());
+            let price_info = Price::from(d.clone());
+            let details = DetailedVehicleInfo::from(d.clone());
+
+            info!("Basic Info: {:?}", basic_info);
+            info!("Price Info: {:?}", price_info);
+            info!("Details: {:?}", details);
+
+            info!(
+                "{:?}",
+                protos::vehicle_model::BaseVehicleInfo::from(basic_info)
+            );
+        }
+    }
+
+    #[test]
+    fn test_process_js() {
+        configure_log4rs(&LOG_CONFIG);
+        let content = fs::read_to_string("resources/test-data/autouncle/electric.js").unwrap();
+        info!("Content: {}", content);
+        let json = process_js(content);
+        assert!(json.is_some());
+        let data = json.unwrap();
+        info!("JSON: {:?}", data);
+        let basic_info = BaseVehicleInfo::from(data.clone());
+        let price_info = Price::from(data.clone());
+        let details = DetailedVehicleInfo::from(data.clone());
+
+        info!("Basic Info: {:?}", basic_info);
+        info!("Price Info: {:?}", price_info);
+        info!("Details: {:?}", details);
     }
 }

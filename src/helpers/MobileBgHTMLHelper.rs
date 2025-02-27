@@ -11,6 +11,7 @@ use encoding_rs::{UTF_8, WINDOWS_1251};
 
 use log::debug;
 
+use log::info;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 
@@ -174,6 +175,8 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
     let document = Html::parse_document(html_content);
     // Selector to find the price
     let price_selector = Selector::parse("div.price div").unwrap();
+    let vat_selector = Selector::parse("div.price span").unwrap();
+
     // Selector to find the description
     let rows_selector = Selector::parse("div.item").unwrap();
     let make_model_selector = Selector::parse("div.zaglavie a.title").unwrap(); // Adjusted to be mo
@@ -181,7 +184,7 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
     let seller_name = Selector::parse("div.sInfo div.name a").unwrap();
     let location = Selector::parse("div.sInfo div.location").unwrap();
     let mut vehicles = vec![];
-
+    let regex = regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]");
     for element in document.select(&rows_selector) {
         let mut vehicle = MobileRecord {
             id: "".to_string(),
@@ -206,11 +209,7 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
                 .to_string();
             let mut make_model = title_txt.split_whitespace().collect::<Vec<_>>();
             if let Some(last) = make_model.last() {
-                if last.ends_with("...")
-                    || regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]")
-                        .unwrap()
-                        .is_match(last)
-                {
+                if last.ends_with("...") || regex.as_ref().unwrap().is_match(last) {
                     make_model.pop();
                 }
             }
@@ -225,6 +224,22 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
             let inner = price_element.inner_html();
             let price = inner.chars().filter(|c| c.is_numeric()).collect::<String>();
             vehicle.price = price.parse::<u32>().unwrap_or(0);
+            if let Some(vat_element) = element.select(&vat_selector).next() {
+                let vat = vat_element
+                    .text()
+                    .collect::<String>()
+                    .trim()
+                    .to_string()
+                    .to_lowercase();
+                if vat.contains("без ддс") {
+                    info!(
+                        "Price without VAT: {}. Sale price: {}",
+                        vehicle.price,
+                        (vehicle.price as f32 * 1.2) as u32
+                    );
+                    vehicle.price = (vehicle.price as f32 * 1.2) as u32;
+                }
+            }
             if inner.contains("USD") {
                 vehicle.currency = Currency::BGN;
             } else if inner.contains("EUR") {
@@ -260,7 +275,7 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
                 continue;
             }
             if let Ok(engine) = Engine::from_str(&txt) {
-                vehicle.engine = engine.clone();
+                vehicle.engine = engine;
                 continue;
             }
 
@@ -300,9 +315,9 @@ mod test_listing {
 
     use log::info;
 
-    use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{helpers::MobileBgHTMLHelper::get_vehicles, utils::helpers::configure_log4rs};
 
-    use super::*;
+    const LOG_CONFIG: &str = "path/to/your/log4rs/config/file";
 
     #[test]
     fn test_get_pages() {

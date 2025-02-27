@@ -2,6 +2,8 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use std::collections::HashMap;
 
+use crate::constants::URL::AUTOUNCLE_PL_URL;
+
 lazy_static! {
     static ref POWER: Vec<(&'static str, &'static str)> = vec![
         ("75", "90"),
@@ -28,17 +30,9 @@ lazy_static! {
         ("2023", "2023"),
         ("2024", "2024"),
     ];
-    static ref PRICES: Vec<(&'static str, &'static str)> = vec![
-        ("1000", "5000"),
-        ("5000", "10000"),
-        ("10000", "15000"),
-        ("15000", "20000"),
-        ("20000", "30000"),
-        ("30000", "40000"),
-        ("40000", "50000"),
-        ("50000", "90000"),
-        ("90000", ""),
-    ];
+    static ref PRICES: Vec<(&'static str, &'static str)> =
+        vec![("50000", "70000"), ("70000", "90000"), ("90000", ""),];
+    static ref ZL_PRICES: Vec<(&'static str, &'static str)> = vec![("100000", ""),];
     static ref CARS_BG_FUELS: Vec<(&'static str, &'static str)> = vec![
         ("[1]", "Petrol"),
         ("[2]", "Diesel"),
@@ -92,6 +86,8 @@ pub const CRAWLER_AUTOUNCLE_NL: &str = "autouncle.nl";
 pub const CRAWLER_AUTOUNCLE_FR: &str = "autouncle.fr";
 pub const CRAWLER_AUTOUNCLE_PL: &str = "autouncle.pl";
 pub const CRAWLER_AUTOUNCLE_CH: &str = "autouncle.ch";
+pub const CRAWLER_AUTOUNCLE_DE: &str = "autouncle.de";
+pub const CRAWLER_AUTOUNCLE_IT: &str = "autouncle.it";
 
 pub const ID_AUTOUNCLE_FR: i32 = 100_000;
 pub const ID_AUTOUNCLE_NL_START: i32 = 200_000;
@@ -99,6 +95,9 @@ pub const ID_AUTOUNCLE_RO_START: i32 = 300_000;
 
 pub const ID_AUTOUNCLE_CH_START: i32 = 600_000;
 pub const ID_AUTOUNCLE_PL_START: i32 = 700_000;
+
+pub const ID_AUTOUNCLE_DE_START: i32 = 800_000;
+pub const ID_AUTOUNCLE_IT_START: i32 = 900_000;
 
 pub const ID_CARS_BG_START: i32 = 400_000;
 pub const ID_MOBILE_BG_START: i32 = 500_000;
@@ -200,7 +199,11 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
     map.insert("s%5Bseller_kind%5D".to_owned(), "Dealer".to_owned());
     map.insert("s%5Bwith_ratings%5D%5B%5D".to_owned(), rating.to_owned());
     let year_filter = year_filter("s%5Bmin_year%5D", "s%5Bmax_year%5D", YEARS.clone());
-    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", PRICES.clone());
+    let prices = match url {
+        AUTOUNCLE_PL_URL => ZL_PRICES.clone(),
+        _ => PRICES.clone(),
+    };
+    let price_filter = price_filter("s%5Bmin_price%5D", "s%5Bmax_price%5D", prices);
     let mut counter = id;
     for year in year_filter {
         map.insert("s%5Bmax_km%5D".to_owned(), "200000".to_owned());
@@ -220,6 +223,10 @@ pub fn build_autouncle_searches(url: &str, rating: &str, id: i32) -> Vec<HashMap
                 params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_PL.to_owned());
             } else if id == ID_AUTOUNCLE_CH_START {
                 params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_CH.to_owned());
+            } else if id == ID_AUTOUNCLE_DE_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_DE.to_owned());
+            } else if id == ID_AUTOUNCLE_IT_START {
+                params.insert(CRAWLER_KEY.to_owned(), CRAWLER_AUTOUNCLE_IT.to_owned());
             } else {
                 error!("Invalid id: {}", id);
             }
@@ -261,6 +268,7 @@ pub fn build_cars_bg_all_searches(url: &str, id: i32) -> Vec<HashMap<String, Str
     map.insert("add_search".to_owned(), "1".to_owned());
     map.insert("typeoffer".to_owned(), "1".to_owned());
     map.insert("conditions[]".to_owned(), "1".to_owned());
+    map.insert("price".to_owned(), "95000".to_owned());
     map.insert(CRAWLER_KEY.to_owned(), CRAWLER_CARS_BG.to_owned());
     let mut searches = vec![];
     let year_filter = year_filter(CARS_BG_YEARS_FROM, CARS_BG_YEARS_TO, YEARS.clone());

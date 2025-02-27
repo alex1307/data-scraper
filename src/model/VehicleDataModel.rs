@@ -26,7 +26,7 @@ pub struct BaseVehicleInfo {
     pub title: String,
     pub currency: Currency,
     pub price: Option<u32>,
-    pub millage: Option<u32>,
+    pub mileage: Option<u32>,
     pub month: Option<u16>,
     pub year: u16,
     pub engine: Engine,
@@ -39,9 +39,10 @@ pub struct BaseVehicleInfo {
 }
 
 impl BaseVehicleInfo {
-    pub fn new(id: String) -> Self {
+    pub fn new(id: String, source: String) -> Self {
         Self {
             id,
+            source,
             ..Default::default()
         }
     }
@@ -55,31 +56,14 @@ pub struct DetailedVehicleInfo {
     pub equipment: String,
     pub seller_name: String,
     pub seller_url: String,
+    pub range: u32,
+    pub consumption_fuel: f32,
+    pub consumption_kw: f32,
+    pub co2: u32,
+    pub days_in_sale: Option<u32>,
 }
 
 impl DetailedVehicleInfo {
-    pub fn new(id: String, equipment: String) -> Self {
-        Self {
-            id,
-            equipment,
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct VehicleChangeLogInfo {
-    pub id: String,
-    pub source: String,
-    pub published_on: String,
-    pub last_modified_on: String,
-    pub last_modified_message: String,
-    pub days_in_sale: Option<u32>,
-    pub sold: bool,
-    pub promoted: bool,
-}
-
-impl VehicleChangeLogInfo {
     pub fn new(id: String, source: String) -> Self {
         Self {
             id,
@@ -88,6 +72,7 @@ impl VehicleChangeLogInfo {
         }
     }
 }
+
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct Price {
     pub id: String,
@@ -104,29 +89,7 @@ pub struct Price {
     pub thresholds: Vec<u32>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
-pub struct Consumption {
-    pub id: String,
-    pub source: String,
-    pub make: String,
-    pub model: String,
-    pub year: u16,
-    pub co2_emission: u32,
-    pub fuel_consumption: Option<f32>,
-    pub kw_consuption: Option<f32>,
-}
-
 impl Price {
-    pub fn new(id: String, source: String) -> Self {
-        Self {
-            id,
-            source,
-            ..Default::default()
-        }
-    }
-}
-
-impl Consumption {
     pub fn new(id: String, source: String) -> Self {
         Self {
             id,
@@ -175,16 +138,7 @@ impl URLResource for LinkId {
         self.url.clone()
     }
 }
-pub trait ConsumptionsT {
-    fn get_id(&self) -> String;
-    fn source(&self) -> String;
-    fn make(&self) -> String;
-    fn model(&self) -> String;
-    fn year(&self) -> u16;
-    fn co2_emission(&self) -> u32;
-    fn fuel_consumption(&self) -> Option<f32>;
-    fn kw_consuption(&self) -> Option<f32>;
-}
+
 pub trait DetailsT {
     fn get_id(&self) -> String;
     fn source(&self) -> String;
@@ -193,6 +147,11 @@ pub trait DetailsT {
     fn seller_name(&self) -> String;
     fn equipment(&self) -> String;
     fn seller_url(&self) -> String;
+    fn consumption_fuel(&self) -> f32;
+    fn consumption_kw(&self) -> f32;
+    fn co2(&self) -> u32;
+    fn range(&self) -> u32;
+    fn days_in_sale(&self) -> Option<u32>;
 }
 
 pub trait ChangeLogT {
@@ -293,7 +252,6 @@ where
         }
 
         BaseVehicleInfo {
-            // Assuming `BaseVehicleInfo` has these fields. You need to adjust according to the actual struct fields.
             id: item.id(),
             source: item.source(),
             make,
@@ -301,7 +259,7 @@ where
             title: item.title(),
             currency: item.currency(),
             price: item.price(),
-            millage: item.millage(),
+            mileage: item.millage(),
             month: item.month(),
             year: item.year(),
             engine: item.engine(),
@@ -336,42 +294,6 @@ where
     }
 }
 
-impl<T> From<T> for Consumption
-where
-    T: ConsumptionsT,
-{
-    fn from(item: T) -> Self {
-        Consumption {
-            // Assuming `Consumption` has these fields. You need to adjust according to the actual struct fields.
-            id: item.get_id(),
-            source: item.source(),
-            make: item.make(),
-            model: item.model(),
-            year: item.year(),
-            co2_emission: 0,
-            fuel_consumption: None,
-            kw_consuption: None,
-        }
-    }
-}
-impl<T> From<T> for VehicleChangeLogInfo
-where
-    T: ChangeLogT,
-{
-    fn from(record: T) -> Self {
-        Self {
-            id: record.get_id(),
-            source: record.source(),
-            published_on: record.published_on(),
-            last_modified_on: record.last_modified_on(),
-            last_modified_message: record.last_modified_message(),
-            days_in_sale: record.days_in_sale(),
-            sold: record.sold(),
-            promoted: record.promoted(),
-        }
-    }
-}
-
 impl<T> From<T> for DetailedVehicleInfo
 where
     T: DetailsT,
@@ -384,6 +306,11 @@ where
             seller_name: record.seller_name(),
             equipment: record.equipment(),
             seller_url: record.seller_url(),
+            consumption_fuel: record.consumption_fuel(),
+            consumption_kw: record.consumption_kw(),
+            co2: record.co2(),
+            range: record.range(),
+            days_in_sale: record.days_in_sale(),
         }
     }
 }

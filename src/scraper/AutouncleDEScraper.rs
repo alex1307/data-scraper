@@ -23,20 +23,20 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone)]
-pub struct AutouncleCHScraper {
+pub struct AutouncleDEScraper {
     pub parent: Scraper,
 }
 
-impl AutouncleCHScraper {
+impl AutouncleDEScraper {
     pub fn new(url: &str, wait_time_ms: u64) -> Self {
-        AutouncleCHScraper {
+        AutouncleDEScraper {
             parent: Scraper::new(url, "page".to_string(), wait_time_ms),
         }
     }
 }
 
 #[async_trait]
-impl ScrapeListTrait<CarData> for AutouncleCHScraper {
+impl ScrapeListTrait<CarData> for AutouncleDEScraper {
     async fn process_listed_results(
         &self,
         search: Search,
@@ -71,7 +71,7 @@ impl ScrapeListTrait<CarData> for AutouncleCHScraper {
     }
 }
 #[async_trait]
-impl ScraperTrait for AutouncleCHScraper {
+impl ScraperTrait for AutouncleDEScraper {
     async fn get_html(&self, search: Search, page: u32) -> Result<String, String> {
         let url = self.get_search_url(search, page);
         self.parent.html_search(&url, None).await
@@ -102,14 +102,14 @@ mod autouncle_test {
 
     use log::info;
 
-    use crate::{constants::URL::AUTOUNCLE_CH_URL, utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{constants::URL::AUTOUNCLE_DE_URL, utils::helpers::configure_log4rs, LOG_CONFIG};
 
     use super::*;
 
     #[test]
     fn test_get_number_of_pages() {
         configure_log4rs(&LOG_CONFIG);
-        let autouncle = AutouncleCHScraper::new(AUTOUNCLE_CH_URL, 0);
+        let autouncle = AutouncleDEScraper::new(AUTOUNCLE_DE_URL, 0);
         let start = Instant::now();
         let content = fs::read_to_string("resources/test-data/autouncle/2.html").unwrap();
         let number = autouncle.total_number(&content).unwrap();

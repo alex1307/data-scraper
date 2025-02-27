@@ -40,6 +40,11 @@ message DetailedVehicleInfo {
     string equipment = 4;
     string seller_name = 5;
     string seller_url = 6;
+    uint32 range = 7;
+    float consumption_fuel = 8;
+    float consumption_kw = 9;
+    uint32 co2 = 10;
+    uint32 days_in_sale = 11;
 }
 
 message Price {

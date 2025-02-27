@@ -101,7 +101,7 @@ impl ScrapeListTrait<MobileRecord> for CarsBGScraper {
             info!("*** Waiting 30 seconds ***");
             sleep(Duration::from_secs(30)).await;
         }
-        let waiting_time_ms: u64 = rand::thread_rng().gen_range(1_000..3_000);
+        let waiting_time_ms: u64 = rand::rng().random_range(1_000..3_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
 
         Ok(ScrapedListData::Values(vehicles))

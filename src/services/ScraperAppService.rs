@@ -5,9 +5,9 @@ use serde::Serialize;
 
 use crate::{
     model::{
-        AutoUncleVehicle::AutoUncleVehicle,
+        AutouncleJsonModel::CarData,
         Search::Search,
-        VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT},
+        VehicleDataModel::{BasicT, DetailsT, DownloadStatus, PriceT},
     },
     scraper::{
         AutouncleFRScraper::AutouncleFRScraper,
@@ -76,10 +76,9 @@ pub async fn download_autouncle_data<S>(
     searches: Vec<Search>, // Same issue with U
 ) -> Result<(), String>
 where
-    S: ScraperTrait + ScrapeListTrait<AutoUncleVehicle> + Clone + Send + 'static,
+    S: ScraperTrait + ScrapeListTrait<CarData> + Clone + Send + 'static,
 {
-    let (mut data_producer, mut data_receiver) =
-        tokio::sync::mpsc::channel::<AutoUncleVehicle>(1000);
+    let (mut data_producer, mut data_receiver) = tokio::sync::mpsc::channel::<CarData>(1000);
 
     let start_handler =
         tokio::spawn(
@@ -102,7 +101,7 @@ pub async fn download_list_data<S, T>(
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
-    T: BasicT + DetailsT + PriceT + ChangeLogT + Send + Serialize + Clone + Debug + 'static,
+    T: BasicT + DetailsT + PriceT + Send + Serialize + Clone + Debug + 'static,
 {
     let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<T>(250);
 

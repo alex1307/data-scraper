@@ -1,5 +1,7 @@
 pub mod AutouncleCHScraper;
+pub mod AutouncleDEScraper;
 pub mod AutouncleFRScraper;
+pub mod AutouncleITScraper;
 pub mod AutouncleNLScraper;
 pub mod AutounclePLScraper;
 pub mod AutouncleROScraper;

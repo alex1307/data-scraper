@@ -15,17 +15,16 @@ use crate::{
     kafka::{
         broker,
         KafkaProducer::{encode_message, message2kafka, send_message},
-        BASE_INFO_TOPIC, CHANGE_LOG_TOPIC, DETAILS_TOPIC, PRICE_TOPIC,
+        BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC,
     },
     model::{
         traits::{Identity, URLResource},
-        AutoUncleVehicle,
+        AutouncleJsonModel::CarData,
         Search::Search,
         VehicleDataModel::{
             BaseVehicleInfo, BasicT, ChangeLogT, DetailedVehicleInfo, DetailsT, DownloadStatus,
-            Price, PriceT, ScrapedListData, VehicleChangeLogInfo,
+            Price, PriceT, ScrapedListData,
         },
-        VehicleRecord::MobileRecord,
     },
     protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
@@ -49,7 +48,7 @@ pub async fn process_list<S, T>(
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
-    T: Send + BasicT + DetailsT + PriceT + ChangeLogT + Send + Clone + Serialize + Debug + 'static,
+    T: Send + BasicT + DetailsT + PriceT + Send + Clone + Serialize + Debug + 'static,
 {
     let mut handlers = vec![];
     for search in searches {
@@ -90,7 +89,7 @@ async fn download_all_found_results<S, T>(
 ) -> DownloadStatus
 where
     S: Send + ScraperTrait + ScrapeListTrait<T> + Clone + 'static,
-    T: Send + BasicT + DetailsT + PriceT + ChangeLogT + Clone + Serialize + Debug + 'static,
+    T: Send + BasicT + DetailsT + PriceT + Clone + Serialize + Debug + 'static,
 {
     let uuid = Uuid::new_v4().to_string();
 
@@ -209,7 +208,7 @@ where
     Ok(())
 }
 
-pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT + ChangeLogT>(
+pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT>(
     data_receiver: &mut Receiver<T>,
 ) -> Result<u32, String> {
     let mut counter = 0;
@@ -224,23 +223,18 @@ pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT + ChangeLogT>(
                 let basic_info = BaseVehicleInfo::from(data.clone());
                 let detais_info = DetailedVehicleInfo::from(data.clone());
                 let price_info = Price::from(data.clone());
-                let log_change_info = VehicleChangeLogInfo::from(data.clone());
 
                 let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
                 let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
                 let price_data = protos::vehicle_model::Price::from(price_info);
-                let log_change_data =
-                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
 
                 let basic_encoded_message = encode_message(&basic_data).unwrap();
                 let details_encoded_message = encode_message(&details_data).unwrap();
                 let price_encoded_message = encode_message(&price_data).unwrap();
-                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
 
                 send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
                 send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
                 send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
-                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
 
                 counter += 1;
             }
@@ -261,9 +255,7 @@ pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT + ChangeLogT>(
     Ok(counter)
 }
 
-pub async fn send_mobilerecord_data(
-    data_receiver: &mut Receiver<MobileRecord>,
-) -> Result<(), String> {
+pub async fn send_autonucle_kafka(data_receiver: &mut Receiver<CarData>) -> Result<(), String> {
     let mut counter = 0;
     let mut wait_counter = 0;
     let broker = broker();
@@ -275,76 +267,18 @@ pub async fn send_mobilerecord_data(
                 let basic_info = BaseVehicleInfo::from(data.clone());
                 let detais_info = DetailedVehicleInfo::from(data.clone());
                 let price_info = Price::from(data.clone());
-                let log_change_info = VehicleChangeLogInfo::from(data.clone());
 
                 let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
                 let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
                 let price_data = protos::vehicle_model::Price::from(price_info);
-                let log_change_data =
-                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
 
                 let basic_encoded_message = encode_message(&basic_data).unwrap();
                 let details_encoded_message = encode_message(&details_data).unwrap();
                 let price_encoded_message = encode_message(&price_data).unwrap();
-                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
 
                 send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
                 send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
                 send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
-                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
-
-                counter += 1;
-            }
-
-            Ok(None) => {
-                info!("No more records to process. Total processed: {}", counter);
-                break;
-            }
-            Err(e) => {
-                wait_counter += 1;
-                if wait_counter == 5 {
-                    error!("Timeout receiving link: {}", e);
-                    continue;
-                }
-                debug!("Waiting for links to process");
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn send_autonucle_kafka(
-    data_receiver: &mut Receiver<AutoUncleVehicle::AutoUncleVehicle>,
-) -> Result<(), String> {
-    let mut counter = 0;
-    let mut wait_counter = 0;
-    let broker = broker();
-    let producer = crate::kafka::KafkaProducer::create_producer(&broker);
-    loop {
-        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
-            Ok(Some(data)) => {
-                wait_counter = 0;
-                let basic_info = BaseVehicleInfo::from(data.clone());
-                let detais_info = DetailedVehicleInfo::from(data.clone());
-                let price_info = Price::from(data.clone());
-                let log_change_info = VehicleChangeLogInfo::from(data.clone());
-
-                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
-                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
-                let price_data = protos::vehicle_model::Price::from(price_info);
-                let log_change_data =
-                    protos::vehicle_model::VehicleChangeLogInfo::from(log_change_info);
-
-                let basic_encoded_message = encode_message(&basic_data).unwrap();
-                let details_encoded_message = encode_message(&details_data).unwrap();
-                let price_encoded_message = encode_message(&price_data).unwrap();
-                let log_change_encoded_message = encode_message(&log_change_data).unwrap();
-
-                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
-                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
-                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
-                send_message(&producer, CHANGE_LOG_TOPIC, log_change_encoded_message).await;
 
                 counter += 1;
             }
