@@ -1,10 +1,8 @@
 use std::time::Duration;
 
 use crate::{
-    helpers::AutoUncleHelper::get_vehicles,
-    model::{
-        AutoUncleVehicle::AutoUncleVehicle, Search::Search, VehicleDataModel::ScrapedListData,
-    },
+    helpers::AutoUncleHelper::process_html,
+    model::{AutouncleJsonModel::CarData, Search::Search, VehicleDataModel::ScrapedListData},
     BROWSER_USER_AGENT,
 };
 
@@ -38,14 +36,14 @@ impl AutouncleROScraper {
 }
 
 #[async_trait]
-impl ScrapeListTrait<AutoUncleVehicle> for AutouncleROScraper {
+impl ScrapeListTrait<CarData> for AutouncleROScraper {
     async fn process_listed_results(
         &self,
         search: Search,
         page_number: u32,
-    ) -> Result<ScrapedListData<AutoUncleVehicle>, String> {
+    ) -> Result<ScrapedListData<CarData>, String> {
         let html = self.get_html(search.clone(), page_number).await?;
-        let mut vehicles = get_vehicles(&html);
+        let mut vehicles = process_html(&html);
         if vehicles.is_empty() {
             if html.to_lowercase().contains("too many requests")
                 || html.to_lowercase().contains(r#""429""#)
@@ -67,7 +65,7 @@ impl ScrapeListTrait<AutoUncleVehicle> for AutouncleROScraper {
             v.searchId = search.clone().hash;
         }
 
-        let waiting_time_ms: u64 = rand::thread_rng().gen_range(5_000..8_000);
+        let waiting_time_ms: u64 = rand::rng().random_range(5_000..8_000);
         sleep(Duration::from_millis(waiting_time_ms as u64)).await;
         Ok(ScrapedListData::Values(vehicles))
     }

@@ -87,7 +87,7 @@ pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
     let document = Html::parse_document(html);
     let selector = Selector::parse("div.mdc-card.offer-item").unwrap();
     let modelSelector = Selector::parse("div.card__primary > h5").unwrap();
-
+    let regex = &regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]");
     // Find the <h5> element with the specified classes within <div class="card__primary">
     for element in document.select(&selector) {
         let txt = element.inner_html();
@@ -109,11 +109,7 @@ pub fn get_vehicles(html: &str) -> Vec<MobileRecord> {
             let txt = make_model_element.text().collect::<Vec<_>>().join("");
             let mut make_model = txt.split_whitespace().collect::<Vec<_>>();
             if let Some(last) = make_model.last() {
-                if last.ends_with("...")
-                    || regex::Regex::new(r"[\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F]")
-                        .unwrap()
-                        .is_match(last)
-                {
+                if last.ends_with("...") || regex.as_ref().unwrap().is_match(last) {
                     make_model.pop();
                 }
             }

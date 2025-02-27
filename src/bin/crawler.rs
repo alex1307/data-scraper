@@ -1,14 +1,14 @@
 use std::fmt::Debug;
 
 use data_scraper::constants::URL::{
-    AUTOUNCLE_CH_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_NL_URL, AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL,
-    CARS_BG_URL, MOBILE_BG_URL,
+    AUTOUNCLE_CH_URL, AUTOUNCLE_DE_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_IT_URL, AUTOUNCLE_NL_URL,
+    AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL, CARS_BG_URL, MOBILE_BG_URL,
 };
 use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
 use data_scraper::kafka::{broker, MOBILE_DE_TOPIC};
 
 use data_scraper::model::Search::Search;
-use data_scraper::model::VehicleDataModel::{BasicT, ChangeLogT, DetailsT, DownloadStatus, PriceT};
+use data_scraper::model::VehicleDataModel::{BasicT, DetailsT, DownloadStatus, PriceT};
 use data_scraper::scraper::AutouncleCHScraper::AutouncleCHScraper;
 use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
 use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
@@ -16,8 +16,9 @@ use data_scraper::scraper::AutounclePLScraper::AutounclePLScraper;
 use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
 use data_scraper::services::ExchangeRateService::sync_exchange_rates;
 use data_scraper::services::SearchBuilder::{
-    build_autouncle_searches, CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_PL, ID_AUTOUNCLE_CH_START,
-    ID_AUTOUNCLE_FR, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START,
+    build_autouncle_searches, CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT,
+    CRAWLER_AUTOUNCLE_PL, ID_AUTOUNCLE_CH_START, ID_AUTOUNCLE_DE_START, ID_AUTOUNCLE_FR,
+    ID_AUTOUNCLE_IT_START, ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START,
     ID_CARS_BG_START, ID_MOBILE_BG_START,
 };
 use data_scraper::LOG_CONFIG;
@@ -165,6 +166,28 @@ async fn run_crawler(crawler: String, threads: usize) {
         let searches = searches.chunks(threads);
         info!("Starting autouncle.pl with #{} searches", searches.len());
         log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_DE {
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleCHScraper::new(AUTOUNCLE_DE_URL, 250);
+        let searches = searches.chunks(threads);
+        info!("Starting autouncle.pl with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
+    } else if crawler == CRAWLER_AUTOUNCLE_IT {
+        let filter = if let Some(found) = map.get(&crawler) {
+            found.to_vec()
+        } else {
+            vec![]
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleCHScraper::new(AUTOUNCLE_IT_URL, 250);
+        let searches = searches.chunks(threads);
+        info!("Starting autouncle.pl with #{} searches", searches.len());
+        log_and_search(searches, crawler).await;
     } else if crawler == CRAWLER_CARS_BG {
         let filter = if let Some(found) = map.get(&crawler) {
             found.to_vec()
@@ -194,6 +217,12 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
         CRAWLER_AUTOUNCLE_PL => {
             build_autouncle_searches(AUTOUNCLE_PL_URL, "[5]", ID_AUTOUNCLE_PL_START)
         }
+        CRAWLER_AUTOUNCLE_DE => {
+            build_autouncle_searches(AUTOUNCLE_DE_URL, "[5]", ID_AUTOUNCLE_DE_START)
+        }
+        CRAWLER_AUTOUNCLE_IT => {
+            build_autouncle_searches(AUTOUNCLE_IT_URL, "[5]", ID_AUTOUNCLE_IT_START)
+        }
         CRAWLER_CARS_BG => build_cars_bg_all_searches(CARS_BG_URL, ID_CARS_BG_START),
         CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),
 
@@ -222,7 +251,7 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
 async fn log_and_search<S, T>(searches: std::slice::Chunks<'_, Search>, crawler: S)
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
-    T: BasicT + DetailsT + PriceT + ChangeLogT + Send + Serialize + Clone + Debug + 'static,
+    T: BasicT + DetailsT + PriceT + Send + Serialize + Clone + Debug + 'static,
 {
     let mut listed = 0;
     let mut actual = 0;

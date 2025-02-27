@@ -1,58 +1,45 @@
 use crate::model::VehicleDataModel::{self, LinkId};
 
-use super::vehicle_model::{
-    BaseVehicleInfo, Consumption, DetailedVehicleInfo, DownloadStatus, Id, Price,
-    VehicleChangeLogInfo,
-};
+use super::vehicle_model::{BaseVehicleInfo, DetailedVehicleInfo, DownloadStatus, Id, Price};
 
 impl From<VehicleDataModel::BaseVehicleInfo> for BaseVehicleInfo {
-    fn from(base_vehicle_info: VehicleDataModel::BaseVehicleInfo) -> Self {
+    fn from(source: VehicleDataModel::BaseVehicleInfo) -> Self {
         Self {
-            id: base_vehicle_info.id,
-            source: base_vehicle_info.source,
-            make: base_vehicle_info.make,
-            model: base_vehicle_info.model,
-            title: base_vehicle_info.title,
-            currency: base_vehicle_info.currency.to_string(),
-            price: base_vehicle_info.price.unwrap_or(0),
-            millage: base_vehicle_info.millage.unwrap_or(0),
-            month: base_vehicle_info.month.unwrap_or(0) as u32,
-            year: base_vehicle_info.year as u32,
-            engine: base_vehicle_info.engine.to_string(),
-            gearbox: base_vehicle_info.gearbox.to_string(),
-            cc: base_vehicle_info.cc,
-            power_ps: base_vehicle_info.power_ps,
-            power_kw: base_vehicle_info.power_kw,
-            search_id: base_vehicle_info.search_id,
-            url: base_vehicle_info.url,
+            id: format!("{}-{}", source.id, source.source),
+            source: source.source,
+            make: source.make,
+            model: source.model,
+            title: source.title,
+            currency: source.currency.to_string(),
+            price: source.price.unwrap_or(0),
+            millage: source.mileage.unwrap_or(0),
+            month: source.month.unwrap_or(0) as u32,
+            year: source.year as u32,
+            engine: source.engine.to_string(),
+            gearbox: source.gearbox.to_string(),
+            cc: source.cc,
+            power_ps: source.power_ps,
+            power_kw: source.power_kw,
+            search_id: source.search_id,
+            url: source.url,
         }
     }
 }
 
 impl From<VehicleDataModel::DetailedVehicleInfo> for DetailedVehicleInfo {
-    fn from(detailed_vehicle_info: VehicleDataModel::DetailedVehicleInfo) -> Self {
+    fn from(source: VehicleDataModel::DetailedVehicleInfo) -> Self {
         Self {
-            id: detailed_vehicle_info.id,
-            source: detailed_vehicle_info.source,
-            location: detailed_vehicle_info.location,
-            equipment: detailed_vehicle_info.equipment,
-            seller_name: detailed_vehicle_info.seller_name,
-            seller_url: detailed_vehicle_info.seller_url,
-        }
-    }
-}
-
-impl From<VehicleDataModel::VehicleChangeLogInfo> for VehicleChangeLogInfo {
-    fn from(source: VehicleDataModel::VehicleChangeLogInfo) -> Self {
-        Self {
-            id: source.id,
+            id: format!("{}-{}", source.id, source.source),
             source: source.source,
-            published_on: source.published_on,
-            last_modified_on: source.last_modified_on,
-            last_modified_message: source.last_modified_message,
+            location: source.location,
+            equipment: source.equipment,
+            seller_name: source.seller_name,
+            seller_url: source.seller_url,
+            consumption_fuel: source.consumption_fuel,
+            consumption_kw: source.consumption_kw,
+            co2: source.co2,
+            range: source.range,
             days_in_sale: source.days_in_sale.unwrap_or(0),
-            sold: source.sold,
-            promoted: source.promoted,
         }
     }
 }
@@ -60,7 +47,7 @@ impl From<VehicleDataModel::VehicleChangeLogInfo> for VehicleChangeLogInfo {
 impl From<VehicleDataModel::Price> for Price {
     fn from(source: VehicleDataModel::Price) -> Self {
         Self {
-            id: source.id,
+            id: format!("{}-{}", source.id, source.source),
             source: source.source,
             price: source.price,
             currency: source.currency.to_string(),
@@ -70,20 +57,6 @@ impl From<VehicleDataModel::Price> for Price {
             ranges: source.ranges.unwrap_or("[]".to_string()),
             rating: source.rating.unwrap_or("".to_string()),
             thresholds: source.thresholds,
-        }
-    }
-}
-impl From<VehicleDataModel::Consumption> for Consumption {
-    fn from(source: VehicleDataModel::Consumption) -> Self {
-        Self {
-            id: source.id,
-            source: source.source,
-            fuel_consumption: source.fuel_consumption.unwrap_or(0.0),
-            make: source.make,
-            model: source.model,
-            year: source.year as u32,
-            co2_emission: source.co2_emission,
-            kw_consuption: source.kw_consuption.unwrap_or(0.0),
         }
     }
 }

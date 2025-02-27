@@ -182,6 +182,6 @@ impl Scraper {
     }
 
     pub fn waiting_time(&self) -> u64 {
-        rand::thread_rng().gen_range(1_000..3_000)
+        rand::rng().random_range(1_000..3_000)
     }
 }

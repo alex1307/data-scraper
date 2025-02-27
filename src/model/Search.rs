@@ -112,6 +112,5 @@ fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {
     let toYear = params.get(MOBILE_BG_YEARS_TO).unwrap();
 
     let url = url.replace("{yearFrom}", fromYear);
-    let url = url.replace("{yearTo}", toYear);
-    url
+    url.replace("{yearTo}", toYear)
 }

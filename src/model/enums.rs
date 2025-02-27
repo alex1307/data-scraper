@@ -1,8 +1,8 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, VehicleChangeLogInfo};
+use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
@@ -109,21 +109,21 @@ impl ToString for Gearbox {
     }
 }
 
-impl ToString for Engine {
-    fn to_string(&self) -> String {
+impl Display for Engine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Engine::Petrol => "Petrol".to_string(),
-            Engine::Diesel => "Diesel".to_string(),
-            Engine::PluginHybrid => "Plug-in-hybrid".to_string(),
-            Engine::Electric => "Electric".to_string(),
-            Engine::Hybrid => "Hybrid".to_string(),
-            Engine::LPG => "LPG".to_string(),
-            Engine::CNG => "CNG".to_string(),
-            Engine::HybridPetrol => "Hybrid-petrol".to_string(),
-            Engine::HybridDiesel => "Hybrid-diesel".to_string(),
-            Engine::PlugInHybridPetrol => "Plug-in-hybrid-petrol".to_string(),
-            Engine::PlugInHybridDiesel => "Plug-in-hybrid-diesel".to_string(),
-            Engine::NotAvailable => "NotFound".to_string(),
+            Engine::Petrol => write!(f, "Petrol"),
+            Engine::Diesel => write!(f, "Diesel"),
+            Engine::Hybrid => write!(f, "Hybrid"),
+            Engine::LPG => write!(f, "LPG"),
+            Engine::CNG => write!(f, "CNG"),
+            Engine::HybridPetrol => write!(f, "HybridPetrol"),
+            Engine::HybridDiesel => write!(f, "HybridDiesel"),
+            Engine::Electric => write!(f, "Electric"),
+            Engine::PlugInHybridPetrol => write!(f, "PlugInHybridPetrol"),
+            Engine::PlugInHybridDiesel => write!(f, "PlugInHybridDiesel"),
+            Engine::PluginHybrid => write!(f, "PluginHybrid"),
+            Engine::NotAvailable => write!(f, "NotAvailable"),
         }
     }
 }
@@ -180,6 +180,8 @@ impl FromStr for Engine {
             "el_diesel" => Ok(Engine::HybridDiesel),
             "hybrid diesel" => Ok(Engine::HybridDiesel),
             "plug-in hybrid petrol" => Ok(Engine::PlugInHybridPetrol),
+            "hybrid (petrol/electric)" => Ok(Engine::PlugInHybridPetrol),
+            "hybrid (diesel/electric)" => Ok(Engine::PlugInHybridDiesel),
             "plug-in hybrid diesel" => Ok(Engine::PlugInHybridDiesel),
             "el" => Ok(Engine::Electric),
             "cng_hybrid" => Ok(Engine::Hybrid),
@@ -248,5 +250,4 @@ pub enum MessageType {
     BaseVehicleInfo(BaseVehicleInfo),
     DetailedVehicleInfo(DetailedVehicleInfo),
     PriceCalculator(Price),
-    VehicleChangeLogInfo(VehicleChangeLogInfo),
 }

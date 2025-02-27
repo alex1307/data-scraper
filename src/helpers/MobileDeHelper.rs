@@ -102,7 +102,7 @@ mod mobile_de_tests {
             .items
             .iter()
             .for_each(
-                |item| match VehicleDataModel::Consumption::try_from(item.clone()) {
+                |item| match VehicleDataModel::DetailedVehicleInfo::try_from(item.clone()) {
                     Ok(base) => {
                         info!("{:?}", base);
                     }
@@ -111,18 +111,6 @@ mod mobile_de_tests {
                     }
                 },
             );
-        //info!("{:?}", json);
-        // content = content.replace('\u{2009}', " ");
-        // content = content.replace('\u{a0}', "");
-        // info!("{:?}", content.len());
-        // if let Some(start_idx) = content.find("window.__INITIAL_STATE__ = ") {
-        //     let start_idx = start_idx + "window.__INITIAL_STATE__ = ".len();
-        //     if let Some(end_idx) = content.find("window.__PUBLIC_CONFIG__") {
-        //         let json = &content[start_idx..end_idx];
-        //         let json = serde_json::from_str::<MobileDeResults>(json).unwrap();
-        //         info!("{:?}", json);
-        //     }
-        // }
     }
 
     #[test]

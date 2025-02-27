@@ -9,7 +9,7 @@ use crate::helpers::{
 use super::{
     enums::{Currency, Engine, Gearbox},
     traits::{Header, Identity},
-    VehicleDataModel::{BasicT, ChangeLogT, DetailsT, PriceT},
+    VehicleDataModel::{BasicT, DetailsT, PriceT},
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -162,32 +162,24 @@ impl DetailsT for MobileRecord {
     fn seller_url(&self) -> String {
         self.dealer_url.clone()
     }
-}
 
-impl ChangeLogT for MobileRecord {
-    fn get_id(&self) -> String {
-        self.id.clone()
+    fn consumption_fuel(&self) -> f32 {
+        0.0
     }
-    fn source(&self) -> String {
-        self.source.clone()
+
+    fn consumption_kw(&self) -> f32 {
+        0.0
     }
-    fn published_on(&self) -> String {
-        self.created_on.clone()
+
+    fn co2(&self) -> u32 {
+        0
     }
-    fn last_modified_on(&self) -> String {
-        self.updated_on.clone()
-    }
-    fn last_modified_message(&self) -> String {
-        "".to_string()
+
+    fn range(&self) -> u32 {
+        0
     }
     fn days_in_sale(&self) -> Option<u32> {
         None
-    }
-    fn sold(&self) -> bool {
-        self.sold
-    }
-    fn promoted(&self) -> bool {
-        self.vip
     }
 }
 

@@ -1,5 +1,7 @@
-pub mod AutoUncleVehicle;
+pub mod AutouncleJsonModel;
+pub mod DataConversionError;
 pub mod MobileDe;
+pub mod MobileDeAdvJson;
 pub mod Search;
 pub mod VehicleDataModel;
 pub mod VehicleRecord;

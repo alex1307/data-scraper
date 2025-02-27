@@ -48,7 +48,9 @@ pub async fn getRates(currency: Currency) -> Result<EurExchangeRate, String> {
         "/currencyconverter/convert/?Amount=1&amp;From={}&amp;To=EUR",
         currency.to_string()
     );
+
     for tr_element in document.select(&a_element) {
+        log::info!("tr_element: {:?}", tr_element.inner_html());
         if tr_element.inner_html().contains(&link) {
             let td_elements = Selector::parse("td").unwrap();
             let rate = tr_element
@@ -57,7 +59,7 @@ pub async fn getRates(currency: Currency) -> Result<EurExchangeRate, String> {
                 .unwrap()
                 .inner_html()
                 .chars()
-                .filter(|c| c.is_digit(10) || c == &'.')
+                .filter(|c| c.is_ascii_digit() || c == &'.')
                 .collect::<String>();
             println!("Rate: {}", rate);
 

@@ -9,6 +9,8 @@ pub mod scraper;
 pub mod services;
 pub mod utils;
 pub mod writer;
+#[macro_use]
+mod macros;
 
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
