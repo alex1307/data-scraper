@@ -18,4 +18,5 @@ Cargo.lock
 */.DS_Store
 .VSCodeCounter/*
 /resources/*
+/data/*
 ```
