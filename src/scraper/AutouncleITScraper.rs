@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crate::{
+    BROWSER_USER_AGENT,
     helpers::AutoUncleHelper::process_html,
     model::{AutouncleJsonModel::CarData, Search::Search, VehicleDataModel::ScrapedListData},
-    BROWSER_USER_AGENT,
 };
 
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
@@ -102,7 +102,7 @@ mod autouncle_test {
 
     use log::info;
 
-    use crate::{constants::URL::AUTOUNCLE_IT_URL, utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{LOG_CONFIG, constants::URL::AUTOUNCLE_IT_URL, utils::helpers::configure_log4rs};
 
     use super::*;
 

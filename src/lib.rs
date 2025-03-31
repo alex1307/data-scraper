@@ -36,7 +36,7 @@ pub const ENGINE_TXT: &str = "Тип двигател";
 pub const MILLAGE_TXT: &str = "Пробег";
 pub const YEAR_TXT: &str = "Дата на производство";
 
-pub const BROWSER_USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15";
+pub const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15";
 
 pub const SPECIAL_MAKES: [&str; 9] = [
     "Aston Martin",
@@ -57,61 +57,16 @@ lazy_static! {
     pub static ref CONFIG: AppConfig = AppConfig::from_file("config/config.yml");
     pub static ref LOG_CONFIG: String = format!("{}/meta_log4rs.yml", CONFIG.get_log4rs_config());
     pub static ref CREATED_ON: String = NOW.format(DATE_FORMAT).to_string();
-    pub static ref ARCHIVE_FILE_NAME: String =
-        format!("{}/vehicle.archive.csv", CONFIG.get_data_dir());
-    pub static ref MOBILE_BG_FILE_NAME: String = format!(
-        "{}/mobile-bg-vehicle-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref MOBILE_BG_SEARCH_FILE_NAME: String = format!(
-        "{}/mobile-bg-vehicle-search{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_NEW_SEARCH_FILE_NAME: String = format!(
-        "{}/cars-bg-vehicle-search{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref MOBILE_BG_NEW_SEARCHES_LOG: String = format!(
-        "resources/searches/mobile_bg_new_search_log_{}.json",
-        CREATED_ON.clone()
-    );
-    pub static ref MOBILE_BG_ALL_SEARCHES_LOG: String = format!(
-        "resources/searches/mobile_bg_new_search_log_{}.json",
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_NEW_SEARCHES_LOG: String = format!(
-        "resources/searches/cars_bg_new_search_log_{}.json",
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_ALL_SEARCHES_LOG: String = format!(
-        "resources/searches/cars_bg_new_search_log_{}.json",
-        CREATED_ON.clone()
-    );
-    pub static ref AUTOUNCLE_ALL_SEARCHES_LOG: String = format!(
-        "resources/searches/autouncle_all_search_log_{}.json",
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_UPDATED_VEHICLES_FILE_NAME: String = format!(
-        "{}/cars-bg-updated-vehicle-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref CARS_BG_ALL_FILE_NAME: String = format!(
-        "{}/cars-bg-all-data-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref MOBILE_BG_ALL_FILE_NAME: String = format!(
-        "{}/mobile-bg-all-data-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
-    pub static ref MOBILE_BG_ALL_SEARCH_FILE_NAME: String = format!(
-        "{}/mobile-bg-all-search-{}.csv",
-        CONFIG.get_data_dir(),
-        CREATED_ON.clone()
-    );
+    pub static ref BASE_INFO_CSV_FILE_NAME: String =
+        format!("data/vehicles-info-{}.csv", CREATED_ON.clone());
+    pub static ref DETAILS_CSV_NAME: String =
+        format!("data/details-info-{}.csv", CREATED_ON.clone());
+    pub static ref PRICES_CSV_FILE_NAME: String =
+        format!("data/prices-info-{}.csv", CREATED_ON.clone());
+    pub static ref BASE_INFO_PROTOBUF_FILE_NAME: String =
+        format!("data/vehicles-info-{}.bin", CREATED_ON.clone());
+    pub static ref DETAILS_PROTOBUF_NAME: String =
+        format!("data/details-info-{}.bin", CREATED_ON.clone());
+    pub static ref PRICES_PROTOBUF_FILE_NAME: String =
+        format!("data/prices-info-{}.binpb", CREATED_ON.clone());
 }

@@ -25,3 +25,4 @@ docker build -t crawler . --progress=plain
 docker exec -it docker-env-kafka-1 bash ./init-kafka.sh
 
 env KAFKA_BROKER=localhost:9094 cargo run -- exchange-rate
+env KAFKA_BROKER=localhost:9094 cargo run -- scrape autouncle.pl

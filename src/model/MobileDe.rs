@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::{ok_or_default, ok_or_err, unwrap_or_empty, unwrap_or_err};
 
 use super::{
-    enums::{Currency, Engine, Gearbox},
     DataConversionError::ConversionError,
     VehicleDataModel,
+    enums::{Currency, Engine, Gearbox},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -495,12 +495,12 @@ mod test_mobile_de {
         use std::{fs::File, io::Read};
 
         use crate::{
+            LOG_CONFIG,
             model::{
                 MobileDe::MobileDeResults,
                 VehicleDataModel::{self, BaseVehicleInfo},
             },
             utils::helpers::configure_log4rs,
-            LOG_CONFIG,
         };
 
         use super::*;

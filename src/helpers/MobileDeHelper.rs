@@ -38,13 +38,13 @@ mod mobile_de_tests {
     use log::info;
 
     use crate::{
+        LOG_CONFIG,
         helpers::MobileDeHelper::{from_data, parse_html},
         model::{
-            enums::{Engine, Gearbox},
             VehicleDataModel::{self},
+            enums::{Engine, Gearbox},
         },
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
     };
 
     #[test]
@@ -139,7 +139,8 @@ mod mobile_de_tests {
         let attr1 = vec![
             "FR 04/2023 • 8,000km • 215kW(292Hp)",
             "Demonstration Vehicle • SUV / Off-road Vehicle / Pickup Truck • Availability: From Apr 30, 2024 • Electric • Automatic • HU 04/2026 • 4/5 Doors",
-            "18.3 kWh/100km (comb.)* • 0g CO₂/km (comb.)*"];
+            "18.3 kWh/100km (comb.)* • 0g CO₂/km (comb.)*",
+        ];
 
         let attr2 = vec![
             "EZ 06/2018 • 105.800km • 110kW(150PS)",

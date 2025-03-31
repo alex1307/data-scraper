@@ -10,8 +10,8 @@ use regex::Regex;
 use serde::Serialize;
 
 use crate::{
-    model::{enums::SaleType, traits::Header},
     DATE_FORMAT, DETAILS_URL, INIT_LOGGER,
+    model::{enums::SaleType, traits::Header},
 };
 
 pub fn configure_log4rs(file: &str) {
@@ -109,7 +109,7 @@ pub fn create_empty_csv<T: Serialize + Header>(file_path: &str) -> Result<(), Bo
 
 pub mod stream_utils {
 
-    use futures::{stream, Stream, StreamExt};
+    use futures::{Stream, StreamExt, stream};
     use tokio::sync::mpsc::{self, Receiver};
 
     pub fn convert_mpsc_to_stream<T>(rx: &mut Receiver<T>) -> impl Stream<Item = T> + '_ {

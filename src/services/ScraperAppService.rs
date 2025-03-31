@@ -1,4 +1,4 @@
-use std::{fmt::Debug, str::FromStr};
+use std::fmt::Debug;
 
 use log::{error, info};
 use serde::Serialize;
@@ -9,28 +9,9 @@ use crate::{
         Search::Search,
         VehicleDataModel::{BasicT, DetailsT, DownloadStatus, PriceT},
     },
-    scraper::{
-        AutouncleFRScraper::AutouncleFRScraper,
-        AutouncleNLScraper::AutouncleNLScraper,
-        AutouncleROScraper::AutouncleROScraper,
-        CarsBgScraper::CarsBGScraper,
-        MobileBgScraper::MobileBGScraper,
-        Traits::{ScrapeListTrait, ScraperTrait},
-    },
+    scraper::Traits::{ScrapeListTrait, ScraperTrait},
+    writer::sink::SinkType,
 };
-use lazy_static::lazy_static;
-
-lazy_static! {
-    pub static ref MOBILE_BG_CRAWLER: MobileBGScraper =
-        MobileBGScraper::new("https://www.mobile.bg/obiavi/avtomobili-dzhipove", 250);
-    pub static ref CARS_BG_CRAWLER: CarsBGScraper = CarsBGScraper::new("https://www.cars.bg", 250);
-    pub static ref AUTOUNCLE_RO_CRAWLER: AutouncleROScraper =
-        AutouncleROScraper::new("https://www.autouncle.ro/en/cars_search?", 250);
-    pub static ref AUTOUNCLE_NL_CRAWLER: AutouncleNLScraper =
-        AutouncleNLScraper::new("https://www.autouncle.nl/en/cars_search?", 250);
-    pub static ref AUTOUNCLE_FR_CRAWLER: AutouncleFRScraper =
-        AutouncleFRScraper::new("https://www.autouncle.fr/en/cars_search?", 250);
-}
 
 use super::ScraperService::{process_list, send_data};
 
@@ -43,37 +24,10 @@ pub enum Crawlers {
     AutouncleFR(String),
 }
 
-impl FromStr for Crawlers {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "cars.bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
-            "cars_bg" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
-            "cars" => Ok(Crawlers::CarsBG(r#"https://www.cars.bg"#.to_owned())),
-            "mobile.bg" => Ok(Crawlers::MobileBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
-            "mobile_bg" => Ok(Crawlers::MobileBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
-            "mobile" => Ok(Crawlers::MobileBG(
-                r#"https://www.mobile.bg/pcgi/mobile.cgi?"#.to_owned(),
-            )),
-            "autouncle" => Ok(Crawlers::AutouncleRo(
-                r#"https://www.autouncle.ro"#.to_owned(),
-            )),
-            "autouncle.ro" => Ok(Crawlers::AutouncleRo(
-                r#"https://www.autouncle.ro"#.to_owned(),
-            )),
-            _ => Err("Invalid crawler".into()),
-        }
-    }
-}
-
 pub async fn download_autouncle_data<S>(
     scraper: S,
-    searches: Vec<Search>, // Same issue with U
+    searches: Vec<Search>,
+    sink_type: SinkType, // Same issue with U
 ) -> Result<(), String>
 where
     S: ScraperTrait + ScrapeListTrait<CarData> + Clone + Send + 'static,
@@ -84,7 +38,7 @@ where
         tokio::spawn(
             async move { process_list(Box::new(scraper), searches, &mut data_producer).await },
         );
-    let kafka_handler = tokio::spawn(async move { send_data(&mut data_receiver).await });
+    let kafka_handler = tokio::spawn(async move { send_data(&mut data_receiver, sink_type).await });
 
     if let (Ok(_), Ok(_)) = tokio::join!(start_handler, kafka_handler) {
         info!("All tasks completed successfully");
@@ -98,18 +52,20 @@ where
 pub async fn download_list_data<S, T>(
     scraper: S,
     searches: Vec<Search>,
+    sink_type: SinkType,
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
-    T: BasicT + DetailsT + PriceT + Send + Serialize + Clone + Debug + 'static,
+    T: BasicT + DetailsT + PriceT + Send + Sync + Serialize + Clone + Debug + 'static,
 {
     let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<T>(250);
 
     let start_handler =
         tokio::spawn(async move { process_list(Box::new(scraper), searches, &mut producer).await });
-    let send_to_kafka = tokio::spawn(async move { send_data(&mut receiver).await });
 
-    if let (Ok(scraped), Ok(_sent)) = tokio::join!(start_handler, send_to_kafka) {
+    let sink_handler = tokio::spawn(async move { send_data(&mut receiver, sink_type).await });
+
+    if let (Ok(scraped), Ok(_sent)) = tokio::join!(start_handler, sink_handler) {
         if let Ok(statuses) = scraped {
             Ok(statuses)
         } else {

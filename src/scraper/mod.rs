@@ -5,7 +5,6 @@ pub mod AutouncleITScraper;
 pub mod AutouncleNLScraper;
 pub mod AutounclePLScraper;
 pub mod AutouncleROScraper;
-pub mod CarsBgScraper;
 pub mod MobileBgScraper;
 pub mod MobileDeFileScraper;
 pub mod Traits;

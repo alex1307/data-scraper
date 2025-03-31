@@ -78,9 +78,9 @@ mod test {
     use log::info;
 
     use crate::{
+        LOG_CONFIG,
         config::Equipment::{get_equipment_as_u64, get_values_by_equipment_id},
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
     };
 
     use super::EQUIPMENT;
