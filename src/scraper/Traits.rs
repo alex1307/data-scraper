@@ -9,13 +9,13 @@ use rand::Rng;
 use serde::Serialize;
 
 use crate::{
+    BROWSER_USER_AGENT,
     model::{
-        traits::{Identity, URLResource},
         Search::Search,
         VehicleDataModel::ScrapedListData,
+        traits::{Identity, URLResource},
     },
     services::SearchBuilder::EXCLUED,
-    BROWSER_USER_AGENT,
 };
 
 lazy_static! {

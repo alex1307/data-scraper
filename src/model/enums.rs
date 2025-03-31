@@ -98,14 +98,15 @@ pub enum Payload<T> {
     Done,
 }
 
-impl ToString for Gearbox {
-    fn to_string(&self) -> String {
-        match self {
-            Gearbox::Automatic => "Automatic".to_string(),
-            Gearbox::Manual => "Manual".to_string(),
-            Gearbox::Semiautomatic => "Semi-automatic".to_string(),
-            Gearbox::NotAvailable => "NotFound".to_string(),
-        }
+impl Display for Gearbox {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Gearbox::Automatic => "Automatic",
+            Gearbox::Manual => "Manual",
+            Gearbox::Semiautomatic => "Semi-automatic",
+            Gearbox::NotAvailable => "NotFound",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -191,15 +192,16 @@ impl FromStr for Engine {
     }
 }
 
-impl ToString for Currency {
-    fn to_string(&self) -> String {
-        match self {
-            Currency::BGN => "BGN".to_string(),
-            Currency::EUR => "EUR".to_string(),
-            Currency::USD => "USD".to_string(),
-            Currency::CHF => "CHF".to_string(),
-            Currency::PLN => "PLN".to_string(),
-        }
+impl Display for Currency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Currency::BGN => "BGN",
+            Currency::EUR => "EUR",
+            Currency::USD => "USD",
+            Currency::CHF => "CHF",
+            Currency::PLN => "PLN",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -218,13 +220,14 @@ impl FromStr for Currency {
     }
 }
 
-impl ToString for SaleType {
-    fn to_string(&self) -> String {
-        match self {
-            SaleType::INSALE => "INSALE".to_string(),
-            SaleType::SOLD => "SOLD".to_string(),
-            SaleType::NONE => "NONE".to_string(),
-        }
+impl Display for SaleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            SaleType::INSALE => "INSALE",
+            SaleType::SOLD => "SOLD",
+            SaleType::NONE => "NONE",
+        };
+        write!(f, "{}", s)
     }
 }
 

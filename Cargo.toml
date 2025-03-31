@@ -2,7 +2,7 @@
 name = "data-scraper"
 version = "1.0.0"
 authors = ["Ayagasha <alexander.todorov@ayagasha.com>"]
-edition = "2021"
+edition = "2024"
 
 
 [build]

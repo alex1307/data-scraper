@@ -319,7 +319,7 @@ where
 mod tests {
     use std::fs;
 
-    use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
+    use crate::{LOG_CONFIG, utils::helpers::configure_log4rs};
 
     use super::*;
     use log::info;

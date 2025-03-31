@@ -5,11 +5,11 @@ use regex::Regex;
 use scraper::{Html, Selector};
 
 use crate::model::{
-    enums::Engine,
     AutouncleJsonModel::{
         CarData, DIESEL_ENGINE_REGEX, ELECTRIC_ENGINE_REGEX, HYBRID_ENGINE_REGEX, LPG_ENGINE_REGEX,
         PETROL_ENGINE_REGEX,
     },
+    enums::Engine,
 };
 
 fn find_json_bounds(content: &str) -> Option<String> {
@@ -160,13 +160,13 @@ mod auto_uncle_tests {
     use log::{error, info};
 
     use crate::{
+        LOG_CONFIG,
         model::{
             AutouncleJsonModel::CarData,
             VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price},
         },
         protos::{self},
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
     };
 
     use super::*;

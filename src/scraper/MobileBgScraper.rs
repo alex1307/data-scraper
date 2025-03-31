@@ -10,9 +10,9 @@ use tokio::time::sleep;
 
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
+    BROWSER_USER_AGENT,
     helpers::MobileBgHTMLHelper::get_vehicles,
     model::{Search::Search, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
-    BROWSER_USER_AGENT,
 };
 use lazy_static::lazy_static;
 
@@ -137,13 +137,13 @@ mod screaper_mobile_bg_test {
     use std::collections::HashMap;
 
     use crate::{
+        LOG_CONFIG,
         model::{Search::Search, VehicleDataModel::ScrapedListData},
         scraper::{
             MobileBgScraper,
             Traits::{ScrapeListTrait, ScraperTrait as _},
         },
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
     };
     use log::info;
 

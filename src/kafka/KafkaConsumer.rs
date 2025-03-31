@@ -1,6 +1,6 @@
 use super::{
-    KafkaProducer::{create_producer, encode_message, send_message},
     BASE_INFO_TOPIC,
+    KafkaProducer::{create_producer, encode_message, send_message},
 };
 use crate::{
     kafka::{DETAILS_TOPIC, PRICE_TOPIC},
@@ -21,9 +21,9 @@ use rdkafka::Message as KafkaMessage;
 use std::time::Duration;
 
 use rdkafka::{
+    ClientConfig,
     consumer::{Consumer, StreamConsumer},
     message::BorrowedMessage,
-    ClientConfig,
 };
 use tokio::time::timeout;
 

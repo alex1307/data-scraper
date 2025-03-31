@@ -1,11 +1,11 @@
+use crate::model::VehicleRecord::MobileRecord;
 use crate::model::enums::Currency;
 use crate::model::enums::Engine;
 use crate::model::enums::Gearbox;
-use crate::model::VehicleRecord::MobileRecord;
 
+use crate::BROWSER_USER_AGENT;
 use crate::utils::helpers::extract_ascii_latin;
 use crate::utils::helpers::extract_make;
-use crate::BROWSER_USER_AGENT;
 
 use encoding_rs::{UTF_8, WINDOWS_1251};
 
@@ -302,8 +302,12 @@ pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
                 .trim()
                 .to_string();
         }
-
-        vehicles.push(vehicle);
+        if vehicle.price > 0
+            && vehicle.gearbox != Gearbox::NotAvailable
+            && vehicle.engine != Engine::NotAvailable
+        {
+            vehicles.push(vehicle);
+        }
     }
     vehicles
 }

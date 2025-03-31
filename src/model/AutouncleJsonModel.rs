@@ -1,17 +1,15 @@
 use lazy_static::lazy_static;
-use log::error;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    enums::{Currency, Engine, Gearbox},
     VehicleDataModel::{BasicT, DetailsT, PriceT},
+    enums::{Currency, Engine, Gearbox},
 };
 lazy_static! {
     static ref STRING_TO_F32: Regex = Regex::new(r"\d+(\.\d+)").unwrap();
     static ref STRING_TO_I32: Regex = Regex::new(r"\d+").unwrap();
     static ref RANGE_TO_I32: Regex = Regex::new(r"≈\s*(\d+)\s*km").unwrap();
-    static ref PRICE_REGEX: Regex = Regex::new(r"(\d+(\.\d+))").unwrap();
     static ref HP_REGEX: Regex = Regex::new(r"(\d+)\s*HP").unwrap();
     static ref KW_REGEX: Regex = Regex::new(r"(\d+)\s*kW").unwrap();
     pub static ref DIESEL_ENGINE_REGEX: Regex = Regex::new(r"\d+(\.\d+)L\s*Diesel").unwrap();
@@ -117,57 +115,51 @@ impl CarData {
 
     pub fn price(&self) -> Option<u32> {
         if !self.price.is_empty() {
-            if let Some(captures) = PRICE_REGEX.captures(&self.price) {
-                let numeric = captures
-                    .get(1)
-                    .unwrap()
-                    .as_str()
-                    .replace(".", "")
-                    .parse::<u32>();
-                if let Err(e) = numeric {
-                    error!("Error parsing price: {}", e);
-                    return None;
-                }
-                return Some(numeric.unwrap());
+            //get only numbers from the string
+            if let Some(captures) = self
+                .price
+                .chars()
+                .filter(|c| c.is_numeric())
+                .collect::<String>()
+                .parse::<u32>()
+                .ok()
+            {
+                return Some(captures);
             }
         }
         None
     }
 
     fn estimated_price(&self) -> Option<u32> {
-        if let Some(captures) =
-            PRICE_REGEX.captures(&self.modal_price_history_values.estimated_price)
+        if let Some(captures) = &self
+            .modal_price_history_values
+            .estimated_price
+            .chars()
+            .filter(|c| c.is_numeric())
+            .collect::<String>()
+            .parse::<u32>()
+            .ok()
         {
-            let numeric = captures
-                .get(1)
-                .unwrap()
-                .as_str()
-                .replace(".", "")
-                .parse::<u32>();
-            if let Err(e) = numeric {
-                error!("Error parsing price: {}", e);
-                return None;
-            }
-            return Some(numeric.unwrap());
+            Some(*captures)
+        } else {
+            None
         }
-        None
     }
 
     fn save_difference(&self) -> u32 {
-        if let Some(captures) = PRICE_REGEX.captures(&self.modal_price_history_values.you_save) {
-            let numeric = captures
-                .get(1)
-                .unwrap()
-                .as_str()
-                .replace(".", "")
-                .parse::<u32>();
-            if let Err(e) = numeric {
-                error!("Error parsing price: {}", e);
-                return 0;
-            }
-            return numeric.unwrap();
+        if let Some(captures) = &self
+            .modal_price_history_values
+            .you_save
+            .chars()
+            .filter(|c| c.is_numeric())
+            .collect::<String>()
+            .parse::<u32>()
+            .ok()
+        {
+            *captures
+        } else {
+            0
         }
-        0
     }
 
     fn currency(&self) -> Currency {

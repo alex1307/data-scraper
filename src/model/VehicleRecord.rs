@@ -7,9 +7,9 @@ use crate::helpers::{
 };
 
 use super::{
+    VehicleDataModel::{BasicT, DetailsT, PriceT},
     enums::{Currency, Engine, Gearbox},
     traits::{Header, Identity},
-    VehicleDataModel::{BasicT, DetailsT, PriceT},
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

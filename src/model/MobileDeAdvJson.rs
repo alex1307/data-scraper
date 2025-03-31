@@ -8,8 +8,8 @@ use super::{DataConversionError::ConversionError, MobileDe::SearchItem};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)] // Allows handling different structures (VehicleData vs NestedItem)
 pub enum Item {
-    Vehicle(SearchItem), // A regular vehicle entry
     Nested(NestedItem),
+    Vehicle(SearchItem),  // A regular vehicle entry
     Unknown(UnknownItem), // A nested item containing more items
 }
 
@@ -151,9 +151,9 @@ mod mobile_de_json_test {
     use log::{error, info};
 
     use crate::{
+        LOG_CONFIG,
         model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price},
         utils::helpers::configure_log4rs,
-        LOG_CONFIG,
     };
 
     #[test]

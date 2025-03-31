@@ -12,23 +12,24 @@ use lazy_static::lazy_static;
 use uuid::Uuid;
 
 use crate::{
-    kafka::{
-        broker,
-        KafkaProducer::{encode_message, message2kafka, send_message},
-        BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC,
-    },
+    BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
+    PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
+    kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, KafkaProducer::message2kafka, PRICE_TOPIC, broker},
     model::{
-        traits::{Identity, URLResource},
-        AutouncleJsonModel::CarData,
         Search::Search,
         VehicleDataModel::{
             BaseVehicleInfo, BasicT, ChangeLogT, DetailedVehicleInfo, DetailsT, DownloadStatus,
             Price, PriceT, ScrapedListData,
         },
+        traits::{Identity, URLResource},
     },
     protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
-    writer::persistance::{MobileData, MobileDataWriter},
+    writer::{
+        flle_writer::file::FileWriter,
+        kafka_writer::kafka::KafkaProducer,
+        sink::{FormatterType, Sink, SinkType},
+    },
 };
 
 lazy_static! {
@@ -208,13 +209,61 @@ where
     Ok(())
 }
 
-pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT>(
+pub async fn send_data<T: Sync + Send>(
     data_receiver: &mut Receiver<T>,
-) -> Result<u32, String> {
+    sink_type: SinkType,
+) -> Result<u32, String>
+where
+    T: Clone + BasicT + DetailsT + PriceT + Send + Sync + Debug + 'static,
+{
     let mut counter = 0;
     let mut wait_counter = 0;
-    let broker = broker();
-    let producer = crate::kafka::KafkaProducer::create_producer(&broker);
+
+    let (base_sink, details_sink, price_sink): (
+        Box<dyn Sink<BaseVehicleInfo>>,
+        Box<dyn Sink<DetailedVehicleInfo>>,
+        Box<dyn Sink<Price>>,
+    ) = match sink_type {
+        SinkType::Kafka => (
+            Box::new(KafkaProducer::new(
+                &broker(),
+                BASE_INFO_TOPIC,
+                FormatterType::Protobuf,
+            )),
+            Box::new(KafkaProducer::new(
+                &broker(),
+                DETAILS_TOPIC,
+                FormatterType::Protobuf,
+            )),
+            Box::new(KafkaProducer::new(
+                &broker(),
+                PRICE_TOPIC,
+                FormatterType::Protobuf,
+            )),
+        ),
+        SinkType::ProtobufFile => (
+            Box::new(FileWriter::new(
+                &BASE_INFO_PROTOBUF_FILE_NAME,
+                FormatterType::Protobuf,
+            )),
+            Box::new(FileWriter::new(
+                &DETAILS_PROTOBUF_NAME,
+                FormatterType::Protobuf,
+            )),
+            Box::new(FileWriter::new(
+                &PRICES_PROTOBUF_FILE_NAME,
+                FormatterType::Protobuf,
+            )),
+        ),
+        SinkType::CsvFile => (
+            Box::new(FileWriter::new(
+                &BASE_INFO_CSV_FILE_NAME,
+                FormatterType::Csv,
+            )),
+            Box::new(FileWriter::new(&DETAILS_CSV_NAME, FormatterType::Csv)),
+            Box::new(FileWriter::new(&PRICES_CSV_FILE_NAME, FormatterType::Csv)),
+        ),
+    };
 
     loop {
         match timeout(Duration::from_secs(1), data_receiver.recv()).await {
@@ -223,112 +272,47 @@ pub async fn send_data<T: Clone + BasicT + DetailsT + PriceT>(
                 let basic_info = BaseVehicleInfo::from(data.clone());
                 let detais_info = DetailedVehicleInfo::from(data.clone());
                 let price_info = Price::from(data.clone());
-
-                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
-                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
-                let price_data = protos::vehicle_model::Price::from(price_info);
-
-                let basic_encoded_message = encode_message(&basic_data).unwrap();
-                let details_encoded_message = encode_message(&details_data).unwrap();
-                let price_encoded_message = encode_message(&price_data).unwrap();
-
-                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
-                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
-                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
-
+                info!("Sending data: {:?}", data.clone());
+                base_sink
+                    .write(basic_info)
+                    .await
+                    .map_err(|e| format!("Error sending base info: {}", e))?;
+                details_sink
+                    .write(detais_info)
+                    .await
+                    .map_err(|e| format!("Error sending details info: {}", e))?;
+                price_sink
+                    .write(price_info)
+                    .await
+                    .map_err(|e| format!("Error sending price info: {}", e))?;
                 counter += 1;
+                if (counter % 50) == 0 {
+                    info!("Processed {} records", counter);
+                    base_sink.flush().await?;
+                    details_sink.flush().await?;
+                    price_sink.flush().await?;
+                }
             }
 
             Ok(None) => {
+                info!("No more records to process. Total processed: {}", counter);
+                base_sink.flush().await?;
+                details_sink.flush().await?;
+                price_sink.flush().await?;
                 break;
             }
+
             Err(_e) => {
                 wait_counter += 1;
                 if wait_counter == 5 {
-                    //error!("Timeout receiving link: {}", e);
                     continue;
                 }
             }
         }
     }
-    info!("All {} records are sent. Kafka producer is done.", counter);
+
+    info!("All {} records are sent. Sink completed.", counter);
     Ok(counter)
-}
-
-pub async fn send_autonucle_kafka(data_receiver: &mut Receiver<CarData>) -> Result<(), String> {
-    let mut counter = 0;
-    let mut wait_counter = 0;
-    let broker = broker();
-    let producer = crate::kafka::KafkaProducer::create_producer(&broker);
-    loop {
-        match timeout(Duration::from_secs(1), data_receiver.recv()).await {
-            Ok(Some(data)) => {
-                wait_counter = 0;
-                let basic_info = BaseVehicleInfo::from(data.clone());
-                let detais_info = DetailedVehicleInfo::from(data.clone());
-                let price_info = Price::from(data.clone());
-
-                let basic_data = protos::vehicle_model::BaseVehicleInfo::from(basic_info);
-                let details_data = protos::vehicle_model::DetailedVehicleInfo::from(detais_info);
-                let price_data = protos::vehicle_model::Price::from(price_info);
-
-                let basic_encoded_message = encode_message(&basic_data).unwrap();
-                let details_encoded_message = encode_message(&details_data).unwrap();
-                let price_encoded_message = encode_message(&price_data).unwrap();
-
-                send_message(&producer, BASE_INFO_TOPIC, basic_encoded_message).await;
-                send_message(&producer, DETAILS_TOPIC, details_encoded_message).await;
-                send_message(&producer, PRICE_TOPIC, price_encoded_message).await;
-
-                counter += 1;
-            }
-
-            Ok(None) => {
-                debug!("No more records to process. Total processed: {}", counter);
-                break;
-            }
-            Err(e) => {
-                wait_counter += 1;
-                if wait_counter == 5 {
-                    error!("Timeout receiving link: {}", e);
-                    continue;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn save<T: Clone + serde::Serialize>(
-    mut receiver: Receiver<T>,
-    file_name: String,
-    threshold: u32,
-) -> Result<(), String> {
-    let mut counter = 0;
-    let mut data = vec![];
-
-    while let Some(record) = receiver.recv().await {
-        counter += 1;
-        debug!("Processed data counter: {}", counter);
-        data.push(record.clone());
-        if counter % threshold == 0 {
-            save2file(&file_name, data.clone());
-            data.clear();
-        }
-    }
-    save2file(&file_name, data);
-    Ok(())
-}
-
-pub fn save2file<T: Clone + serde::Serialize>(file_name: &str, data: Vec<T>) {
-    info!(
-        "Saving data number of records {} to file: {}",
-        &data.len(),
-        file_name
-    );
-    let new_data = MobileData::Payload(data);
-    new_data.write_csv(file_name, false).unwrap();
 }
 
 pub async fn process_list_and_send<S, Source>(

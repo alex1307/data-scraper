@@ -1,5 +1,4 @@
 pub mod AutoUncleHelper;
-pub mod CarsBgHTMLHelper;
 pub mod MobileBgHTMLHelper;
 pub mod MobileDeHelper;
 

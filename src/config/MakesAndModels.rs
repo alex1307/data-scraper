@@ -6,7 +6,7 @@ use std::{
 
 use lazy_static::lazy_static;
 
-use crate::{utils::helpers::configure_log4rs, LOG_CONFIG};
+use crate::{LOG_CONFIG, utils::helpers::configure_log4rs};
 
 lazy_static! {
     static ref INIT_MAKE_AND_MODESL: Once = Once::new();
