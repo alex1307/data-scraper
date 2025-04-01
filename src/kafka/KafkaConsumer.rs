@@ -1,18 +1,22 @@
-use super::{
-    BASE_INFO_TOPIC,
-    KafkaProducer::{create_producer, encode_message, send_message},
-};
+use super::BASE_INFO_TOPIC;
 use crate::{
+    BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
+    PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
     kafka::{DETAILS_TOPIC, PRICE_TOPIC},
     model::{
         DataConversionError::ConversionError,
         MobileDe::SearchItem,
         MobileDeAdvJson::processMobileDeJson,
-        VehicleDataModel::{self, Price},
+        VehicleDataModel::{self, BaseVehicleInfo, DetailedVehicleInfo, Price},
     },
     ok_or_message,
-    protos::{self, vehicle_model::DownloadStatus},
+    protos::vehicle_model::DownloadStatus,
     unwrap_or_message,
+    writer::{
+        flle_writer::file::FileWriter,
+        kafka_writer::kafka::KafkaProducer,
+        sink::{FormatterType, Sink, SinkType},
+    },
 };
 use futures::StreamExt;
 use log::{error, info};
@@ -103,7 +107,7 @@ fn process_kafka_message(payload: &[u8]) -> Result<DownloadStatus, String> {
     }
 }
 
-pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
+pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_type: SinkType) {
     info!("Starting consumer for topic: {}", topic);
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", group.to_owned())
@@ -117,12 +121,57 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
         .subscribe(&[topic])
         .expect("Can't subscribe to specified topic");
 
-    let producer = create_producer(broker);
-
     let mut message_stream = consumer.stream();
     let mut base_info_counter = 0;
     let mut price_info_counter = 0;
     let mut details_info_counter = 0;
+
+    let (base_sink, details_sink, price_sink): (
+        Box<dyn Sink<BaseVehicleInfo>>,
+        Box<dyn Sink<DetailedVehicleInfo>>,
+        Box<dyn Sink<Price>>,
+    ) = match sink_type {
+        SinkType::Kafka => (
+            Box::new(KafkaProducer::new(
+                broker,
+                BASE_INFO_TOPIC,
+                FormatterType::Protobuf,
+            )),
+            Box::new(KafkaProducer::new(
+                broker,
+                DETAILS_TOPIC,
+                FormatterType::Protobuf,
+            )),
+            Box::new(KafkaProducer::new(
+                broker,
+                PRICE_TOPIC,
+                FormatterType::Protobuf,
+            )),
+        ),
+        SinkType::ProtobufFile => (
+            Box::new(FileWriter::new(
+                &BASE_INFO_PROTOBUF_FILE_NAME,
+                FormatterType::Protobuf,
+            )),
+            Box::new(FileWriter::new(
+                &DETAILS_PROTOBUF_NAME,
+                FormatterType::Protobuf,
+            )),
+            Box::new(FileWriter::new(
+                &PRICES_PROTOBUF_FILE_NAME,
+                FormatterType::Protobuf,
+            )),
+        ),
+        SinkType::CsvFile => (
+            Box::new(FileWriter::new(
+                &BASE_INFO_CSV_FILE_NAME,
+                FormatterType::Csv,
+            )),
+            Box::new(FileWriter::new(&DETAILS_CSV_NAME, FormatterType::Csv)),
+            Box::new(FileWriter::new(&PRICES_CSV_FILE_NAME, FormatterType::Csv)),
+        ),
+    };
+
     while let Some(message) = message_stream.next().await {
         match message {
             Ok(borrowed_message) => {
@@ -131,27 +180,28 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str) {
                     Ok(list) => {
                         for item in list {
                             if let Ok(price) = Price::try_from(item.clone()) {
-                                let proto_message = protos::vehicle_model::Price::from(price);
-                                let message = encode_message(&proto_message).unwrap();
-                                send_message(&producer, PRICE_TOPIC, message).await;
+                                price_sink
+                                    .write(price)
+                                    .await
+                                    .expect("Error writing price to sink");
                                 price_info_counter += 1;
                             };
                             if let Ok(deatils) =
                                 VehicleDataModel::DetailedVehicleInfo::try_from(item.clone())
                             {
-                                let proto_message =
-                                    protos::vehicle_model::DetailedVehicleInfo::from(deatils);
-                                let message = encode_message(&proto_message).unwrap();
-                                send_message(&producer, DETAILS_TOPIC, message).await;
+                                details_sink
+                                    .write(deatils)
+                                    .await
+                                    .expect("Error writing details to sink");
                                 details_info_counter += 1;
                             };
                             if let Ok(base) =
                                 VehicleDataModel::BaseVehicleInfo::try_from(item.clone())
                             {
-                                let proto_message =
-                                    protos::vehicle_model::BaseVehicleInfo::from(base);
-                                let message = encode_message(&proto_message).unwrap();
-                                send_message(&producer, BASE_INFO_TOPIC, message).await;
+                                base_sink
+                                    .write(base)
+                                    .await
+                                    .expect("Error writing base to sink");
                                 base_info_counter += 1;
                             };
                         }
