@@ -1,5 +1,5 @@
 pub mod KafkaConsumer;
-pub mod KafkaProducer;
+// pub mod KafkaProducer;
 
 pub static BASE_INFO_TOPIC: &str = "base_info";
 pub static DETAILS_TOPIC: &str = "details_info";
