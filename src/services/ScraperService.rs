@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::{
     BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
     PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
-    kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, KafkaProducer::message2kafka, PRICE_TOPIC, broker},
+    kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC, broker},
     model::{
         Search::Search,
         VehicleDataModel::{
@@ -23,7 +23,6 @@ use crate::{
         },
         traits::{Identity, URLResource},
     },
-    protos,
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     writer::{
         flle_writer::file::FileWriter,
@@ -143,11 +142,8 @@ where
         hash,
     };
     info!("Download status: {:?}", message);
-    let _ = message2kafka::<DownloadStatus, protos::vehicle_model::DownloadStatus>(
-        "status",
-        message.clone(),
-    )
-    .await;
+    TOTAL_COUNT.lock().unwrap().clone_from(&actual_number);
+    info!("TOTAL_COUNT: {}", *TOTAL_COUNT.lock().unwrap());
     message
 }
 
