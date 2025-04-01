@@ -58,6 +58,7 @@ struct Cli {
 
 #[derive(Args, Debug)]
 struct CrawlerArgs {
+    #[arg(short, long, default_value = "autouncle.ro")]
     source: String,
     #[arg(short, long, default_value = "./data")]
     dir: Option<String>,
@@ -70,7 +71,7 @@ struct CrawlerArgs {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Scrape(CrawlerArgs),
-    Puppeteer,
+    Puppeteer(CrawlerArgs),
 }
 #[tokio::main]
 async fn main() {
@@ -133,9 +134,59 @@ async fn main() {
 
             run_crawler(source, 1, sink_type).await;
         }
-        Commands::Puppeteer => {
+        Commands::Puppeteer(args) => {
+            let sink_type = match args.sink_type.as_str() {
+                "csv" => SinkType::CsvFile,
+                "protobuf" => SinkType::ProtobufFile,
+                "kafka" => SinkType::Kafka,
+                _ => {
+                    error!("Invalid sink type: {}", args.sink_type);
+                    return; // Or another suitable error handling mechanism
+                }
+            };
+            if SinkType::Kafka != sink_type {
+                //if data dir does not exist, create it
+                if let Some(dir) = args.dir {
+                    if let Err(e) = std::fs::create_dir_all(&dir) {
+                        error!("Failed to create directory {}: {}", dir, e);
+                        // Handle the error appropriately, e.g., return an error, exit with a non-zero code, etc.
+                        return; // Or another suitable error handling mechanism
+                    }
+                    info!("Data directory: {}", dir);
+                    // Create the file name with the current date
+                    //let file_name = format!("{}/base-info-{}.csv", dir, CREATED_ON);
+                    let extension = match sink_type {
+                        SinkType::CsvFile => "csv",
+                        SinkType::ProtobufFile => "bin",
+                        _ => "txt",
+                    };
+                    let base_file_name = format!(
+                        "{}/vehicles-info-{}.{}",
+                        dir,
+                        chrono::Utc::now().format("%Y-%m-%d"),
+                        extension
+                    );
+                    let details_file_name = format!(
+                        "{}/details-info-{}.{}",
+                        dir,
+                        chrono::Utc::now().format("%Y-%m-%d"),
+                        extension
+                    );
+                    let prices_file_name = format!(
+                        "{}/prices-info-{}.{}",
+                        dir,
+                        chrono::Utc::now().format("%Y-%m-%d"),
+                        extension
+                    );
+                    create_file_if_not_exists(&base_file_name.as_str(), Some(VEHICLE_HEADER));
+                    create_file_if_not_exists(&&details_file_name.as_str(), Some(DETAILS_HEADER));
+                    create_file_if_not_exists(&&prices_file_name.as_str(), Some(PRICES_HEADER));
+
+                    // Check if the file exists
+                }
+            }
             info!("Puppeteer command is not implemented yet");
-            run_consumers(broker()).await;
+            run_consumers(broker(), sink_type).await;
         }
     }
 }
@@ -343,10 +394,10 @@ async fn log_and_search<S, T>(
     }
 }
 
-async fn run_consumers(broker: String) {
+async fn run_consumers(broker: String, sink_type: SinkType) {
     let task = tokio::spawn(async move {
         let group = uuid::Uuid::new_v4().to_string();
-        consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC).await
+        consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
     });
     let r1 = tokio::spawn(task).await;
     if r1.is_ok() {

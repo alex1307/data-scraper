@@ -4,6 +4,8 @@ use serde::Serialize;
 // src/writer/formatters.rs
 use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price};
 
+use super::encode_message;
+
 pub trait Formatter<T>: Send + Sync {
     fn format(&self, data: &T) -> Result<Vec<u8>, String>;
 }
@@ -13,21 +15,21 @@ pub struct ProtobufFormatter;
 impl Formatter<BaseVehicleInfo> for ProtobufFormatter {
     fn format(&self, data: &BaseVehicleInfo) -> Result<Vec<u8>, String> {
         let proto_message = crate::protos::vehicle_model::BaseVehicleInfo::from(data.clone());
-        crate::kafka::KafkaProducer::encode_message(&proto_message)
+        encode_message(&proto_message)
     }
 }
 
 impl Formatter<DetailedVehicleInfo> for ProtobufFormatter {
     fn format(&self, data: &DetailedVehicleInfo) -> Result<Vec<u8>, String> {
         let proto_message = crate::protos::vehicle_model::DetailedVehicleInfo::from(data.clone());
-        crate::kafka::KafkaProducer::encode_message(&proto_message)
+        encode_message(&proto_message)
     }
 }
 
 impl Formatter<Price> for ProtobufFormatter {
     fn format(&self, data: &Price) -> Result<Vec<u8>, String> {
         let proto_message = crate::protos::vehicle_model::Price::from(data.clone());
-        crate::kafka::KafkaProducer::encode_message(&proto_message)
+        encode_message(&proto_message)
     }
 }
 
