@@ -11,7 +11,7 @@ use tokio::time::sleep;
 use super::Traits::{ScrapeListTrait, Scraper, ScraperTrait};
 use crate::{
     BROWSER_USER_AGENT,
-    helpers::MobileBgHTMLHelper::get_vehicles,
+    helpers::MobileBgHTMLHelper::process_html,
     model::{Search::Search, VehicleDataModel::ScrapedListData, VehicleRecord::MobileRecord},
 };
 use lazy_static::lazy_static;
@@ -56,7 +56,7 @@ impl ScrapeListTrait<MobileRecord> for MobileBGScraper {
             error!("Search ID is empty");
             return Err("Search ID is empty".to_string());
         }
-        let mut vehicles = get_vehicles(&html);
+        let mut vehicles = process_html(&html);
         for vehicle in vehicles.iter_mut() {
             vehicle.searchId.clone_from(&searchId);
             vehicle.source.clone_from(&source);

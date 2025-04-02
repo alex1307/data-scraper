@@ -12,11 +12,13 @@ use lazy_static::lazy_static;
 use uuid::Uuid;
 
 #[cfg(feature = "kafka")]
+use crate::kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC, broker};
+#[cfg(feature = "kafka")]
 use crate::writer::kafka_writer::kafka::KafkaProducer;
+
 use crate::{
     BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
     PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
-    kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC, broker},
     model::{
         Search::Search,
         VehicleDataModel::{

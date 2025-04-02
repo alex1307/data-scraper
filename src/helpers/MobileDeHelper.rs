@@ -7,7 +7,7 @@ pub fn from_data(payload_data: &str) -> Result<MobileDeResults, String> {
     }
 }
 
-pub fn parse_html(html: &str) -> Result<MobileDeResults, String> {
+pub fn process_html(html: &str) -> Result<MobileDeResults, String> {
     let mut content = html.to_string();
     content = content.replace('\u{2009}', " ");
     content = content.replace('\u{a0}', "");
@@ -39,7 +39,7 @@ mod mobile_de_tests {
 
     use crate::{
         LOG_CONFIG,
-        helpers::MobileDeHelper::{from_data, parse_html},
+        helpers::MobileDeHelper::{from_data, process_html},
         model::{
             VehicleDataModel::{self},
             enums::{Engine, Gearbox},
@@ -60,7 +60,7 @@ mod mobile_de_tests {
         configure_log4rs(&LOG_CONFIG);
         let content =
             fs::read_to_string("resources/test-data/mobile.de/my_file_7 copy.html").unwrap();
-        let json = parse_html(&content).unwrap();
+        let json = process_html(&content).unwrap();
         json.search
             .srp
             .data

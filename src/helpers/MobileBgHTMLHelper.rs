@@ -171,7 +171,7 @@ pub fn extract_numbers(input: &str) -> (u32, u32) {
 
     (n, k)
 }
-pub fn get_vehicles(html_content: &str) -> Vec<MobileRecord> {
+pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
     let document = Html::parse_document(html_content);
     // Selector to find the price
     let price_selector = Selector::parse("div.price div").unwrap();
@@ -319,7 +319,7 @@ mod test_listing {
 
     use log::info;
 
-    use crate::{helpers::MobileBgHTMLHelper::get_vehicles, utils::helpers::configure_log4rs};
+    use crate::{helpers::MobileBgHTMLHelper::process_html, utils::helpers::configure_log4rs};
 
     const LOG_CONFIG: &str = "path/to/your/log4rs/config/file";
 
@@ -330,7 +330,7 @@ mod test_listing {
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
 
-        let data = get_vehicles(&contents.to_string());
+        let data = process_html(&contents.to_string());
         info!("data: {:?}", data);
     }
 }
