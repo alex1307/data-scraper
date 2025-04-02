@@ -11,6 +11,8 @@ use tokio::{
 use lazy_static::lazy_static;
 use uuid::Uuid;
 
+#[cfg(feature = "kafka")]
+use crate::writer::kafka_writer::kafka::KafkaProducer;
 use crate::{
     BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
     PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
@@ -26,7 +28,6 @@ use crate::{
     scraper::Traits::{RequestResponseTrait, ScrapeListTrait, ScraperTrait},
     writer::{
         flle_writer::file::FileWriter,
-        kafka_writer::kafka::KafkaProducer,
         sink::{FormatterType, Sink, SinkType},
     },
 };
@@ -220,6 +221,7 @@ where
         Box<dyn Sink<DetailedVehicleInfo>>,
         Box<dyn Sink<Price>>,
     ) = match sink_type {
+        #[cfg(feature = "kafka")]
         SinkType::Kafka => (
             Box::new(KafkaProducer::new(
                 &broker(),
@@ -236,6 +238,10 @@ where
                 PRICE_TOPIC,
                 FormatterType::Protobuf,
             )),
+        ),
+        #[cfg(not(feature = "kafka"))]
+        SinkType::Kafka => panic!(
+            "Kafka sink is not enabled. Please enable the 'kafka' feature in your Cargo.toml."
         ),
         SinkType::ProtobufFile => (
             Box::new(FileWriter::new(

@@ -2,6 +2,7 @@ use prost::Message;
 
 pub mod flle_writer;
 pub mod formatters;
+#[cfg(feature = "kafka")]
 pub mod kafka_writer;
 pub mod persistance;
 pub mod sink;

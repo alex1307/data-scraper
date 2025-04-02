@@ -21,11 +21,10 @@ use crate::{
 use futures::StreamExt;
 use log::{error, info};
 use prost::Message;
-use rdkafka::Message as KafkaMessage;
 use std::time::Duration;
 
 use rdkafka::{
-    ClientConfig,
+    ClientConfig, Message as KafkaMessage,
     consumer::{Consumer, StreamConsumer},
     message::BorrowedMessage,
 };

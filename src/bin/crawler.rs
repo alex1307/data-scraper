@@ -1,11 +1,10 @@
 use std::fmt::Debug;
-use std::fs::File;
-use std::path::Path;
 
 use data_scraper::constants::URL::{
     AUTOUNCLE_CH_URL, AUTOUNCLE_DE_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_IT_URL, AUTOUNCLE_NL_URL,
     AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL, CARS_BG_URL, MOBILE_BG_URL,
 };
+#[cfg(feature = "kafka")]
 use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
 use data_scraper::kafka::{MOBILE_DE_TOPIC, broker};
 
@@ -23,6 +22,7 @@ use data_scraper::services::SearchBuilder::{
     ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, ID_CARS_BG_START,
     ID_MOBILE_BG_START, build_autouncle_searches,
 };
+use data_scraper::utils::files::create_all_files;
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
     scraper::{AutouncleROScraper::AutouncleROScraper, MobileBgScraper::MobileBGScraper},
@@ -42,11 +42,6 @@ use clap::{Args, Parser, Subcommand, command};
 
 use serde::Serialize;
 use uuid::Uuid;
-
-const VEHICLE_HEADER: &str = "id;source;make;model;title;currency;price;mileage;month;year;engine;gearbox;cc;power_ps;power_kw;search_id;url";
-const DETAILS_HEADER: &str = "id;source;location;equipment;seller_name;seller_url;range;consumption_fuel;consumption_kw;co2;days_in_sale";
-const PRICES_HEADER: &str =
-    "id;source;estimated_price;price;currency;save_difference;overpriced_difference;ranges;rating";
 
 pub const CHUNK_SIZE: usize = 4;
 #[derive(Parser, Debug)]
@@ -92,40 +87,7 @@ async fn main() {
             if SinkType::Kafka != sink_type {
                 //if data dir does not exist, create it
                 if let Some(dir) = args.dir {
-                    if let Err(e) = std::fs::create_dir_all(&dir) {
-                        error!("Failed to create directory {}: {}", dir, e);
-                        // Handle the error appropriately, e.g., return an error, exit with a non-zero code, etc.
-                        return; // Or another suitable error handling mechanism
-                    }
-                    info!("Data directory: {}", dir);
-                    // Create the file name with the current date
-                    //let file_name = format!("{}/base-info-{}.csv", dir, CREATED_ON);
-                    let extension = match sink_type {
-                        SinkType::CsvFile => "csv",
-                        SinkType::ProtobufFile => "bin",
-                        _ => "txt",
-                    };
-                    let base_file_name = format!(
-                        "{}/vehicles-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    let details_file_name = format!(
-                        "{}/details-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    let prices_file_name = format!(
-                        "{}/prices-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    create_file_if_not_exists(&base_file_name.as_str(), Some(VEHICLE_HEADER));
-                    create_file_if_not_exists(&&details_file_name.as_str(), Some(DETAILS_HEADER));
-                    create_file_if_not_exists(&&prices_file_name.as_str(), Some(PRICES_HEADER));
+                    create_all_files(&dir, sink_type.clone());
 
                     // Check if the file exists
                 }
@@ -147,42 +109,7 @@ async fn main() {
             if SinkType::Kafka != sink_type {
                 //if data dir does not exist, create it
                 if let Some(dir) = args.dir {
-                    if let Err(e) = std::fs::create_dir_all(&dir) {
-                        error!("Failed to create directory {}: {}", dir, e);
-                        // Handle the error appropriately, e.g., return an error, exit with a non-zero code, etc.
-                        return; // Or another suitable error handling mechanism
-                    }
-                    info!("Data directory: {}", dir);
-                    // Create the file name with the current date
-                    //let file_name = format!("{}/base-info-{}.csv", dir, CREATED_ON);
-                    let extension = match sink_type {
-                        SinkType::CsvFile => "csv",
-                        SinkType::ProtobufFile => "bin",
-                        _ => "txt",
-                    };
-                    let base_file_name = format!(
-                        "{}/vehicles-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    let details_file_name = format!(
-                        "{}/details-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    let prices_file_name = format!(
-                        "{}/prices-info-{}.{}",
-                        dir,
-                        chrono::Utc::now().format("%Y-%m-%d"),
-                        extension
-                    );
-                    create_file_if_not_exists(&base_file_name.as_str(), Some(VEHICLE_HEADER));
-                    create_file_if_not_exists(&&details_file_name.as_str(), Some(DETAILS_HEADER));
-                    create_file_if_not_exists(&&prices_file_name.as_str(), Some(PRICES_HEADER));
-
-                    // Check if the file exists
+                    create_all_files(&dir, sink_type.clone());
                 }
             }
             info!("Puppeteer command is not implemented yet");
@@ -191,44 +118,9 @@ async fn main() {
     }
 }
 
-fn create_file_if_not_exists(file_name: &str, header: Option<&str>) {
-    // Check if the file exists
-    if Path::new(file_name).exists() {
-        info!("File {} already exists", file_name);
-    } else {
-        // Create the file if it doesn't exist
-        let _file = File::create(file_name).expect("Failed to create file");
-        // Optionally, write the header to the file
-        if let Some(header) = header {
-            use std::io::Write;
-            let mut file = File::options()
-                .append(true)
-                .create(true)
-                .open(file_name)
-                .expect("Failed to open file");
-            writeln!(file, "{}", header).expect("Failed to write header");
-        }
-        info!("File {} created", file_name);
-    }
-}
-
 async fn run_crawler(crawler: String, threads: usize, sink_type: SinkType) {
-    let new_group = Uuid::new_v4().to_string();
-    let statuses = processMessages(&broker(), &new_group, "status_info", 15).await;
-    info!("Statuses: {:?}", statuses.len());
-    let mut map = std::collections::HashMap::new();
-    for status in statuses {
-        map.entry(status.source.clone())
-            .or_insert_with(Vec::new)
-            .push(status);
-    }
-
+    let filter = vec![];
     if crawler == CRAWLER_MOBILE_BG {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
 
         let crawler = MobileBGScraper::new(MOBILE_BG_URL, 250);
@@ -236,77 +128,42 @@ async fn run_crawler(crawler: String, threads: usize, sink_type: SinkType) {
         info!("Starting mobile.bg with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_FR {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleFRScraper::new(AUTOUNCLE_FR_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.fr with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_NL {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleNLScraper::new(AUTOUNCLE_NL_URL, 250);
         info!("Starting autouncle.nl with #{} searches", searches.len());
         let searches = searches.chunks(threads);
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_RO {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleROScraper::new(AUTOUNCLE_RO_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.ro with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_PL {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutounclePLScraper::new(AUTOUNCLE_PL_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.pl with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_CH {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleCHScraper::new(AUTOUNCLE_CH_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.pl with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_DE {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleCHScraper::new(AUTOUNCLE_DE_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting autouncle.pl with #{} searches", searches.len());
         log_and_search(searches, crawler, sink_type).await;
     } else if crawler == CRAWLER_AUTOUNCLE_IT {
-        let filter = if let Some(found) = map.get(&crawler) {
-            found.to_vec()
-        } else {
-            vec![]
-        };
         let searches = filter_searches(&crawler, filter);
         let crawler = AutouncleCHScraper::new(AUTOUNCLE_IT_URL, 250);
         let searches = searches.chunks(threads);
@@ -396,8 +253,14 @@ async fn log_and_search<S, T>(
 
 async fn run_consumers(broker: String, sink_type: SinkType) {
     let task = tokio::spawn(async move {
-        let group = uuid::Uuid::new_v4().to_string();
-        consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
+        #[cfg(feature = "kafka")]
+        {
+            consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
+        }
+        #[cfg(not(feature = "kafka"))]
+        {
+            error!("Kafka feature is not enabled. Cannot run consumer.");
+        }
     });
     let r1 = tokio::spawn(task).await;
     if r1.is_ok() {
