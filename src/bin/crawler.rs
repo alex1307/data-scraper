@@ -6,7 +6,10 @@ use data_scraper::constants::URL::{
 };
 #[cfg(feature = "kafka")]
 use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
-use data_scraper::kafka::{MOBILE_DE_TOPIC, broker};
+#[cfg(feature = "kafka")]
+use data_scraper::kafka::MOBILE_DE_TOPIC;
+#[cfg(feature = "kafka")]
+use data_scraper::kafka::broker;
 
 use data_scraper::LOG_CONFIG;
 use data_scraper::model::Search::Search;
@@ -41,7 +44,6 @@ use log::{error, info};
 use clap::{Args, Parser, Subcommand, command};
 
 use serde::Serialize;
-use uuid::Uuid;
 
 pub const CHUNK_SIZE: usize = 4;
 #[derive(Parser, Debug)]
@@ -113,7 +115,12 @@ async fn main() {
                 }
             }
             info!("Puppeteer command is not implemented yet");
+            #[cfg(feature = "kafka")]
             run_consumers(broker(), sink_type).await;
+            #[cfg(not(feature = "kafka"))]
+            {
+                error!("Kafka feature is not enabled. Cannot run consumer.");
+            }
         }
     }
 }
@@ -250,7 +257,7 @@ async fn log_and_search<S, T>(
         }
     }
 }
-
+#[cfg(feature = "kafka")]
 async fn run_consumers(broker: String, sink_type: SinkType) {
     let task = tokio::spawn(async move {
         #[cfg(feature = "kafka")]
