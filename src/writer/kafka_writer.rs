@@ -9,7 +9,7 @@ pub mod kafka {
     use std::time::Duration;
 
     use crate::{
-        model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price},
+        model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle},
         writer::{
             formatters::{CsvFormatter, Formatter, ProtobufFormatter},
             sink::{FormatterType, Sink},
@@ -22,6 +22,7 @@ pub mod kafka {
         base_formatter: Box<dyn Formatter<BaseVehicleInfo> + Send + Sync>,
         details_formatter: Box<dyn Formatter<DetailedVehicleInfo> + Send + Sync>,
         price_formatter: Box<dyn Formatter<Price> + Send + Sync>,
+        vehicle_formatter: Box<dyn Formatter<Vehicle> + Send + Sync>,
     }
 
     impl KafkaProducer {
@@ -44,12 +45,18 @@ pub mod kafka {
                 FormatterType::Protobuf => Box::new(ProtobufFormatter),
                 FormatterType::Csv => Box::new(CsvFormatter),
             };
+            let vehicle_formatter: Box<dyn Formatter<Vehicle> + Send + Sync> = match formatter_type
+            {
+                FormatterType::Protobuf => Box::new(ProtobufFormatter),
+                FormatterType::Csv => Box::new(CsvFormatter),
+            };
             Self {
                 producer,
                 destination: destination.to_string(),
                 base_formatter,
                 details_formatter,
                 price_formatter,
+                vehicle_formatter,
             }
         }
     }
@@ -109,6 +116,31 @@ pub mod kafka {
         async fn write(&self, message: DetailedVehicleInfo) -> Result<(), String> {
             let formatted_message = self
                 .details_formatter
+                .format(&message)
+                .map_err(|e| format!("Error formatting message: {:?}", e))?;
+            let record = FutureRecord::to(&self.destination)
+                .payload(&formatted_message)
+                .key("crawler"); // Optional key
+
+            match self.producer.send(record, Duration::from_secs(0)).await {
+                Ok(_delivery) => Ok(()),
+                Err((e, _)) => {
+                    error!("Error sending message: {:?}", e);
+                    Err(format!("Error sending message: {:?}", e))
+                }
+            }
+        }
+
+        async fn flush(&self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl Sink<Vehicle> for KafkaProducer {
+        async fn write(&self, message: Vehicle) -> Result<(), String> {
+            let formatted_message = self
+                .vehicle_formatter
                 .format(&message)
                 .map_err(|e| format!("Error formatting message: {:?}", e))?;
             let record = FutureRecord::to(&self.destination)

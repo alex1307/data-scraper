@@ -2,7 +2,7 @@ use csv::WriterBuilder;
 use serde::Serialize;
 
 // src/writer/formatters.rs
-use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price};
+use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle};
 
 use super::encode_message;
 
@@ -29,6 +29,13 @@ impl Formatter<DetailedVehicleInfo> for ProtobufFormatter {
 impl Formatter<Price> for ProtobufFormatter {
     fn format(&self, data: &Price) -> Result<Vec<u8>, String> {
         let proto_message = crate::protos::vehicle_model::Price::from(data.clone());
+        encode_message(&proto_message)
+    }
+}
+
+impl Formatter<Vehicle> for ProtobufFormatter {
+    fn format(&self, data: &Vehicle) -> Result<Vec<u8>, String> {
+        let proto_message = crate::protos::vehicle_model::Vehicle::from(data.clone());
         encode_message(&proto_message)
     }
 }

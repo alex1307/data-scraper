@@ -1,4 +1,3 @@
-use super::enums::MessageType;
 use super::enums::Payload;
 
 pub trait Identity {
@@ -19,9 +18,4 @@ pub trait SetIdentity {
 
 pub trait PayloadProcessor<T> {
     fn process(&self, payload: Payload<T>) -> Payload<T>;
-}
-
-pub trait MessageTransform {
-    fn identity(&self) -> String;
-    fn transform(&self) -> Result<MessageType, String>;
 }

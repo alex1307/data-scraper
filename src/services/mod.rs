@@ -1,10 +1,9 @@
 pub mod CrawlerTrait;
 pub mod JsonSearchBuider;
-pub mod ScraperAppService;
-pub mod ScraperService;
+pub mod ScraperAppVehicleService;
 pub mod SearchBuilder;
 pub mod Searches;
-
+pub mod VehicleService;
 use std::sync::Arc;
 
 use lazy_static::lazy_static;

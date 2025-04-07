@@ -10,7 +10,7 @@ use crate::writer::formatters::Formatter;
 
 pub mod file {
     use super::*;
-    use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price};
+    use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle};
     use crate::writer::formatters::{CsvFormatter, ProtobufFormatter};
     use crate::writer::sink::{FormatterType, Sink};
 
@@ -18,6 +18,7 @@ pub mod file {
         base_formatter: Box<dyn Formatter<BaseVehicleInfo> + Send + Sync>,
         details_formatter: Box<dyn Formatter<DetailedVehicleInfo> + Send + Sync>,
         price_formatter: Box<dyn Formatter<Price> + Send + Sync>,
+        vehicle_formatter: Box<dyn Formatter<Vehicle> + Send + Sync>,
         file: Arc<Mutex<BufWriter<File>>>,
     }
 
@@ -43,10 +44,16 @@ pub mod file {
                 FormatterType::Protobuf => Box::new(ProtobufFormatter),
                 FormatterType::Csv => Box::new(CsvFormatter),
             };
+            let vehicle_formatter: Box<dyn Formatter<Vehicle> + Send + Sync> = match formatter_type
+            {
+                FormatterType::Protobuf => Box::new(ProtobufFormatter),
+                FormatterType::Csv => Box::new(CsvFormatter),
+            };
             FileWriter {
                 base_formatter,
                 details_formatter,
                 price_formatter,
+                vehicle_formatter,
                 file: Arc::new(Mutex::new(BufWriter::new(file))),
             }
         }
@@ -87,6 +94,21 @@ pub mod file {
         async fn write(&self, message: Price) -> Result<(), String> {
             let formatted_message = self
                 .price_formatter
+                .format(&message)
+                .map_err(|e| format!("Error formatting message: {:?}", e))?;
+            self.write_to_file(formatted_message).await
+        }
+
+        async fn flush(&self) -> Result<(), String> {
+            self.flush_file().await
+        }
+    }
+
+    #[async_trait]
+    impl Sink<Vehicle> for FileWriter {
+        async fn write(&self, message: Vehicle) -> Result<(), String> {
+            let formatted_message = self
+                .vehicle_formatter
                 .format(&message)
                 .map_err(|e| format!("Error formatting message: {:?}", e))?;
             self.write_to_file(formatted_message).await

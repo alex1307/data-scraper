@@ -2,8 +2,6 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price};
-
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Currency {
     #[serde(rename = "BGN")]
@@ -247,10 +245,4 @@ pub enum Message<S: Clone + Serialize + Send + 'static> {
     Message(S),
     Done,
     Error(String),
-}
-
-pub enum MessageType {
-    BaseVehicleInfo(BaseVehicleInfo),
-    DetailedVehicleInfo(DetailedVehicleInfo),
-    PriceCalculator(Price),
 }

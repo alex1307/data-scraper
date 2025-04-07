@@ -99,6 +99,43 @@ impl Price {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Vehicle {
+    pub id: String,
+    pub source: String,
+    pub make: String,
+    pub model: String,
+    pub title: String,
+    pub year: u16,
+    pub mileage: u32,
+    pub engine: Engine,
+    pub gearbox: Gearbox,
+    pub power_ps: u32,
+    pub power_kw: u32,
+    pub currency: Currency,
+    pub price: u32,
+    pub estimated_price: Option<u32>,
+    pub cc: Option<u32>,
+
+    pub url: String,
+    pub location: Option<String>,
+    pub equipment: Option<String>,
+    pub seller_name: String,
+    pub seller_url: String,
+
+    pub range: Option<u32>,
+    pub consumption_fuel: Option<f32>,
+    pub consumption_kw: Option<f32>,
+    pub co2: Option<u32>,
+
+    pub days_in_sale: Option<u32>,
+    pub ranges: Option<String>,
+    pub rating: Option<String>,
+
+    #[serde(skip_serializing)]
+    pub thresholds: Vec<u32>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CarModel {
     //series + relevant models

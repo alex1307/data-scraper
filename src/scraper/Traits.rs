@@ -1,22 +1,12 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use async_trait::async_trait;
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
 
 use log::info;
 use rand::Rng;
-use serde::Serialize;
 
-use crate::{
-    BROWSER_USER_AGENT,
-    model::{
-        Search::Search,
-        VehicleDataModel::ScrapedListData,
-        traits::{Identity, URLResource},
-    },
-    services::SearchBuilder::EXCLUED,
-};
+use crate::{BROWSER_USER_AGENT, services::SearchBuilder::EXCLUED};
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -25,66 +15,20 @@ lazy_static! {
         .unwrap();
 }
 
-#[async_trait]
-pub trait ScrapeListTrait<T: Clone + Debug + Serialize>:
-    Clone + Debug + Send + Sync + 'static
-{
-    async fn process_listed_results(
-        &self,
-        search: Search,
-        page: u32,
-    ) -> Result<ScrapedListData<T>, String>;
-}
-
-#[async_trait]
-pub trait RequestResponseTrait<REQ, RES>
-where
-    REQ: Identity + Clone + Serialize + Debug + URLResource,
-    RES: Serialize + Clone + Debug,
-{
-    async fn handle_request(&self, request: REQ) -> Result<RES, String>;
-}
-
-#[async_trait]
-pub trait ScraperTrait {
-    fn total_number(&self, page: &str) -> Result<u32, String>;
-
-    fn get_number_of_pages(&self, total_number: u32) -> Result<u32, String>;
-
-    fn get_timeout(&self) -> u64 {
-        250
-    }
-
-    fn get_search_path(&self) -> Option<String> {
-        None
-    }
-
-    fn get_details_path(&self) -> Option<String> {
-        None
-    }
-
-    fn get_search_url(&self, search: Search, page: u32) -> String {
-        if page == 1 {
-            return search.url;
-        }
-        format!("{}&page={}", search.url, page)
-    }
-
-    async fn get_html(&self, search: Search, page: u32) -> Result<String, String>;
-}
-
 #[derive(Debug, Clone)]
 pub struct Scraper {
     pub url: String,
     pub page: String,
+    pub source: String,
     pub headers: Vec<(String, String)>,
     pub wait_time_ms: u64,
 }
 impl Scraper {
-    pub fn new(url: &str, page: String, wait_time_ms: u64) -> Self {
+    pub fn new(url: &str, page: String, source: String, wait_time_ms: u64) -> Self {
         Scraper {
             url: url.to_string(),
             page,
+            source,
             wait_time_ms,
             headers: vec![],
         }

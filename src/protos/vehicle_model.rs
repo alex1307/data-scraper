@@ -43,6 +43,26 @@ pub struct BaseVehicleInfo {
     pub url: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VehicleChangeLogInfo {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub published_on: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub last_modified_on: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub last_modified_message: ::prost::alloc::string::String,
+    /// Optional in Rust, so no 'optional' keyword needed in proto3
+    #[prost(uint32, tag = "6")]
+    pub days_in_sale: u32,
+    #[prost(bool, tag = "7")]
+    pub sold: bool,
+    #[prost(bool, tag = "8")]
+    pub promoted: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DetailedVehicleInfo {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
@@ -96,11 +116,80 @@ pub struct Price {
     pub thresholds: ::prost::alloc::vec::Vec<u32>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Consumption {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub make: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub model: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "5")]
+    pub year: u32,
+    #[prost(uint32, tag = "6")]
+    pub co2_emission: u32,
+    /// Optional in Rust, so no 'optional' keyword needed in proto3
+    #[prost(float, tag = "7")]
+    pub fuel_consumption: f32,
+    /// Optional in Rust, so no 'optional' keyword needed in proto3
+    #[prost(float, tag = "8")]
+    pub kw_consuption: f32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Id {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub source: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VehicleView {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub make: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub model: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub title: ::prost::alloc::string::String,
+    /// Assuming Currency is a defined enum or message
+    #[prost(string, tag = "6")]
+    pub currency: ::prost::alloc::string::String,
+    /// Optional in Rust, so no 'optional' keyword needed in proto3
+    #[prost(uint32, tag = "7")]
+    pub price: u32,
+    /// Optional in Rust, so no 'optional' keyword needed in proto3
+    #[prost(uint32, tag = "8")]
+    pub millage: u32,
+    #[prost(uint32, tag = "10")]
+    pub year: u32,
+    /// Assuming Engine is a defined message
+    #[prost(string, tag = "11")]
+    pub engine: ::prost::alloc::string::String,
+    /// Assuming Gearbox is a defined message
+    #[prost(string, tag = "12")]
+    pub gearbox: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "13")]
+    pub cc: u32,
+    #[prost(uint32, tag = "14")]
+    pub power_ps: u32,
+    #[prost(uint32, tag = "15")]
+    pub estimated_price: u32,
+    #[prost(string, tag = "16")]
+    pub location: ::prost::alloc::string::String,
+    #[prost(string, tag = "17")]
+    pub equipment: ::prost::alloc::string::String,
+    #[prost(string, tag = "18")]
+    pub seller_name: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "19")]
+    pub days_in_sale: u32,
+    #[prost(bool, tag = "20")]
+    pub promoted: bool,
+    #[prost(string, tag = "21")]
+    pub last_modified_on: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadStatus {
@@ -125,4 +214,68 @@ pub struct EurExchangeRate {
     pub eur_exchange_rate: f32,
     #[prost(string, tag = "3")]
     pub created_on: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VehicleList {
+    #[prost(message, repeated, tag = "1")]
+    pub vehicles: ::prost::alloc::vec::Vec<Vehicle>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Vehicle {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub make: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub model: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "6")]
+    pub year: u32,
+    #[prost(uint32, tag = "7")]
+    pub mileage: u32,
+    #[prost(string, tag = "8")]
+    pub engine: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub gearbox: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "10")]
+    pub power_ps: u32,
+    #[prost(uint32, tag = "11")]
+    pub power_kw: u32,
+    #[prost(string, tag = "12")]
+    pub currency: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "13")]
+    pub price: u32,
+    #[prost(uint32, tag = "14")]
+    pub estimated_price: u32,
+    #[prost(uint32, tag = "15")]
+    pub cc: u32,
+    #[prost(string, tag = "16")]
+    pub url: ::prost::alloc::string::String,
+    #[prost(string, tag = "17")]
+    pub location: ::prost::alloc::string::String,
+    #[prost(string, tag = "18")]
+    pub equipment: ::prost::alloc::string::String,
+    #[prost(string, tag = "19")]
+    pub seller_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "20")]
+    pub seller_url: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "21")]
+    pub range: u32,
+    #[prost(float, tag = "22")]
+    pub consumption_fuel: f32,
+    #[prost(float, tag = "23")]
+    pub consumption_kw: f32,
+    #[prost(uint32, tag = "24")]
+    pub co2: u32,
+    #[prost(uint32, tag = "25")]
+    pub days_in_sale: u32,
+    #[prost(string, tag = "26")]
+    pub ranges: ::prost::alloc::string::String,
+    #[prost(string, tag = "27")]
+    pub rating: ::prost::alloc::string::String,
+    #[prost(uint32, repeated, tag = "31")]
+    pub thresholds: ::prost::alloc::vec::Vec<u32>,
 }

@@ -1,17 +1,16 @@
 use super::BASE_INFO_TOPIC;
+
 use crate::{
-    BASE_INFO_CSV_FILE_NAME, BASE_INFO_PROTOBUF_FILE_NAME, DETAILS_CSV_NAME, DETAILS_PROTOBUF_NAME,
-    PRICES_CSV_FILE_NAME, PRICES_PROTOBUF_FILE_NAME,
-    kafka::{DETAILS_TOPIC, PRICE_TOPIC},
     model::{
         DataConversionError::ConversionError,
         MobileDe::SearchItem,
         MobileDeAdvJson::processMobileDeJson,
-        VehicleDataModel::{self, BaseVehicleInfo, DetailedVehicleInfo, Price},
+        VehicleDataModel::{self, BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle},
     },
     ok_or_message,
     protos::vehicle_model::DownloadStatus,
     unwrap_or_message,
+    utils::files::vehicle_file_name,
     writer::{
         flle_writer::file::FileWriter,
         kafka_writer::kafka::KafkaProducer,
@@ -125,50 +124,21 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
     let mut price_info_counter = 0;
     let mut details_info_counter = 0;
 
-    let (base_sink, details_sink, price_sink): (
-        Box<dyn Sink<BaseVehicleInfo>>,
-        Box<dyn Sink<DetailedVehicleInfo>>,
-        Box<dyn Sink<Price>>,
-    ) = match sink_type {
-        SinkType::Kafka => (
-            Box::new(KafkaProducer::new(
-                broker,
-                BASE_INFO_TOPIC,
-                FormatterType::Protobuf,
-            )),
-            Box::new(KafkaProducer::new(
-                broker,
-                DETAILS_TOPIC,
-                FormatterType::Protobuf,
-            )),
-            Box::new(KafkaProducer::new(
-                broker,
-                PRICE_TOPIC,
-                FormatterType::Protobuf,
-            )),
-        ),
-        SinkType::ProtobufFile => (
-            Box::new(FileWriter::new(
-                &BASE_INFO_PROTOBUF_FILE_NAME,
-                FormatterType::Protobuf,
-            )),
-            Box::new(FileWriter::new(
-                &DETAILS_PROTOBUF_NAME,
-                FormatterType::Protobuf,
-            )),
-            Box::new(FileWriter::new(
-                &PRICES_PROTOBUF_FILE_NAME,
-                FormatterType::Protobuf,
-            )),
-        ),
-        SinkType::CsvFile => (
-            Box::new(FileWriter::new(
-                &BASE_INFO_CSV_FILE_NAME,
-                FormatterType::Csv,
-            )),
-            Box::new(FileWriter::new(&DETAILS_CSV_NAME, FormatterType::Csv)),
-            Box::new(FileWriter::new(&PRICES_CSV_FILE_NAME, FormatterType::Csv)),
-        ),
+    let vehicle_sink: Box<dyn Sink<Vehicle>> = match sink_type {
+        SinkType::Kafka => Box::new(KafkaProducer::new(
+            broker,
+            "vehicle",
+            FormatterType::Protobuf,
+        )),
+        SinkType::ProtobufFile => Box::new(FileWriter::new(
+            &vehicle_file_name(&sink_type),
+            FormatterType::Protobuf,
+        )),
+
+        SinkType::CsvFile => Box::new(FileWriter::new(
+            &vehicle_file_name(&sink_type),
+            FormatterType::Csv,
+        )),
     };
 
     while let Some(message) = message_stream.next().await {
@@ -178,31 +148,13 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
                 match result {
                     Ok(list) => {
                         for item in list {
-                            if let Ok(price) = Price::try_from(item.clone()) {
-                                price_sink
-                                    .write(price)
+                            if let Ok(vehicle) = Vehicle::try_from(item.clone()) {
+                                vehicle_sink
+                                    .write(vehicle)
                                     .await
-                                    .expect("Error writing price to sink");
-                                price_info_counter += 1;
-                            };
-                            if let Ok(deatils) =
-                                VehicleDataModel::DetailedVehicleInfo::try_from(item.clone())
-                            {
-                                details_sink
-                                    .write(deatils)
-                                    .await
-                                    .expect("Error writing details to sink");
-                                details_info_counter += 1;
-                            };
-                            if let Ok(base) =
-                                VehicleDataModel::BaseVehicleInfo::try_from(item.clone())
-                            {
-                                base_sink
-                                    .write(base)
-                                    .await
-                                    .expect("Error writing base to sink");
+                                    .expect("Error writing vehicle to sink");
                                 base_info_counter += 1;
-                            };
+                            }
                         }
                     }
                     Err(e) => error!("Error processing message: {}", e),

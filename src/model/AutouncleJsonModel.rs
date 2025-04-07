@@ -104,10 +104,10 @@ impl CarData {
         None
     }
 
-    pub fn range(&self) -> Option<i32> {
+    pub fn range(&self) -> Option<u32> {
         if let Some(range) = &self.range {
             if let Some(captures) = RANGE_TO_I32.captures(range) {
-                return Some(captures.get(1).unwrap().as_str().parse::<i32>().unwrap());
+                return Some(captures.get(1).unwrap().as_str().parse::<u32>().unwrap());
             }
         }
         None

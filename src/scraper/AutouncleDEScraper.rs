@@ -30,7 +30,12 @@ pub struct AutouncleDEScraper {
 impl AutouncleDEScraper {
     pub fn new(url: &str, wait_time_ms: u64) -> Self {
         AutouncleDEScraper {
-            parent: Scraper::new(url, "page".to_string(), wait_time_ms),
+            parent: Scraper::new(
+                url,
+                "page".to_string(),
+                "autouncle.de".to_string(),
+                wait_time_ms,
+            ),
         }
     }
 }

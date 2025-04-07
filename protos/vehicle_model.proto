@@ -115,3 +115,48 @@ message EurExchangeRate {
     float eur_exchange_rate = 2;
     string created_on = 3;
 }
+
+message VehicleList {
+    repeated Vehicle vehicles = 1;
+}
+
+message Vehicle {
+  string id = 1;
+  string source = 2;
+  string make = 3;
+  string model = 4;
+  string title = 5;
+  uint32 year = 6;
+  uint32 mileage = 7;
+
+  string engine = 8;
+  string gearbox = 9;
+
+  uint32 power_ps = 10;
+  uint32 power_kw = 11;
+
+  string currency = 12;
+  uint32 price = 13;
+
+  uint32 estimated_price = 14;
+  uint32 cc = 15;
+
+  string url = 16;
+  string location = 17;
+  string equipment = 18;
+
+  string seller_name = 19;
+  string seller_url = 20;
+
+  uint32 range = 21;
+  float consumption_fuel = 22;
+  float consumption_kw = 23;
+  uint32 co2 = 24;
+
+  uint32 days_in_sale = 25;
+  string ranges = 26;
+  string rating = 27;
+
+  repeated uint32 thresholds = 31;
+}
+

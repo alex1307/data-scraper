@@ -57,16 +57,4 @@ lazy_static! {
     pub static ref CONFIG: AppConfig = AppConfig::from_file("config/config.yml");
     pub static ref LOG_CONFIG: String = format!("{}/meta_log4rs.yml", CONFIG.get_log4rs_config());
     pub static ref CREATED_ON: String = NOW.format(DATE_FORMAT).to_string();
-    pub static ref BASE_INFO_CSV_FILE_NAME: String =
-        format!("data/vehicles-info-{}.csv", CREATED_ON.clone());
-    pub static ref DETAILS_CSV_NAME: String =
-        format!("data/details-info-{}.csv", CREATED_ON.clone());
-    pub static ref PRICES_CSV_FILE_NAME: String =
-        format!("data/prices-info-{}.csv", CREATED_ON.clone());
-    pub static ref BASE_INFO_PROTOBUF_FILE_NAME: String =
-        format!("data/vehicles-info-{}.bin", CREATED_ON.clone());
-    pub static ref DETAILS_PROTOBUF_NAME: String =
-        format!("data/details-info-{}.bin", CREATED_ON.clone());
-    pub static ref PRICES_PROTOBUF_FILE_NAME: String =
-        format!("data/prices-info-{}.binpb", CREATED_ON.clone());
 }

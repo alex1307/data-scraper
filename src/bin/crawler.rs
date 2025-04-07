@@ -13,28 +13,23 @@ use data_scraper::kafka::broker;
 
 use data_scraper::LOG_CONFIG;
 use data_scraper::model::Search::Search;
-use data_scraper::model::VehicleDataModel::{BasicT, DetailsT, DownloadStatus, PriceT};
-use data_scraper::scraper::AutouncleCHScraper::AutouncleCHScraper;
-use data_scraper::scraper::AutouncleFRScraper::AutouncleFRScraper;
-use data_scraper::scraper::AutouncleNLScraper::AutouncleNLScraper;
-use data_scraper::scraper::AutounclePLScraper::AutounclePLScraper;
-use data_scraper::scraper::Traits::{ScrapeListTrait, ScraperTrait};
+use data_scraper::model::VehicleDataModel::DownloadStatus;
+
+use data_scraper::scraper::VehicleTraits::{AutouncleScraper, VehicleScrapeTrait};
+use data_scraper::services::ScraperAppVehicleService;
 use data_scraper::services::SearchBuilder::{
     CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT, CRAWLER_AUTOUNCLE_PL,
     ID_AUTOUNCLE_CH_START, ID_AUTOUNCLE_DE_START, ID_AUTOUNCLE_FR, ID_AUTOUNCLE_IT_START,
     ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, ID_CARS_BG_START,
     ID_MOBILE_BG_START, build_autouncle_searches,
 };
-use data_scraper::utils::files::create_all_files;
+use data_scraper::utils::files::{DATA_DIR, create_all_files};
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
-    scraper::{AutouncleROScraper::AutouncleROScraper, MobileBgScraper::MobileBGScraper},
-    services::{
-        ScraperAppService::download_list_data,
-        SearchBuilder::{
-            CRAWLER_AUTOUNCLE_FR, CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_CARS_BG,
-            CRAWLER_MOBILE_BG, build_cars_bg_all_searches, build_mobile_bg_all_searches,
-        },
+    scraper::MobileBgScraper::MobileBGScraper,
+    services::SearchBuilder::{
+        CRAWLER_AUTOUNCLE_FR, CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_CARS_BG,
+        CRAWLER_MOBILE_BG, build_cars_bg_all_searches, build_mobile_bg_all_searches,
     },
     utils::helpers::configure_log4rs,
 };
@@ -43,9 +38,8 @@ use log::{error, info};
 
 use clap::{Args, Parser, Subcommand, command};
 
-use serde::Serialize;
-
 pub const CHUNK_SIZE: usize = 4;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -57,7 +51,7 @@ struct Cli {
 struct CrawlerArgs {
     #[arg(short, long, default_value = "autouncle.ro")]
     source: String,
-    #[arg(short, long, default_value = "./data")]
+    #[arg(short, long, default_value = "data")]
     dir: Option<String>,
     #[arg(short = 'o', long, default_value = "csv")]
     sink_type: String,
@@ -74,6 +68,11 @@ enum Commands {
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
     let command = Cli::parse();
+    if let Commands::Scrape(args) = &command.command {
+        DATA_DIR
+            .set(args.dir.clone().unwrap_or("data".to_string()))
+            .unwrap_or_else(|_| panic!("Failed to set DATA_DIR"));
+    }
     match command.command {
         Commands::Scrape(args) => {
             let source = args.source.clone();
@@ -87,16 +86,11 @@ async fn main() {
                 }
             };
             if SinkType::Kafka != sink_type {
-                //if data dir does not exist, create it
-                if let Some(dir) = args.dir {
-                    create_all_files(&dir, sink_type.clone());
-
-                    // Check if the file exists
-                }
+                create_all_files(sink_type.clone());
             }
             //create files if not exist BASE_INFO_CSV_FILE_NAME
 
-            run_crawler(source, 1, sink_type).await;
+            run_vehicle_crawler(source, 1, sink_type).await;
         }
         Commands::Puppeteer(args) => {
             let sink_type = match args.sink_type.as_str() {
@@ -110,9 +104,7 @@ async fn main() {
             };
             if SinkType::Kafka != sink_type {
                 //if data dir does not exist, create it
-                if let Some(dir) = args.dir {
-                    create_all_files(&dir, sink_type.clone());
-                }
+                create_all_files(sink_type.clone());
             }
             info!("Puppeteer command is not implemented yet");
             #[cfg(feature = "kafka")]
@@ -125,7 +117,7 @@ async fn main() {
     }
 }
 
-async fn run_crawler(crawler: String, threads: usize, sink_type: SinkType) {
+async fn run_vehicle_crawler(crawler: String, threads: usize, sink_type: SinkType) {
     let filter = vec![];
     if crawler == CRAWLER_MOBILE_BG {
         let searches = filter_searches(&crawler, filter);
@@ -133,53 +125,28 @@ async fn run_crawler(crawler: String, threads: usize, sink_type: SinkType) {
         let crawler = MobileBGScraper::new(MOBILE_BG_URL, 250);
         let searches = searches.chunks(threads);
         info!("Starting mobile.bg with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_FR {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleFRScraper::new(AUTOUNCLE_FR_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.fr with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_NL {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleNLScraper::new(AUTOUNCLE_NL_URL, 250);
-        info!("Starting autouncle.nl with #{} searches", searches.len());
-        let searches = searches.chunks(threads);
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_RO {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleROScraper::new(AUTOUNCLE_RO_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.ro with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_PL {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutounclePLScraper::new(AUTOUNCLE_PL_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.pl with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_CH {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleCHScraper::new(AUTOUNCLE_CH_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.pl with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_DE {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleCHScraper::new(AUTOUNCLE_DE_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.pl with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
-    } else if crawler == CRAWLER_AUTOUNCLE_IT {
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleCHScraper::new(AUTOUNCLE_IT_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting autouncle.pl with #{} searches", searches.len());
-        log_and_search(searches, crawler, sink_type).await;
+        vehicle_log_and_search(searches, crawler, sink_type).await;
     } else {
-        error!("Invalid crawler: {}", crawler);
+        let url = match crawler.as_str() {
+            CRAWLER_AUTOUNCLE_FR => AUTOUNCLE_FR_URL,
+            CRAWLER_AUTOUNCLE_NL => AUTOUNCLE_NL_URL,
+            CRAWLER_AUTOUNCLE_RO => AUTOUNCLE_RO_URL,
+            CRAWLER_AUTOUNCLE_CH => AUTOUNCLE_CH_URL,
+            CRAWLER_AUTOUNCLE_PL => AUTOUNCLE_PL_URL,
+            CRAWLER_AUTOUNCLE_DE => AUTOUNCLE_DE_URL,
+            CRAWLER_AUTOUNCLE_IT => AUTOUNCLE_IT_URL,
+            _ => {
+                error!("Invalid crawler: {}", crawler);
+                return;
+            }
+        };
+        let searches = filter_searches(&crawler, filter);
+        let crawler = AutouncleScraper::new(url, "page", &crawler, 250);
+        let searches = searches.chunks(threads);
+        vehicle_log_and_search(searches, crawler, sink_type).await;
     }
 }
+
 fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
     let searches = match source {
         CRAWLER_AUTOUNCLE_FR => build_autouncle_searches(AUTOUNCLE_FR_URL, "[5]", ID_AUTOUNCLE_FR),
@@ -226,13 +193,12 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
     converted
 }
 
-async fn log_and_search<S, T>(
+async fn vehicle_log_and_search<S>(
     searches: std::slice::Chunks<'_, Search>,
     crawler: S,
     sink_type: SinkType,
 ) where
-    S: ScraperTrait + ScrapeListTrait<T> + Clone + Send + 'static,
-    T: BasicT + DetailsT + PriceT + Send + Sync + Serialize + Clone + Debug + 'static,
+    S: VehicleScrapeTrait + Clone + Send + 'static,
 {
     let mut listed = 0;
     let mut actual = 0;
@@ -243,7 +209,12 @@ async fn log_and_search<S, T>(
         chunk_counter += 1;
         let vsearch = search.to_vec();
         let searches = vsearch.to_vec();
-        if let Ok(statuses) = download_list_data(crawler.clone(), searches, sink_type.clone()).await
+        if let Ok(statuses) = ScraperAppVehicleService::download_list_data(
+            crawler.clone(),
+            searches,
+            sink_type.clone(),
+        )
+        .await
         {
             for s in statuses {
                 listed += s.listed;
@@ -257,9 +228,11 @@ async fn log_and_search<S, T>(
         }
     }
 }
+
 #[cfg(feature = "kafka")]
 async fn run_consumers(broker: String, sink_type: SinkType) {
     let task = tokio::spawn(async move {
+        let group = "mobile_de_group_1";
         #[cfg(feature = "kafka")]
         {
             consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await

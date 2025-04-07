@@ -1,50 +1,26 @@
-const VEHICLE_HEADER: &str = "id;source;make;model;title;currency;price;mileage;month;year;engine;gearbox;cc;power_ps;power_kw;search_id;url";
-const DETAILS_HEADER: &str = "id;source;location;equipment;seller_name;seller_url;range;consumption_fuel;consumption_kw;co2;days_in_sale";
-const PRICES_HEADER: &str =
-    "id;source;estimated_price;price;currency;save_difference;overpriced_difference;ranges;rating";
-
-use std::fs::File;
+const VEHICLE_HEADER: &str = "id;source;make;model;title;year;mileage;engine;gearbox;power_ps;power_kw;currency;price;estimated_price;cc;url;location;equipment;seller_name;seller_url;range;consumption_fuel;consumption_kw;co2;days_in_sale;ranges;rating";
+use std::{fs::File, sync::OnceLock};
 
 use std::path::Path;
 
 use crate::writer::sink::SinkType;
 use log::{error, info};
+pub static DATA_DIR: OnceLock<String> = OnceLock::new();
 
-pub fn create_all_files(dir: &str, sink_type: SinkType) {
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+pub fn create_all_files(sink_type: SinkType) {
+    let dir = DATA_DIR.get_or_init(|| "data".to_string());
+    if let Err(e) = std::fs::create_dir_all(dir) {
         error!("Failed to create directory {}: {}", dir, e);
         // Handle the error appropriately, e.g., return an error, exit with a non-zero code, etc.
         return; // Or another suitable error handling mechanism
     }
-    info!("Data directory: {}", dir);
+
     // Create the file name with the current date
     //let file_name = format!("{}/base-info-{}.csv", dir, CREATED_ON);
-    let extension = match sink_type {
-        SinkType::CsvFile => "csv",
-        SinkType::ProtobufFile => "bin",
-        _ => "txt",
-    };
-    let base_file_name = format!(
-        "{}/vehicles-info-{}.{}",
-        dir,
-        chrono::Utc::now().format("%Y-%m-%d"),
-        extension
-    );
-    let details_file_name = format!(
-        "{}/details-info-{}.{}",
-        dir,
-        chrono::Utc::now().format("%Y-%m-%d"),
-        extension
-    );
-    let prices_file_name = format!(
-        "{}/prices-info-{}.{}",
-        dir,
-        chrono::Utc::now().format("%Y-%m-%d"),
-        extension
-    );
-    create_file_if_not_exists(&base_file_name.as_str(), Some(VEHICLE_HEADER));
-    create_file_if_not_exists(&&details_file_name.as_str(), Some(DETAILS_HEADER));
-    create_file_if_not_exists(&&prices_file_name.as_str(), Some(PRICES_HEADER));
+
+    let vehicle_file_name = vehicle_file_name(&sink_type);
+    info!("Vehicle file name: {}", vehicle_file_name);
+    create_file_if_not_exists(vehicle_file_name.as_str(), Some(VEHICLE_HEADER));
 }
 
 fn create_file_if_not_exists(file_name: &str, header: Option<&str>) {
@@ -66,4 +42,24 @@ fn create_file_if_not_exists(file_name: &str, header: Option<&str>) {
         }
         info!("File {} created", file_name);
     }
+}
+
+fn named_file(label: &str, sink_type: &SinkType) -> String {
+    let dir = DATA_DIR.get().unwrap();
+    let extension = match sink_type {
+        SinkType::CsvFile => "csv",
+        SinkType::ProtobufFile => "bin",
+        _ => "txt",
+    };
+    format!(
+        "{}/{}-{}.{}",
+        dir,
+        label,
+        chrono::Utc::now().format("%Y-%m-%d"),
+        extension
+    )
+}
+
+pub fn vehicle_file_name(sink_type: &SinkType) -> String {
+    named_file("vehicles", sink_type)
 }
