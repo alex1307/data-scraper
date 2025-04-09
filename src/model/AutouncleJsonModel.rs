@@ -3,8 +3,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    VehicleDataModel::{BasicT, DetailsT, PriceT},
     enums::{Currency, Engine, Gearbox},
+    traits::VehicleT,
 };
 lazy_static! {
     static ref STRING_TO_F32: Regex = Regex::new(r"\d+(\.\d+)").unwrap();
@@ -114,31 +114,12 @@ impl CarData {
     }
 
     pub fn price(&self) -> Option<u32> {
-        if !self.price.is_empty() {
-            //get only numbers from the string
-            if let Some(captures) = self
-                .price
-                .chars()
-                .filter(|c| c.is_numeric())
-                .collect::<String>()
-                .parse::<u32>()
-                .ok()
-            {
-                return Some(captures);
-            }
-        }
-        None
-    }
-
-    fn estimated_price(&self) -> Option<u32> {
-        if let Some(captures) = &self
-            .modal_price_history_values
-            .estimated_price
+        if let Ok(captures) = &self
+            .price
             .chars()
             .filter(|c| c.is_numeric())
             .collect::<String>()
             .parse::<u32>()
-            .ok()
         {
             Some(*captures)
         } else {
@@ -146,19 +127,18 @@ impl CarData {
         }
     }
 
-    fn save_difference(&self) -> u32 {
-        if let Some(captures) = &self
+    fn estimated_price(&self) -> Option<u32> {
+        if let Ok(captures) = &self
             .modal_price_history_values
-            .you_save
+            .estimated_price
             .chars()
             .filter(|c| c.is_numeric())
             .collect::<String>()
             .parse::<u32>()
-            .ok()
         {
-            *captures
+            Some(*captures)
         } else {
-            0
+            None
         }
     }
 
@@ -221,31 +201,47 @@ pub struct ModalPriceHistoryValues {
     pub you_save: String,
 }
 
-impl BasicT for CarData {
+impl VehicleT for CarData {
     fn id(&self) -> String {
         self.car_id.clone()
     }
+
     fn source(&self) -> String {
         self.source.clone()
     }
-    fn price(&self) -> Option<u32> {
-        self.price()
-    }
-    fn currency(&self) -> Currency {
-        self.currency()
-    }
+
     fn make(&self) -> String {
         self.brand.clone()
     }
+
     fn model(&self) -> String {
         self.car_model.clone()
     }
+
+    fn title(&self) -> String {
+        self.headline.clone()
+    }
+
+    fn currency(&self) -> Currency {
+        self.currency()
+    }
+
+    fn price(&self) -> u32 {
+        self.price().unwrap_or(0)
+    }
+
+    fn mileage(&self) -> u32 {
+        self.km.unwrap_or(0)
+    }
+
     fn year(&self) -> u16 {
         self.year.unwrap_or(0) as u16
     }
-    fn power_ps(&self) -> u32 {
-        self.hp().unwrap_or(0)
+
+    fn engine(&self) -> Engine {
+        self.engine
     }
+
     fn gearbox(&self) -> Gearbox {
         if self.has_auto_gear {
             Gearbox::Automatic
@@ -253,32 +249,19 @@ impl BasicT for CarData {
             Gearbox::Manual
         }
     }
-    fn engine(&self) -> Engine {
-        self.engine
+
+    fn power_ps(&self) -> u32 {
+        self.hp().unwrap_or(0)
     }
 
-    fn millage(&self) -> Option<u32> {
-        self.km
-    }
-    fn cc(&self) -> u32 {
-        if let Some(cc) = self.engine_size {
-            (cc * 1000.0) as u32
-        } else {
-            0
-        }
-    }
     fn power_kw(&self) -> u32 {
         self.kw().unwrap_or(0)
     }
-    fn month(&self) -> Option<u16> {
-        None
+
+    fn cc(&self) -> Option<u32> {
+        self.engine_size.map(|cc| (cc * 1000.0) as u32)
     }
-    fn title(&self) -> String {
-        self.headline.clone()
-    }
-    fn search_id(&self) -> String {
-        self.searchId.clone()
-    }
+
     fn url(&self) -> String {
         if let Some(url) = &self.outgoing_path {
             match self.source.as_str() {
@@ -293,89 +276,45 @@ impl BasicT for CarData {
             "".to_string()
         }
     }
-}
 
-impl DetailsT for CarData {
-    fn get_id(&self) -> String {
-        self.car_id.clone()
+    fn location(&self) -> Option<String> {
+        self.location.clone()
     }
 
-    fn source(&self) -> String {
-        self.source.clone()
+    fn seller_name(&self) -> Option<String> {
+        Some(self.source_name.clone())
     }
 
-    fn phone(&self) -> String {
-        "".to_string()
+    fn equipment(&self) -> Option<String> {
+        self.modal_price_history_values.car_equipment.clone()
     }
 
-    fn location(&self) -> String {
-        self.location.clone().unwrap_or_default()
+    fn seller_url(&self) -> Option<String> {
+        None
     }
 
-    fn seller_name(&self) -> String {
-        self.source_name.clone()
+    fn consumption_fuel(&self) -> Option<f32> {
+        self.litter_fuel_consumption()
     }
 
-    fn equipment(&self) -> String {
-        if let Some(equipment) = &self.modal_price_history_values.car_equipment {
-            equipment.clone()
-        } else {
-            "".to_string()
-        }
+    fn consumption_kw(&self) -> Option<f32> {
+        self.kwh_fuel_consumption()
     }
 
-    fn seller_url(&self) -> String {
-        "".to_string()
+    fn co2(&self) -> Option<u32> {
+        self.co2_emission().map(|value| value as u32)
     }
 
-    fn consumption_fuel(&self) -> f32 {
-        self.litter_fuel_consumption().unwrap_or(0.0)
-    }
-
-    fn consumption_kw(&self) -> f32 {
-        self.kwh_fuel_consumption().unwrap_or(0.0)
-    }
-
-    fn co2(&self) -> u32 {
-        self.co2_emission().unwrap_or(0) as u32
-    }
-
-    fn range(&self) -> u32 {
-        self.range().unwrap_or(0) as u32
+    fn range(&self) -> Option<u32> {
+        self.range()
     }
 
     fn days_in_sale(&self) -> Option<u32> {
         self.laytime
     }
-}
-
-impl PriceT for CarData {
-    fn currency(&self) -> Currency {
-        self.currency()
-    }
-
-    fn price(&self) -> u32 {
-        self.price().unwrap_or(0)
-    }
-
-    fn id(&self) -> String {
-        self.car_id.clone()
-    }
-
-    fn source(&self) -> String {
-        self.source.clone()
-    }
 
     fn estimated_price(&self) -> Option<u32> {
         self.estimated_price()
-    }
-
-    fn save_difference(&self) -> u32 {
-        self.save_difference()
-    }
-
-    fn overpriced_difference(&self) -> u32 {
-        0
     }
 
     fn ranges(&self) -> Option<String> {

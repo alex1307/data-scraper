@@ -363,8 +363,8 @@ impl TryFrom<SearchItem> for Vehicle {
 
         let contact = unwrap_or_err!(item.contactInfo.clone(), "contactInfo");
         let location = Some(contact.location.clone());
-        let seller_name = contact.name.unwrap_or_default();
-        let seller_url = String::new(); // Could be filled in if available from `item`
+        let seller_name = contact.name;
+        let seller_url = None; // Could be filled in if available from `item`
 
         let mut estimated_price = None;
         let mut thresholds = vec![];

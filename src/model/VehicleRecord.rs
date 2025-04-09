@@ -7,8 +7,8 @@ use crate::helpers::{
 };
 
 use super::{
-    VehicleDataModel::{BasicT, DetailsT, PriceT},
     enums::{Currency, Engine, Gearbox},
+    traits::VehicleT,
     traits::{Header, Identity},
 };
 
@@ -80,7 +80,7 @@ impl Identity for MobileRecord {
     }
 }
 
-impl BasicT for MobileRecord {
+impl VehicleT for MobileRecord {
     fn id(&self) -> String {
         self.id.clone()
     }
@@ -99,14 +99,11 @@ impl BasicT for MobileRecord {
     fn currency(&self) -> Currency {
         self.currency
     }
-    fn price(&self) -> Option<u32> {
-        Some(self.price)
+    fn price(&self) -> u32 {
+        self.price
     }
-    fn millage(&self) -> Option<u32> {
-        Some(self.mileage)
-    }
-    fn month(&self) -> Option<u16> {
-        None
+    fn mileage(&self) -> u32 {
+        self.mileage
     }
     fn year(&self) -> u16 {
         self.year
@@ -117,19 +114,15 @@ impl BasicT for MobileRecord {
     fn gearbox(&self) -> Gearbox {
         self.gearbox
     }
-    fn cc(&self) -> u32 {
-        self.cc
-    }
     fn power_ps(&self) -> u32 {
         self.power
     }
     fn power_kw(&self) -> u32 {
         self.power
     }
-    fn search_id(&self) -> String {
-        self.searchId.clone()
+    fn cc(&self) -> Option<u32> {
+        Some(self.cc)
     }
-
     fn url(&self) -> String {
         match self.source.as_str() {
             "mobile.bg" => format!("https://www.mobile.bg/obiava-{}", self.id),
@@ -137,73 +130,35 @@ impl BasicT for MobileRecord {
             _ => "".to_string(),
         }
     }
-}
-
-impl DetailsT for MobileRecord {
-    fn get_id(&self) -> String {
-        self.id.clone()
+    fn location(&self) -> Option<String> {
+        Some(self.location.clone())
     }
-    fn source(&self) -> String {
-        self.source.clone()
+    fn seller_name(&self) -> Option<String> {
+        Some(self.name.clone())
     }
-    fn phone(&self) -> String {
-        self.phone.clone()
+    fn equipment(&self) -> Option<String> {
+        Some(self.equipment.clone())
     }
-    fn location(&self) -> String {
-        self.location.clone()
+    fn seller_url(&self) -> Option<String> {
+        Some(self.dealer_url.clone())
     }
-
-    fn seller_name(&self) -> String {
-        self.name.clone()
+    fn consumption_fuel(&self) -> Option<f32> {
+        Some(0.0)
     }
-    fn equipment(&self) -> String {
-        self.equipment.clone()
+    fn consumption_kw(&self) -> Option<f32> {
+        Some(0.0)
     }
-    fn seller_url(&self) -> String {
-        self.dealer_url.clone()
+    fn co2(&self) -> Option<u32> {
+        Some(0)
     }
-
-    fn consumption_fuel(&self) -> f32 {
-        0.0
-    }
-
-    fn consumption_kw(&self) -> f32 {
-        0.0
-    }
-
-    fn co2(&self) -> u32 {
-        0
-    }
-
-    fn range(&self) -> u32 {
-        0
+    fn range(&self) -> Option<u32> {
+        Some(0)
     }
     fn days_in_sale(&self) -> Option<u32> {
         None
     }
-}
-
-impl PriceT for MobileRecord {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-    fn source(&self) -> String {
-        self.source.clone()
-    }
     fn estimated_price(&self) -> Option<u32> {
         None
-    }
-    fn price(&self) -> u32 {
-        self.price
-    }
-    fn currency(&self) -> Currency {
-        self.currency
-    }
-    fn save_difference(&self) -> u32 {
-        0
-    }
-    fn overpriced_difference(&self) -> u32 {
-        0
     }
     fn ranges(&self) -> Option<String> {
         None

@@ -289,7 +289,7 @@ pub async fn send_data(
 }
 
 pub async fn process_list_and_send<S>(
-    scraper: Box<&S>,
+    scraper: &S,
     searches: Vec<Search>, // Same issue with U
     sender: &mut Sender<Vehicle>,
 ) -> Result<(), String>
@@ -299,7 +299,7 @@ where
     let mut sum_total_number = 0;
     info!("Starting list processing. Searches: {}", searches.len());
     for search in searches {
-        match process_search(scraper.clone(), search.clone(), sender.clone()).await {
+        match process_search(scraper, search.clone(), sender.clone()).await {
             Ok(total_number) => {
                 sum_total_number += total_number;
             }
@@ -319,7 +319,7 @@ where
 }
 
 async fn process_search<Scraper>(
-    scraper: Box<&Scraper>,
+    scraper: &Scraper,
     search: Search, // Same issue with U
     sender: Sender<Vehicle>,
 ) -> Result<u32, String>

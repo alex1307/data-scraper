@@ -5,7 +5,7 @@ use crate::{
         DataConversionError::ConversionError,
         MobileDe::SearchItem,
         MobileDeAdvJson::processMobileDeJson,
-        VehicleDataModel::{self, BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle},
+        VehicleDataModel::{self, Vehicle},
     },
     ok_or_message,
     protos::vehicle_model::DownloadStatus,

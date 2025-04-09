@@ -8,8 +8,8 @@ use super::{DataConversionError::ConversionError, MobileDe::SearchItem};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)] // Allows handling different structures (VehicleData vs NestedItem)
 pub enum Item {
+    Vehicle(Box<SearchItem>),
     Nested(NestedItem),
-    Vehicle(SearchItem),  // A regular vehicle entry
     Unknown(UnknownItem), // A nested item containing more items
 }
 
@@ -103,7 +103,7 @@ pub struct SearchResult {
 const SEARCH_ITEM: &str = "/search/srp/data/searchResults/items";
 const NESTED_ITEMS: &str = "/items";
 pub fn processMobileDeJson(contents: &str) -> Result<Vec<SearchItem>, ConversionError> {
-    let mut allitems = vec![];
+    let mut allitems: Vec<SearchItem> = vec![];
     let json: Value = ok_or_message!(
         serde_json::from_str(contents),
         "Failed to parse JSON".to_string()
@@ -127,7 +127,7 @@ pub fn processMobileDeJson(contents: &str) -> Result<Vec<SearchItem>, Conversion
                 "Failed to parse items".to_string()
             );
             allitems.extend(item_arr.into_iter().filter_map(|i| match i {
-                Item::Vehicle(v) => Some(v),
+                Item::Vehicle(v) => Some(*v),
                 _ => None,
             }));
         } else {
@@ -136,75 +136,10 @@ pub fn processMobileDeJson(contents: &str) -> Result<Vec<SearchItem>, Conversion
                 "Failed to parse item".to_string()
             );
             if let Item::Vehicle(v) = item {
-                allitems.push(v);
+                allitems.push(*v);
             }
         }
     }
 
     Ok(allitems)
-}
-
-#[cfg(test)]
-mod mobile_de_json_test {
-    use std::{fs::File, io::Read};
-
-    use log::{error, info};
-
-    use crate::{
-        LOG_CONFIG,
-        model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price},
-        utils::helpers::configure_log4rs,
-    };
-
-    #[test]
-    fn test_extract_car_attributes() {
-        configure_log4rs(&LOG_CONFIG);
-        let mut file = File::open("mob.json").unwrap();
-        let mut contents = String::new();
-        let _ = file.read_to_string(&mut contents);
-
-        let searchItems = super::processMobileDeJson(&contents).unwrap();
-
-        let mut allbase = vec![];
-        let mut alldetailed = vec![];
-        let mut allprice = vec![];
-        info!("All items: {:?}", searchItems.len());
-        assert_eq!(30, searchItems.len());
-        for item in searchItems.iter() {
-            match BaseVehicleInfo::try_from(item.clone()) {
-                Ok(base) => {
-                    allbase.push(base);
-                }
-                Err(e) => {
-                    error!(
-                        "❌ Failed to convert to BaseVehicleInfo: {:?}, Error: {:?}",
-                        item, e
-                    );
-                }
-            }
-            match DetailedVehicleInfo::try_from(item.clone()) {
-                Ok(detailed) => {
-                    alldetailed.push(detailed);
-                }
-                Err(e) => {
-                    error!(
-                        "❌ Failed to convert to DetailedVehicleInfo: {:?}, Error: {:?}",
-                        item, e
-                    );
-                }
-            }
-
-            match Price::try_from(item.clone()) {
-                Ok(price) => {
-                    allprice.push(price);
-                }
-                Err(e) => {
-                    error!("❌ Failed to convert to Price: {:?}, Error: {:?}", item, e);
-                }
-            }
-        }
-        assert_eq!(24, allbase.len());
-        assert_eq!(24, alldetailed.len());
-        assert_eq!(24, allprice.len());
-    }
 }

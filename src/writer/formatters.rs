@@ -2,7 +2,7 @@ use csv::WriterBuilder;
 use serde::Serialize;
 
 // src/writer/formatters.rs
-use crate::model::VehicleDataModel::{BaseVehicleInfo, DetailedVehicleInfo, Price, Vehicle};
+use crate::model::VehicleDataModel::Vehicle;
 
 use super::encode_message;
 
@@ -11,27 +11,6 @@ pub trait Formatter<T>: Send + Sync {
 }
 #[derive(Clone)]
 pub struct ProtobufFormatter;
-
-impl Formatter<BaseVehicleInfo> for ProtobufFormatter {
-    fn format(&self, data: &BaseVehicleInfo) -> Result<Vec<u8>, String> {
-        let proto_message = crate::protos::vehicle_model::BaseVehicleInfo::from(data.clone());
-        encode_message(&proto_message)
-    }
-}
-
-impl Formatter<DetailedVehicleInfo> for ProtobufFormatter {
-    fn format(&self, data: &DetailedVehicleInfo) -> Result<Vec<u8>, String> {
-        let proto_message = crate::protos::vehicle_model::DetailedVehicleInfo::from(data.clone());
-        encode_message(&proto_message)
-    }
-}
-
-impl Formatter<Price> for ProtobufFormatter {
-    fn format(&self, data: &Price) -> Result<Vec<u8>, String> {
-        let proto_message = crate::protos::vehicle_model::Price::from(data.clone());
-        encode_message(&proto_message)
-    }
-}
 
 impl Formatter<Vehicle> for ProtobufFormatter {
     fn format(&self, data: &Vehicle) -> Result<Vec<u8>, String> {

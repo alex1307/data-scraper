@@ -2,10 +2,7 @@ use crate::{
     helpers::{
         AutoUncleHelper::process_html as process_autouncle_html, MobileBgHTMLHelper::process_html,
     },
-    model::{
-        Search::Search,
-        VehicleDataModel::{BasicT, DetailsT, PriceT, Vehicle},
-    },
+    model::{Search::Search, VehicleDataModel::Vehicle},
 };
 use async_trait::async_trait;
 use log::error;
@@ -66,25 +63,12 @@ impl VehicleScrapeTrait for MobileBGScraper {
         let vehicles: Vec<Vehicle> = process_html(html)
             .iter()
             .cloned()
-            .map(|r| Vehicle {
-                id: r.id.clone(),
-                source: "mobile.bg".to_string(),
-                make: r.make.clone(),
-                model: r.model.clone(),
-                title: r.title.clone(),
-                currency: r.currency,
-                price: r.price,
-                mileage: r.mileage,
-                year: r.year,
-                location: Some(r.location()),
-                engine: r.engine,
-                gearbox: r.gearbox,
-                power_ps: r.power_ps(),
-                power_kw: r.power_kw(),
-                url: r.url(),
-                seller_name: r.name,
-                seller_url: r.dealer_url,
-                ..Default::default()
+            .map(Vehicle::from)
+            .collect::<Vec<Vehicle>>()
+            .into_iter()
+            .map(|mut r| {
+                r.source = self.parent.source.clone();
+                r
             })
             .collect();
         if vehicles.is_empty() {
@@ -169,33 +153,12 @@ impl VehicleScrapeTrait for AutouncleScraper {
         let vehicles: Vec<Vehicle> = process_autouncle_html(html)
             .iter()
             .cloned()
-            .map(|r| Vehicle {
-                id: r.car_id.clone(),
-                source: self.parent.source.clone(),
-                make: r.make(),
-                model: r.model(),
-                title: r.title(),
-                currency: <dyn BasicT>::currency(&r),
-                price: r.price().unwrap_or_default(),
-                mileage: r.millage().unwrap_or_default(),
-                year: r.year(),
-                location: Some(r.location()),
-                engine: r.engine,
-                gearbox: r.gearbox(),
-                power_ps: r.power_ps(),
-                power_kw: r.power_kw(),
-                url: r.url(),
-                seller_name: r.seller_name(),
-                seller_url: r.seller_url(),
-                estimated_price: r.estimated_price(),
-                cc: Some(r.cc()),
-                equipment: Some(r.equipment()),
-                range: r.range(),
-                consumption_fuel: r.litter_fuel_consumption(),
-                consumption_kw: r.kwh_fuel_consumption(),
-                co2: Some(r.co2()),
-                days_in_sale: r.days_in_sale(),
-                ..Default::default()
+            .map(Vehicle::from)
+            .collect::<Vec<Vehicle>>()
+            .into_iter()
+            .map(|mut r| {
+                r.source = self.parent.source.clone();
+                r
             })
             .collect();
         if vehicles.is_empty() {
