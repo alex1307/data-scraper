@@ -5,6 +5,12 @@ use data_scraper::constants::URL::{
     AUTOUNCLE_CH_URL, AUTOUNCLE_DE_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_IT_URL, AUTOUNCLE_NL_URL,
     AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL, MOBILE_BG_URL,
 };
+#[cfg(feature = "kafka")]
+use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
+#[cfg(feature = "kafka")]
+use data_scraper::kafka::MOBILE_DE_TOPIC;
+#[cfg(feature = "kafka")]
+use data_scraper::kafka::broker;
 
 use data_scraper::LOG_CONFIG;
 use data_scraper::model::Search::Search;
@@ -20,6 +26,7 @@ use data_scraper::services::SearchBuilder::{
     ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, ID_MOBILE_BG_START,
     build_autouncle_searches,
 };
+use data_scraper::utils::files::{DATA_DIR, create_all_files};
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
     scraper::MobileBgScraper::MobileBGScraper,
@@ -32,32 +39,94 @@ use data_scraper::{
 
 use log::{error, info};
 
-use clap::{Parser, command};
+use clap::{Args, Parser, Subcommand, command};
 
 pub const CHUNK_SIZE: usize = 4;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, default_value = "autouncle.ro")]
-    source: String,
-    #[arg(short = 'c', long, default_value_t = false)]
-    use_chrome: bool,
+    #[command(subcommand)]
+    command: Commands,
 }
 
+#[derive(Args, Debug)]
+struct CrawlerArgs {
+    #[arg(short, long, default_value = "autouncle.ro")]
+    source: String,
+    #[arg(short, long, default_value = "data")]
+    dir: Option<String>,
+    #[arg(short = 'o', long, default_value = "csv")]
+    sink_type: String,
+    #[arg(short = 't', long)]
+    topic: Option<String>,
+    #[arg(short = 'c', default_value = "false")]
+    #[clap(value_parser)]
+    use_chrome: Option<bool>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Scrape(CrawlerArgs),
+    Puppeteer(CrawlerArgs),
+}
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     configure_log4rs(&LOG_CONFIG);
     dotenvy::dotenv().ok();
     info!("Starting data scraper ==1==...");
-    let args = Cli::parse();
-    let source = args.source.clone();
-    let use_chrome = args.use_chrome;
+    let command = Cli::parse();
+    if let Commands::Scrape(args) = &command.command {
+        DATA_DIR
+            .set(args.dir.clone().unwrap_or("data".to_string()))
+            .unwrap_or_else(|_| panic!("Failed to set DATA_DIR"));
+    }
+    match command.command {
+        Commands::Scrape(args) => {
+            let source = args.source.clone();
+            let use_chrome = args.use_chrome.unwrap_or(false);
+            info!("sink type: {}", args.sink_type);
+            let sink_type = match args.sink_type.as_str() {
+                "csv" => SinkType::CsvFile,
+                "protobuf" => SinkType::ProtobufFile,
+                "kafka" => SinkType::Kafka,
+                "postgres" => SinkType::PostgresDB,
+                _ => {
+                    error!("Invalid sink type: {}", args.sink_type);
+                    return; // Or another suitable error handling mechanism
+                }
+            };
+            if SinkType::Kafka != sink_type {
+                create_all_files(sink_type.clone());
+            }
+            //create files if not exist BASE_INFO_CSV_FILE_NAME
 
-    // Always use Postgres as sink
-    let sink_type = SinkType::PostgresDB;
-
-    run_vehicle_crawler(source, 1, sink_type, use_chrome).await;
+            run_vehicle_crawler(source, 1, sink_type, use_chrome).await;
+        }
+        Commands::Puppeteer(args) => {
+            let sink_type = match args.sink_type.as_str() {
+                "csv" => SinkType::CsvFile,
+                "protobuf" => SinkType::ProtobufFile,
+                "kafka" => SinkType::Kafka,
+                "postgres" => SinkType::PostgresDB,
+                _ => {
+                    error!("Invalid sink type: {}", args.sink_type);
+                    return; // Or another suitable error handling mechanism
+                }
+            };
+            if SinkType::PostgresDB != sink_type && SinkType::Kafka != sink_type {
+                //if data dir does not exist, create it
+                create_all_files(sink_type.clone());
+            }
+            info!("Puppeteer command is not implemented yet");
+            #[cfg(feature = "kafka")]
+            run_consumers(broker(), sink_type).await;
+            #[cfg(not(feature = "kafka"))]
+            {
+                error!("Kafka feature is not enabled. Cannot run consumer.");
+            }
+        }
+    }
 }
 
 async fn run_vehicle_crawler(
@@ -180,5 +249,26 @@ async fn vehicle_log_and_search<S>(
                 listed, actual, chunk_counter, counter
             );
         }
+    }
+}
+
+#[cfg(feature = "kafka")]
+async fn run_consumers(broker: String, sink_type: SinkType) {
+    let task = tokio::spawn(async move {
+        let group = "mobile_de_group_4";
+        #[cfg(feature = "kafka")]
+        {
+            consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
+        }
+        #[cfg(not(feature = "kafka"))]
+        {
+            error!("Kafka feature is not enabled. Cannot run consumer.");
+        }
+    });
+    let r1 = tokio::spawn(task).await;
+    if r1.is_ok() {
+        info!("car.gr consumer finished");
+    } else {
+        info!("car.gr consumer failed");
     }
 }

@@ -2,6 +2,7 @@ use csv::WriterBuilder;
 use serde::Serialize;
 
 // src/writer/formatters.rs
+
 use crate::model::VehicleDataModel::Vehicle;
 
 use super::encode_message;

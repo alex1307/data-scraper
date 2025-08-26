@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use log::error;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +27,6 @@ pub struct CarData {
     pub vdp_path: String,
     pub source_name: String,
     pub headline: String,
-    pub displayable_images: String,
     pub fuel_consumption: Option<String>,
     pub co2_emission: Option<String>,
     pub range: Option<String>,
@@ -263,18 +263,20 @@ impl VehicleT for CarData {
     }
 
     fn url(&self) -> String {
-        if let Some(url) = &self.outgoing_path {
-            match self.source.as_str() {
-                "autouncle.ro" => format!("https://www.autouncle.ro{}", url),
-                "autouncle.fr" => format!("https://www.autouncle.fr{}", url),
-                "autouncle.nl" => format!("https://www.autouncle.nl{}", url),
-                "autouncle.ch" => format!("https://www.autouncle.ch{}", url),
-                "autouncle.pl" => format!("https://www.autouncle.pl{}", url),
-                _ => "".to_string(),
+        let url = match self.source.as_str() {
+            "autouncle.ro" => format!("https://www.autouncle.ro{}", self.vdp_path),
+            "autouncle.fr" => format!("https://www.autouncle.fr{}", self.vdp_path),
+            "autouncle.it" => format!("https://www.autouncle.it{}", self.vdp_path),
+            "autouncle.nl" => format!("https://www.autouncle.nl{}", self.vdp_path),
+            "autouncle.ch" => format!("https://www.autouncle.ch{}", self.vdp_path),
+            "autouncle.pl" => format!("https://www.autouncle.pl{}", self.vdp_path),
+            "autouncle.de" => format!("https://www.autouncle.de{}", self.vdp_path),
+            _ => {
+                error!("Unknown source: {}", self.source);
+                "".to_string()
             }
-        } else {
-            "".to_string()
-        }
+        };
+        url
     }
 
     fn location(&self) -> Option<String> {

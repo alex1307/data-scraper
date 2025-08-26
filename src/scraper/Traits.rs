@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use encoding_rs::{Encoding, UTF_8};
 use lazy_static::lazy_static;
@@ -7,6 +7,8 @@ use log::info;
 use rand::Rng;
 
 use crate::{BROWSER_USER_AGENT, services::SearchBuilder::EXCLUED};
+
+use super::BrowserController::BrowserController;
 
 lazy_static! {
     pub static ref REQWEST_ASYNC_CLIENT: reqwest::Client = reqwest::Client::builder()
@@ -123,6 +125,14 @@ impl Scraper {
             }
         }
         Err(format!("Failed to get html from {}", url))
+    }
+
+    pub async fn browser_search(
+        &self,
+        browser: Arc<BrowserController>,
+        url: &str,
+    ) -> Result<String, String> {
+        browser.get_html(url)
     }
 
     pub fn waiting_time(&self) -> u64 {

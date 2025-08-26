@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use log::{error, info};
 
@@ -7,7 +7,7 @@ use crate::{
         Search::Search,
         VehicleDataModel::{DownloadStatus, Vehicle},
     },
-    scraper::VehicleTraits::VehicleScrapeTrait,
+    scraper::{BrowserController::BrowserController, VehicleTraits::VehicleScrapeTrait},
     writer::sink::SinkType,
 };
 
@@ -25,17 +25,17 @@ pub enum Crawlers {
 pub async fn download_autouncle_data<S>(
     scraper: S,
     searches: Vec<Search>,
-    sink_type: SinkType, // Same issue with U
+    sink_type: SinkType,
+    browser: Option<Arc<BrowserController>>, // Same issue with U
 ) -> Result<(), String>
 where
     S: VehicleScrapeTrait + Clone + Send + 'static,
 {
     let (mut data_producer, mut data_receiver) = tokio::sync::mpsc::channel::<Vehicle>(1000);
 
-    let start_handler =
-        tokio::spawn(
-            async move { process_list(Box::new(scraper), searches, &mut data_producer).await },
-        );
+    let start_handler = tokio::spawn(async move {
+        process_list(Box::new(scraper), searches, &mut data_producer, browser).await
+    });
     let kafka_handler = tokio::spawn(async move { send_data(&mut data_receiver, sink_type).await });
 
     if let (Ok(_), Ok(_)) = tokio::join!(start_handler, kafka_handler) {
@@ -51,14 +51,16 @@ pub async fn download_list_data<S>(
     scraper: S,
     searches: Vec<Search>,
     sink_type: SinkType,
+    browser: Option<Arc<BrowserController>>, // Same issue with U
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: VehicleScrapeTrait + Clone + Send + 'static,
 {
     let (mut producer, mut receiver) = tokio::sync::mpsc::channel::<Vehicle>(250);
 
-    let start_handler =
-        tokio::spawn(async move { process_list(Box::new(scraper), searches, &mut producer).await });
+    let start_handler = tokio::spawn(async move {
+        process_list(Box::new(scraper), searches, &mut producer, browser).await
+    });
 
     let sink_handler = tokio::spawn(async move { send_data(&mut receiver, sink_type).await });
 

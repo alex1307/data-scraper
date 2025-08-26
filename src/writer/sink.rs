@@ -9,6 +9,7 @@ pub enum SinkType {
     Kafka,
     ProtobufFile,
     CsvFile,
+    PostgresDB,
 }
 
 #[derive(Debug, Clone)]

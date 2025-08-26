@@ -106,7 +106,10 @@ fn process_kafka_message(payload: &[u8]) -> Result<DownloadStatus, String> {
 }
 
 pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_type: SinkType) {
-    info!("Starting consumer for topic: {}", topic);
+    info!(
+        "Starting consumer for topic: {} and sink type: {:?}",
+        topic, sink_type
+    );
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", group.to_owned())
         .set("bootstrap.servers", broker.to_string())
@@ -125,11 +128,14 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
     let mut details_info_counter = 0;
 
     let vehicle_sink: Box<dyn Sink<Vehicle>> = match sink_type {
-        SinkType::Kafka => Box::new(KafkaProducer::new(
-            broker,
-            "vehicle",
-            FormatterType::Protobuf,
-        )),
+        SinkType::Kafka => {
+            info!("Using Kafka sink for vehicles");
+            Box::new(KafkaProducer::new(
+                broker,
+                "vehicle",
+                FormatterType::Protobuf,
+            ))
+        }
         SinkType::ProtobufFile => Box::new(FileWriter::new(
             &vehicle_file_name(&sink_type),
             FormatterType::Protobuf,
@@ -139,6 +145,11 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
             &vehicle_file_name(&sink_type),
             FormatterType::Csv,
         )),
+
+        SinkType::PostgresDB => {
+            info!("Using PostgresDB sink for vehicles");
+            Box::new(crate::writer::db_writer::db::DBWriter::new().await)
+        }
     };
 
     while let Some(message) = message_stream.next().await {
@@ -147,6 +158,7 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
                 let result = handle_mobile_de_json(&borrowed_message);
                 match result {
                     Ok(list) => {
+                        info!("Processing {} items from message", list.len());
                         for item in list {
                             if let Ok(vehicle) = Vehicle::try_from(item.clone()) {
                                 vehicle_sink

@@ -1,4 +1,7 @@
-use std::{sync::Mutex, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use futures::future::join_all;
 use log::{debug, error, info};
@@ -20,7 +23,7 @@ use crate::{
         Search::Search,
         VehicleDataModel::{DownloadStatus, Vehicle},
     },
-    scraper::VehicleTraits::VehicleScrapeTrait,
+    scraper::{BrowserController::BrowserController, VehicleTraits::VehicleScrapeTrait},
     utils::files::vehicle_file_name,
     writer::{
         flle_writer::file::FileWriter,
@@ -36,13 +39,18 @@ pub async fn process_list<S>(
     scraper: Box<S>,
     searches: Vec<Search>,
     producer: &mut Sender<Vehicle>,
+    browser: Option<Arc<BrowserController>>,
 ) -> Result<Vec<DownloadStatus>, String>
 where
     S: VehicleScrapeTrait + Clone + 'static,
 {
     let mut handlers = vec![];
     for search in searches {
-        let html = scraper.get_html(search.clone(), 1).await?;
+        let html = if let Some(browser) = browser.clone() {
+            scraper.browse_html(browser, search.clone(), 1).await?
+        } else {
+            scraper.get_html(search.clone(), 1).await?
+        };
         let total_number = scraper.total_number(&html)?;
         let cloned_scraper = scraper.clone();
         let cloned_params = search.clone();
@@ -183,10 +191,12 @@ where
         "STARTING async session: {}. Expected number of results: {}. Number of pages: {}",
         uuid, total_number, number_of_pages
     );
+    sleep(Duration::from_secs(5)).await;
     for page_number in 1..=number_of_pages {
         let data = scraper
             .process_listed_results(search.clone(), page_number)
             .await;
+
         if data.is_err() {
             error!("Error getting data for page# : {}", page_number);
             continue;
@@ -252,6 +262,16 @@ pub async fn send_data(
             let file_name = vehicle_file_name(&sink_type);
             Box::new(FileWriter::new(&file_name, FormatterType::Csv))
         }
+        #[cfg(feature = "postgres")]
+        SinkType::PostgresDB => {
+            info!("Using PostgresDB sink");
+            info!("PostgresDB sink is enabled");
+            Box::new(crate::writer::db_writer::db::DBWriter::new().await)
+        }
+        #[cfg(not(feature = "postgres"))]
+        SinkType::PostgresDB => panic!(
+            "Kafka sink is not enabled. Please enable the 'kafka' feature in your Cargo.toml."
+        ),
     };
 
     loop {

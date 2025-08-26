@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Write, vec};
 
-use log::error;
+use log::{error, info};
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -47,6 +47,7 @@ fn process_js(js: String) -> Option<CarData> {
         Ok(json) => json,
         Err(e) => {
             error!("Failed to deserialize: {:?}", e.to_string());
+            info!("json: {:?}", json);
             return None;
         }
     };
@@ -146,4 +147,26 @@ pub fn parse_equipment(content: &str, ids: &Vec<String>) -> HashMap<String, Vec<
         }
     }
     equipments
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::LOG_CONFIG;
+    use crate::utils::helpers::configure_log4rs;
+
+    use std::fs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_find_json_bounds() {
+        configure_log4rs(&LOG_CONFIG);
+        //read content from file resources/test_data/autouncle.ro.json
+        let path = PathBuf::from("resources/test-data/autouncle/autouncle.ro.json");
+        let content = fs::read_to_string(path).expect("Failed to read file");
+        let result = process_js(content);
+        assert!(result.is_some());
+        let car_data = result.unwrap();
+        info!("Car data: {:?}", car_data);
+    }
 }
