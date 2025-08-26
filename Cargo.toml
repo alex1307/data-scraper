@@ -69,5 +69,5 @@ strip = true
 
 [features]
 default = []
-kafka = ["rdkafka"]
-postgres = ["sqlx/postgres"]
+kafka = ["dep:rdkafka"]
+postgres = ["dep:sqlx"]

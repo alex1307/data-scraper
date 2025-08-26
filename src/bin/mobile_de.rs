@@ -28,7 +28,6 @@ use data_scraper::services::SearchBuilder::{
     ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, ID_MOBILE_BG_START,
     build_autouncle_searches,
 };
-use data_scraper::utils::files::{DATA_DIR, create_all_files};
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
     scraper::MobileBgScraper::MobileBGScraper,
@@ -39,13 +38,7 @@ use data_scraper::{
     utils::helpers::configure_log4rs,
 };
 
-#[cfg(feature = "kafka")]
-use futures::io::Sink;
 use log::{error, info};
-
-use clap::{Args, Parser, Subcommand, command};
-
-pub const CHUNK_SIZE: usize = 4;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
