@@ -79,7 +79,7 @@ mod test {
 
     use crate::{
         LOG_CONFIG,
-        config::Equipment::{get_equipment_as_u64, get_values_by_equipment_id},
+        config::equipment::{get_equipment_as_u64, get_values_by_equipment_id},
         utils::helpers::configure_log4rs,
     };
 

@@ -46,8 +46,10 @@ sqlx = { version = "0.8", features = [
     "bigdecimal",
 ], optional = true }
 dotenvy = "0.15.0"
+flate2 = "1.0"
 [build-dependencies]
 prost-build = "^0.14"
+flate2 = "1.0"
 
 [[bin]]
 name = "crawler"

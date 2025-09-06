@@ -6,7 +6,7 @@ use data_scraper::constants::URL::{
     AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL, MOBILE_BG_URL,
 };
 #[cfg(feature = "kafka")]
-use data_scraper::kafka::KafkaConsumer::{consumeMobileDeJsons, processMessages};
+use data_scraper::kafka::KafkaConsumer::{consumeMobileDeRawHtml, processMessages};
 #[cfg(feature = "kafka")]
 use data_scraper::kafka::MOBILE_DE_TOPIC;
 #[cfg(feature = "kafka")]
@@ -61,7 +61,7 @@ async fn run_consumers(broker: String, sink_type: SinkType) {
         let group = "mobile_de_group_1";
         #[cfg(feature = "kafka")]
         {
-            consumeMobileDeJsons(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
+            consumeMobileDeRawHtml(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
         }
         #[cfg(not(feature = "kafka"))]
         {
