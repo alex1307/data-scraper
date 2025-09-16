@@ -1,3 +1,4 @@
+pub mod AutouncleFilterService;
 pub mod JsonSearchBuider;
 pub mod ScraperAppVehicleService;
 pub mod SearchBuilder;

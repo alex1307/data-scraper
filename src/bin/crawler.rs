@@ -1,3 +1,4 @@
+use data_scraper::model::Search::Search;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -7,12 +8,12 @@ use data_scraper::constants::URL::{
 };
 
 use data_scraper::LOG_CONFIG;
-use data_scraper::model::Search::Search;
 use data_scraper::model::VehicleDataModel::DownloadStatus;
 use data_scraper::scraper::AutouncleScraper;
 use data_scraper::scraper::BrowserController::BrowserController;
 
 use data_scraper::scraper::VehicleTraits::VehicleScrapeTrait;
+use data_scraper::services::AutouncleFilterService;
 use data_scraper::services::ScraperAppVehicleService;
 use data_scraper::services::SearchBuilder::{
     CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT, CRAWLER_AUTOUNCLE_PL,
@@ -54,8 +55,7 @@ async fn main() {
     let source = args.source.clone();
     let use_chrome = args.use_chrome;
 
-    // Always use Postgres as sink
-    let sink_type = SinkType::PostgresDB;
+    let sink_type = SinkType::PostgresDB; // default; can be made configurable later per-YAML
 
     run_vehicle_crawler(source, 1, sink_type, use_chrome).await;
 }
@@ -100,8 +100,48 @@ async fn run_vehicle_crawler(
     }
 }
 
+fn source_to_config_path(source: &str) -> Option<String> {
+    if let Some(rest) = source.strip_prefix("autouncle.") {
+        let market = rest.trim();
+        if !market.is_empty() {
+            return Some(format!("config/autouncle/{}", market));
+        }
+    }
+    None
+}
+
 fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
+    // 1) New path: if source matches autouncle.* use the YAML-driven AutouncleFilterService
+    if let Some(cfg_path) = source_to_config_path(source) {
+        let searches = AutouncleFilterService::build_searches(&cfg_path);
+        info!(
+            "Converting {} (via YAML {}) to #{} searches",
+            source,
+            cfg_path,
+            searches.len()
+        );
+        let mut converted: Vec<Search> = searches.clone();
+        for f in filter {
+            let search = converted
+                .iter()
+                .find(|x| x.url == f.url || x.hash == f.hash);
+            if let Some(s) = search {
+                let index = converted.iter().position(|x| x.id == s.id).unwrap();
+                converted.remove(index);
+            }
+        }
+        info!(
+            "Starting {} with #{} searches and filtered: {}",
+            source,
+            searches.len(),
+            converted.len()
+        );
+        return converted;
+    }
+
+    // 2) Legacy path (kept for mobile.bg until it is migrated)
     let searches = match source {
+        CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),
         CRAWLER_AUTOUNCLE_FR => build_autouncle_searches(AUTOUNCLE_FR_URL, "[5]", ID_AUTOUNCLE_FR),
         CRAWLER_AUTOUNCLE_NL => {
             build_autouncle_searches(AUTOUNCLE_NL_URL, "[5]", ID_AUTOUNCLE_NL_START)
@@ -121,8 +161,6 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
         CRAWLER_AUTOUNCLE_IT => {
             build_autouncle_searches(AUTOUNCLE_IT_URL, "[5]", ID_AUTOUNCLE_IT_START)
         }
-        CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),
-
         _ => vec![],
     };
     info!("Converting {} to #{} searches", source, searches.len());

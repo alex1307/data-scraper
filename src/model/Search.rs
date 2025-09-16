@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
 };
+use url::form_urlencoded;
 
 use crate::services::SearchBuilder::{CRAWLER_KEY, ID_KEY};
 use lazy_static::lazy_static;
@@ -63,16 +64,14 @@ impl From<HashMap<String, String>> for Search {
     }
 }
 
-fn search_url(url: &str, params: HashMap<String, String>) -> String {
-    let mut url = url.to_string();
+fn search_url(base: &str, params: HashMap<String, String>) -> String {
     if params.is_empty() {
-        return url;
+        return base.to_string();
     }
 
-    let mut keys = params
-        .keys()
-        .map(|k| k.to_string())
-        .collect::<Vec<String>>();
+    let mut serializer = form_urlencoded::Serializer::new(String::new());
+
+    let mut keys: Vec<String> = params.keys().cloned().collect();
     keys.sort_by_key(|k| k.to_lowercase());
 
     for key in keys {
@@ -80,20 +79,17 @@ fn search_url(url: &str, params: HashMap<String, String>) -> String {
             continue;
         }
         let value = params.get(&key).unwrap();
-        if value.contains('[') && value.contains(']') {
-            let value = value.replace(['[', ']'], "");
-            let values: Vec<&str> = value.split(',').collect();
-            for value in values {
-                url = format!("{}{}={}&", url, key, value);
+        if value.contains(',') {
+            for v in value.split(',') {
+                serializer.append_pair(&key, v);
             }
-            continue;
+        } else {
+            serializer.append_pair(&key, value);
         }
-        url = format!("{}{}={}&", url, key, value);
     }
-    if url.ends_with('&') {
-        url.pop();
-    }
-    url
+
+    let query = serializer.finish();
+    format!("{}{}", base, query)
 }
 
 fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {

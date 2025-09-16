@@ -11,11 +11,13 @@ use encoding_rs::{UTF_8, WINDOWS_1251};
 
 use log::debug;
 
-use log::info;
+use log::{error, info};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
+use serde_json::error;
+use std::f64::consts::E;
 use std::str::FromStr;
 
 lazy_static! {
@@ -199,6 +201,7 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
                     let id = id_part.split('/').next().unwrap_or("");
                     vehicle.id = id.to_string();
                 } else {
+                    error!("Failed to extract vehicle ID");
                     continue;
                 }
             }
@@ -211,6 +214,8 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
             if let Some(last) = make_model.last() {
                 if last.ends_with("...") || regex.as_ref().unwrap().is_match(last) {
                     make_model.pop();
+                } else {
+                    error!("Failed to extract make and model");
                 }
             }
 
@@ -222,9 +227,28 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
 
         if let Some(price_element) = element.select(&price_selector).next() {
             let inner = price_element.inner_html();
-            let price = inner.chars().filter(|c| c.is_numeric()).collect::<String>();
+            let first_line = inner.split("<br>").next().unwrap_or("").trim();
+
+            let euros: u32 = first_line
+                .chars()
+                .filter(|c| {
+                    c.is_ascii_digit() || *c == '.' || *c == ',' || *c == ' ' || *c == '\u{00A0}'
+                })
+                .collect::<String>()
+                .replace([' ', '\u{00A0}'], "")
+                .replace(',', ".")
+                .parse::<f64>()
+                .map(|f| f.trunc() as u32)
+                .unwrap_or(0);
+
+            info!("Price element: {:?} -> {}", first_line, euros);
+
+            println!("Extracted price: {}", euros); // -> 32533
+            let price = euros.to_string();
             vehicle.price = price.parse::<u32>().unwrap_or(0);
+            info!("Extracted price: {}", price);
             if let Some(vat_element) = element.select(&vat_selector).next() {
+                info!("VAT element found: {:?}", vat_element.inner_html());
                 let vat = vat_element
                     .text()
                     .collect::<String>()
@@ -239,6 +263,8 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
                     );
                     vehicle.price = (vehicle.price as f32 * 1.2) as u32;
                 }
+            } else {
+                error!("VAT information not found");
             }
             if inner.contains("USD") {
                 vehicle.currency = Currency::BGN;
@@ -246,6 +272,7 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
                 vehicle.currency = Currency::EUR;
             } else {
                 vehicle.currency = Currency::BGN;
+                error!("Currency information not found");
             }
         }
 
@@ -255,12 +282,16 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
                 let year = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
                 vehicle.year = year.parse::<u16>().unwrap_or(0);
                 continue;
+            } else {
+                error!("Year information not found");
             }
 
             if txt.contains("км") {
                 let mileage = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
                 vehicle.mileage = mileage.parse::<u32>().unwrap_or(0);
                 continue;
+            } else {
+                error!("Mileage information not found");
             }
 
             if txt.contains("к.с.") {
@@ -273,10 +304,14 @@ pub fn process_html(html_content: &str) -> Vec<MobileRecord> {
                 let cc = txt.chars().filter(|c| c.is_numeric()).collect::<String>();
                 vehicle.cc = cc.parse::<u32>().unwrap_or(0);
                 continue;
+            } else {
+                error!("Engine capacity information not found");
             }
             if let Ok(engine) = Engine::from_str(&txt) {
                 vehicle.engine = engine;
                 continue;
+            } else {
+                error!("Engine type information not found");
             }
 
             if let Ok(gearbox) = Gearbox::from_str(&txt) {
