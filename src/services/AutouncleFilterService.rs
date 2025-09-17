@@ -52,7 +52,9 @@ pub fn scrape_all_autouncle() -> anyhow::Result<()> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            pairs.push((cfg.paging.param.clone(), page.to_string()));
+            if let Some(ref p) = cfg.paging.param {
+                pairs.push((p.clone(), page.to_string()));
+            }
 
             // encode
             let query = url::form_urlencoded::Serializer::new(String::new())

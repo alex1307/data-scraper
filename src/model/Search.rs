@@ -31,35 +31,26 @@ pub struct Search {
     pub url: String,
     pub source: String,
     pub hash: String,
-    pub engine: Option<String>,
-    pub gearbox: Option<String>,
-    pub power: Option<String>,
 }
 
 impl From<HashMap<String, String>> for Search {
     fn from(params: HashMap<String, String>) -> Self {
-        let url = params.get("url").unwrap();
+        let raw_url = params.get("url").expect("missing url param");
         let id = params.get(ID_KEY).unwrap().to_string();
         let source = params.get(CRAWLER_KEY).unwrap().to_string();
-        let engine = params.get("engine").map(|x| x.to_string());
-        let gearbox = params.get("gearbox").map(|x| x.to_string());
-        let power = params.get("power").map(|x| x.to_string());
-        let url = if url.starts_with("https://www.mobile.bg") {
-            mobile_bg_url(url, params.clone())
+        let final_url = if raw_url.starts_with("https://www.mobile.bg") {
+            mobile_bg_url(raw_url, params.clone())
         } else {
-            search_url(url, params.clone())
+            search_url(raw_url, params.clone())
         };
         let mut hasher = DefaultHasher::new();
-        url.hash(&mut hasher);
+        final_url.hash(&mut hasher);
         let hash = hasher.finish().to_string();
         Search {
             id,
-            url,
+            url: final_url,
             hash,
             source,
-            engine,
-            gearbox,
-            power,
         }
     }
 }
@@ -93,20 +84,45 @@ fn search_url(base: &str, params: HashMap<String, String>) -> String {
 }
 
 fn mobile_bg_url(url: &str, params: HashMap<String, String>) -> String {
-    let url = if let Some(from) = params.get("priceFrom") {
-        url.replace("{priceFrom}", format!("price={}", from).as_str())
-    } else {
-        url.replace("{priceFrom}", "")
-    };
-    let url = if let Some(to) = params.get("priceTo") {
-        url.replace("{priceTo}", format!("&price1={}", to).as_str())
-    } else {
-        url.replace("{priceTo}", "")
-    };
+    // If the URL has no placeholders, return it as-is
+    if !url.contains('{') {
+        return url.to_string();
+    }
 
-    let fromYear = params.get(MOBILE_BG_YEARS_FROM).unwrap();
-    let toYear = params.get(MOBILE_BG_YEARS_TO).unwrap();
+    // Work on a mutable copy
+    let mut out = url.to_string();
 
-    let url = url.replace("{yearFrom}", fromYear);
-    url.replace("{yearTo}", toYear)
+    // Replace price placeholders if present
+    if out.contains("{priceFrom}") {
+        if let Some(from) = params.get("priceFrom") {
+            out = out.replace("{priceFrom}", &format!("price={}", from));
+        } else {
+            out = out.replace("{priceFrom}", "");
+        }
+    }
+    if out.contains("{priceTo}") {
+        if let Some(to) = params.get("priceTo") {
+            out = out.replace("{priceTo}", &format!("&price1={}", to));
+        } else {
+            out = out.replace("{priceTo}", "");
+        }
+    }
+
+    // Replace year placeholders if present
+    if out.contains("{yearFrom}") {
+        if let Some(from_year) = params.get(MOBILE_BG_YEARS_FROM) {
+            out = out.replace("{yearFrom}", from_year);
+        } else {
+            out = out.replace("{yearFrom}", "");
+        }
+    }
+    if out.contains("{yearTo}") {
+        if let Some(to_year) = params.get(MOBILE_BG_YEARS_TO) {
+            out = out.replace("{yearTo}", to_year);
+        } else {
+            out = out.replace("{yearTo}", "");
+        }
+    }
+
+    out
 }

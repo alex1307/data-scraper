@@ -14,19 +14,18 @@ use data_scraper::scraper::BrowserController::BrowserController;
 
 use data_scraper::scraper::VehicleTraits::VehicleScrapeTrait;
 use data_scraper::services::AutouncleFilterService;
+use data_scraper::services::MobileBgFilterService::build_urls_from_config;
 use data_scraper::services::ScraperAppVehicleService;
 use data_scraper::services::SearchBuilder::{
     CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT, CRAWLER_AUTOUNCLE_PL,
     ID_AUTOUNCLE_CH_START, ID_AUTOUNCLE_DE_START, ID_AUTOUNCLE_FR, ID_AUTOUNCLE_IT_START,
-    ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, ID_MOBILE_BG_START,
-    build_autouncle_searches,
+    ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, build_autouncle_searches,
 };
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
     scraper::MobileBgScraper::MobileBGScraper,
     services::SearchBuilder::{
         CRAWLER_AUTOUNCLE_FR, CRAWLER_AUTOUNCLE_NL, CRAWLER_AUTOUNCLE_RO, CRAWLER_MOBILE_BG,
-        build_mobile_bg_all_searches,
     },
     utils::helpers::configure_log4rs,
 };
@@ -34,6 +33,13 @@ use data_scraper::{
 use log::{error, info};
 
 use clap::{Parser, command};
+
+use data_scraper::services::SearchBuilder::{CRAWLER_KEY, ID_KEY};
+use std::ffi::OsStr;
+use walkdir::WalkDir;
+
+use data_scraper::utils::ConfigLoader::{ScraperConfig, load_config};
+use std::collections::HashMap;
 
 pub const CHUNK_SIZE: usize = 4;
 
@@ -110,7 +116,121 @@ fn source_to_config_path(source: &str) -> Option<String> {
     None
 }
 
+fn find_mobilebg_configs(root: &str) -> Vec<String> {
+    WalkDir::new(root)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.path().extension() == Some(OsStr::new("yml")))
+        .map(|e| e.path().to_string_lossy().to_string())
+        .collect()
+}
+
+fn apply_vars(s: &str, vars: &HashMap<String, String>) -> String {
+    let mut out = s.to_string();
+    for (k, v) in vars {
+        out = out.replace(&format!("{{{}}}", k), v);
+    }
+    out
+}
+
+fn build_mobilebg_base_url(cfg: &ScraperConfig) -> String {
+    // base + path segments with variables
+    let mut base = cfg.base_url.clone();
+    let vars: HashMap<String, String> = cfg.variables.clone().unwrap_or_default();
+    if let Some(segs) = &cfg.path_segments {
+        for seg in segs {
+            let filled = apply_vars(seg, &vars);
+            if !filled.is_empty() {
+                base.push('/');
+                base.push_str(&filled);
+            }
+        }
+    }
+    // append placeholder for paging (leave {page} unresolved)
+    if let Some(t) = &cfg.paging.r#type {
+        if t == "path" {
+            let pattern = cfg.paging.pattern.as_deref().unwrap_or("p-{page}");
+            base.push('/');
+            base.push_str(pattern);
+        }
+    }
+    // query params: defaults + filters; keep `extri` raw (~)
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    if let Some(defs) = &cfg.query_defaults {
+        for (k, v) in defs {
+            pairs.push((k.clone(), v.clone()));
+        }
+    }
+    for (k, v) in &cfg.filters {
+        pairs.push((k.clone(), v.clone()));
+    }
+    let mut query_parts: Vec<String> = Vec::new();
+    for (k, v) in &pairs {
+        if k == "extri" {
+            query_parts.push(format!("{}={}", k, v));
+        } else {
+            let enc = url::form_urlencoded::Serializer::new(String::new())
+                .append_pair(k, v)
+                .finish();
+            query_parts.push(enc);
+        }
+    }
+    if query_parts.is_empty() {
+        base
+    } else {
+        format!("{}?{}", base, query_parts.join("&"))
+    }
+}
+
 fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
+    // 0) New path for mobile.bg – YAML-driven configs under config/mobile.bg/
+    if source == CRAWLER_MOBILE_BG {
+        let cfg_files = find_mobilebg_configs("config/mobile.bg");
+        if cfg_files.is_empty() {
+            error!("No mobile.bg configs found under config/mobile.bg");
+            return vec![];
+        }
+        let mut searches: Vec<Search> = Vec::new();
+        for (i, cfg_path) in cfg_files.iter().enumerate() {
+            match load_config(cfg_path) {
+                Ok(cfg) => {
+                    let url = build_mobilebg_base_url(&cfg); // contains p-{page} placeholder
+                    let mut params = std::collections::HashMap::new();
+                    params.insert("url".to_string(), url);
+                    params.insert(CRAWLER_KEY.to_string(), CRAWLER_MOBILE_BG.to_string());
+                    params.insert(ID_KEY.to_string(), format!("bg-{}", i + 1));
+                    searches.push(Search::from(params));
+                }
+                Err(e) => error!("Failed to load {}: {:?}", cfg_path, e),
+            }
+        }
+        info!(
+            "mobile.bg YAMLs: {} → searches: {}",
+            cfg_files.len(),
+            searches.len()
+        );
+
+        let mut converted: Vec<Search> = searches.clone();
+        for f in filter {
+            if let Some(s) = converted
+                .iter()
+                .find(|x| x.url == f.url || x.hash == f.hash)
+            {
+                if let Some(idx) = converted.iter().position(|x| x.id == s.id) {
+                    converted.remove(idx);
+                }
+            }
+        }
+        info!(
+            "Starting {} with #{} searches and filtered: {}",
+            source,
+            searches.len(),
+            converted.len()
+        );
+        return converted;
+    }
+
     // 1) New path: if source matches autouncle.* use the YAML-driven AutouncleFilterService
     if let Some(cfg_path) = source_to_config_path(source) {
         let searches = AutouncleFilterService::build_searches(&cfg_path);
@@ -141,7 +261,6 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
 
     // 2) Legacy path (kept for mobile.bg until it is migrated)
     let searches = match source {
-        CRAWLER_MOBILE_BG => build_mobile_bg_all_searches(MOBILE_BG_URL, ID_MOBILE_BG_START),
         CRAWLER_AUTOUNCLE_FR => build_autouncle_searches(AUTOUNCLE_FR_URL, "[5]", ID_AUTOUNCLE_FR),
         CRAWLER_AUTOUNCLE_NL => {
             build_autouncle_searches(AUTOUNCLE_NL_URL, "[5]", ID_AUTOUNCLE_NL_START)

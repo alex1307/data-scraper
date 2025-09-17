@@ -7,7 +7,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -41,6 +41,7 @@ impl MobileBGScraper {
 impl VehicleScrapeTrait for MobileBGScraper {
     async fn get_html(&self, search: Search, page: u32) -> Result<String, String> {
         let url = self.get_search_url(search, page);
+        info!("MobileBGScraper GET (reqwest): {}", url);
         self.parent
             .html_search(&url, Some("windows-1251".to_string()))
             .await
@@ -53,6 +54,7 @@ impl VehicleScrapeTrait for MobileBGScraper {
         page: u32,
     ) -> Result<String, String> {
         let url = self.get_search_url(search, page);
+        info!("MobileBGScraper GET (browser): {}", url);
         browser.get_html(&url)
     }
 
@@ -87,17 +89,19 @@ impl VehicleScrapeTrait for MobileBGScraper {
 
         if let Some(element) = document.select(&selector).next() {
             if let Some(content) = element.value().attr("content") {
-                let re = Regex::new(r"»\s*(\d+)\s*«").unwrap();
+                // Match the number inside the guillemets: » 1 910 « (digits may contain spaces or NBSP)
+                let re = Regex::new(r"»\s*([\d\s\u{00A0}]+)\s*«").unwrap();
                 if let Some(caps) = re.captures(content) {
                     if let Some(matched) = caps.get(1) {
-                        let total_number = matched
-                            .as_str()
+                        let raw = matched.as_str();
+                        // Keep only ASCII digits; drop spaces and NBSP
+                        let digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+                        return digits
                             .parse::<u32>()
-                            .map_err(|_| "Failed to parse number from string".to_string());
-                        return total_number;
+                            .map_err(|_| format!("Failed to parse number from '{}'", raw));
                     }
                 } else {
-                    error!("Number not found");
+                    error!("Number not found in meta description: {}", content);
                 }
             }
         } else {
@@ -112,11 +116,35 @@ impl VehicleScrapeTrait for MobileBGScraper {
     }
 
     fn get_search_url(&self, search: Search, page: u32) -> String {
-        if page == 1 {
-            search.url.replace("{page}", "")
-        } else {
-            search.url.replace("{page}", &format!("/p-{}", page))
+        let mut url = search.url.clone();
+
+        // Prefer explicit `p-{page}` pattern used by MobileBgFilterService
+        if url.contains("p-{page}") {
+            if page <= 1 {
+                // remove the whole placeholder segment (both variants)
+                url = url.replace("/p-{page}", "");
+                url = url.replace("p-{page}", "");
+            } else {
+                url = url.replace("p-{page}", &format!("p-{}", page));
+            }
+            info!("MobileBGScraper composed URL (page {}): {}", page, url);
+            return url;
         }
+
+        // Generic fallback: raw `{page}` placeholder
+        if url.contains("{page}") {
+            if page <= 1 {
+                url = url.replace("{page}", "");
+            } else {
+                url = url.replace("{page}", &page.to_string());
+            }
+            info!("MobileBGScraper composed URL (page {}): {}", page, url);
+            return url;
+        }
+
+        // Already concrete URL (no placeholders)
+        info!("MobileBGScraper composed URL (page {}): {}", page, url);
+        url
     }
     fn get_timeout(&self) -> u64 {
         250
