@@ -14,13 +14,14 @@ use data_scraper::scraper::BrowserController::BrowserController;
 
 use data_scraper::scraper::VehicleTraits::VehicleScrapeTrait;
 use data_scraper::services::AutouncleFilterService;
-use data_scraper::services::MobileBgFilterService::build_urls_from_config;
 use data_scraper::services::ScraperAppVehicleService;
+use data_scraper::services::ScraperAppVehicleService::{JobError, JobResult, JobStatus, run_job};
 use data_scraper::services::SearchBuilder::{
     CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT, CRAWLER_AUTOUNCLE_PL,
     ID_AUTOUNCLE_CH_START, ID_AUTOUNCLE_DE_START, ID_AUTOUNCLE_FR, ID_AUTOUNCLE_IT_START,
     ID_AUTOUNCLE_NL_START, ID_AUTOUNCLE_PL_START, ID_AUTOUNCLE_RO_START, build_autouncle_searches,
 };
+use data_scraper::slack::SlackNotifier::{Channel, SlackNotifier};
 use data_scraper::writer::sink::SinkType; // Ensure SinkType includes the Protobuf variant or adjust accordingly
 use data_scraper::{
     scraper::MobileBgScraper::MobileBGScraper,
@@ -40,6 +41,8 @@ use walkdir::WalkDir;
 
 use data_scraper::utils::ConfigLoader::{ScraperConfig, load_config};
 use std::collections::HashMap;
+
+use gethostname::gethostname;
 
 pub const CHUNK_SIZE: usize = 4;
 
@@ -72,6 +75,8 @@ async fn run_vehicle_crawler(
     sink_type: SinkType,
     use_chrome: bool,
 ) {
+    let notifier = SlackNotifier::from_env();
+
     let browser = if use_chrome {
         Some(Arc::new(BrowserController::new().await.unwrap()))
     } else {
@@ -81,10 +86,48 @@ async fn run_vehicle_crawler(
     if crawler == CRAWLER_MOBILE_BG {
         let searches = filter_searches(&crawler, filter);
 
-        let crawler = MobileBGScraper::new(MOBILE_BG_URL, 250);
-        let searches = searches.chunks(threads);
-        info!("Starting mobile.bg with #{} searches", searches.len());
-        vehicle_log_and_search(searches, crawler, sink_type, browser).await;
+        let searches_vec = searches; // already built by filter_searches
+        let scraper = MobileBGScraper::new(MOBILE_BG_URL, 250);
+        let main_url = searches_vec.first().map(|s| s.url.clone());
+        info!("Starting mobile.bg with {} searches", searches_vec.len());
+        let host = gethostname().to_string_lossy().into_owned();
+        match run_job(
+            scraper,
+            searches_vec,
+            sink_type.clone(),
+            browser.clone(),
+            CRAWLER_MOBILE_BG.to_string(),
+            Some("config/mobile.bg".to_string()),
+            main_url,
+        )
+        .await
+        {
+            Ok(status) => {
+                notifier
+                    .notify_job_finished_with_url(
+                        CRAWLER_MOBILE_BG,
+                        status.cfg_path.as_deref(),
+                        status.actual as i32,
+                        status.duration_s,
+                        &host,
+                        status.url.as_deref(),
+                    )
+                    .await;
+            }
+            Err(err) => {
+                let mut msg = format!(
+                    "🛑 {} failed\ncfg={}\nerror={}\nhost={}",
+                    CRAWLER_MOBILE_BG,
+                    err.cfg_path.as_deref().unwrap_or("-"),
+                    err.message,
+                    host
+                );
+                if let Some(u) = err.url.as_deref() {
+                    msg.push_str(&format!("\nurl={}", u));
+                }
+                notifier.notify_text(Channel::Error, &msg, None).await;
+            }
+        }
     } else {
         let url = match crawler.as_str() {
             CRAWLER_AUTOUNCLE_FR => AUTOUNCLE_FR_URL,
@@ -96,13 +139,57 @@ async fn run_vehicle_crawler(
             CRAWLER_AUTOUNCLE_IT => AUTOUNCLE_IT_URL,
             _ => {
                 error!("Invalid crawler: {}", crawler);
+                notifier
+                    .notify_text(
+                        Channel::Error,
+                        &format!("🛑 Invalid crawler requested: `{}`", crawler),
+                        None,
+                    )
+                    .await;
                 return;
             }
         };
-        let searches = filter_searches(&crawler, filter);
-        let crawler = AutouncleScraper::AutouncleScraper::new(url, "page", &crawler, 250);
-        let searches = searches.chunks(threads);
-        vehicle_log_and_search(searches, crawler, sink_type, browser).await;
+        let searches_vec = filter_searches(&crawler, filter);
+        let scraper = AutouncleScraper::AutouncleScraper::new(url, "page", &crawler, 250);
+        let main_url = searches_vec.first().map(|s| s.url.clone());
+        let host = gethostname().to_string_lossy().into_owned();
+        match run_job(
+            scraper.clone(),
+            searches_vec,
+            sink_type.clone(),
+            browser.clone(),
+            crawler.clone(),
+            source_to_config_path(&crawler),
+            main_url,
+        )
+        .await
+        {
+            Ok(status) => {
+                notifier
+                    .notify_job_finished_with_url(
+                        &crawler,
+                        status.cfg_path.as_deref(),
+                        status.actual as i32,
+                        status.duration_s,
+                        &host,
+                        status.url.as_deref(),
+                    )
+                    .await;
+            }
+            Err(err) => {
+                let mut msg = format!(
+                    "🛑 {} failed\ncfg={}\nerror={}\nhost={}",
+                    &crawler,
+                    err.cfg_path.as_deref().unwrap_or("-"),
+                    err.message,
+                    host
+                );
+                if let Some(u) = err.url.as_deref() {
+                    msg.push_str(&format!("\nurl={}", u));
+                }
+                notifier.notify_text(Channel::Error, &msg, None).await;
+            }
+        }
     }
 }
 
@@ -300,42 +387,4 @@ fn filter_searches(source: &str, filter: Vec<DownloadStatus>) -> Vec<Search> {
         converted.len()
     );
     converted
-}
-
-async fn vehicle_log_and_search<S>(
-    searches: std::slice::Chunks<'_, Search>,
-    crawler: S,
-    sink_type: SinkType,
-    browser: Option<Arc<BrowserController>>,
-) where
-    S: VehicleScrapeTrait + Clone + Send + 'static,
-{
-    let mut listed = 0;
-    let mut actual = 0;
-    let mut chunk_counter = 0;
-    let mut counter = 0;
-
-    for search in searches {
-        chunk_counter += 1;
-        let vsearch = search.to_vec();
-        let searches = vsearch.to_vec();
-        if let Ok(statuses) = ScraperAppVehicleService::download_list_data(
-            crawler.clone(),
-            searches,
-            sink_type.clone(),
-            browser.clone(),
-        )
-        .await
-        {
-            for s in statuses {
-                listed += s.listed;
-                actual += s.actual;
-                counter += 1;
-            }
-            info!(
-                "Listed: {}, Actual: {}, Chunk#: {}, Searches#: {}",
-                listed, actual, chunk_counter, counter
-            );
-        }
-    }
 }

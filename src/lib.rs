@@ -7,6 +7,7 @@ pub mod model;
 pub mod protos;
 pub mod scraper;
 pub mod services;
+pub mod slack;
 pub mod utils;
 pub mod writer;
 #[macro_use]
