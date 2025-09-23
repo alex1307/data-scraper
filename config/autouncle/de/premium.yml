@@ -1,7 +1,7 @@
 # autouncle.yml
 
 # Базов URL (смени домейна според пазара: .ch, .de, .it, .fr, .nl)
-base_url: "https://www.autouncle.fr/en/cars_search"
+base_url: "https://www.autouncle.de/en/cars_search"
 
 # Опционален бранд (ако е празно или липсва → без /<brand> в path)
 brand:
