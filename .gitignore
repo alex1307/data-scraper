@@ -17,4 +17,11 @@ Cargo.lock
 .DS_Store
 */.DS_Store
 .VSCodeCounter/*
-```
+/resources/*
+/data/*
+```slack-config.sh
+.env
+slack.env
+slack-config.sh
+slack.env
+.env

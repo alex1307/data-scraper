@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+   <key>Label</key>
+   <string>com.ayagasha.scraper</string>
+   <key>ProgramArguments</key>
+   <array>
+      <string>/bin/sh</string>
+      <string>-c</string>
+      <string>cd /Users/$(whoami)/Software/release/Rust/scraper && ./scraper</string>
+   </array>
+   <key>StartCalendarInterval</key>
+   <dict>
+      <key>Hour</key>
+      <integer>17</integer>
+      <key>Minute</key>
+      <integer>25</integer>
+   </dict>
+</dict>
+</plist>

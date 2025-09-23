@@ -9,6 +9,20 @@ launchctl load ~/Library/LaunchAgents/details.plist
 launchctl load ~/Library/LaunchAgents/listing.plist
 launchctl load ~/Library/LaunchAgents/details.plist
 
+launchctl remove com.ayagasha.scraper.details
+
 id -u
 
 launchctl kickstart -k gui/501/com.ayagasha.scraper.metadata
+
+grep -rHIin [Search text]  ./src
+#filter
+grep -rHIin [Search text]  ./src/main/ | grep -v node_modules
+
+cargo clippy --fix --bin "crawler" --allow-staged --allow-dirty
+docker build -t crawler . --progress=plain
+
+docker exec -it docker-env-kafka-1 bash ./init-kafka.sh
+
+env KAFKA_BROKER=localhost:9094 cargo run -- exchange-rate
+env KAFKA_BROKER=localhost:9094 cargo run -- scrape autouncle.pl

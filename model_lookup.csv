@@ -1,0 +1,561 @@
+id;make;model;tags
+001001;Alfa Romeo;4C;4c
+001002;Alfa Romeo;Giulia;giulia
+001003;Alfa Romeo;Stelvio;stelvio
+002001;Alpina;B3;b3
+002002;Alpina;B4;b4
+002003;Alpina;B5;b5
+002004;Alpina;D3;d3
+002005;Alpina;D4;d4
+002006;Alpina;D5;d5
+002007;Alpina;XB7;xb7
+002008;Alpina;XD3;xd3
+002009;Alpina;XD4;xd4
+003001;Alpine;A110;a110
+004001;Aston Martin;DB11;db11
+004002;Aston Martin;DB12;db12
+004003;Aston Martin;DB9;db9
+004004;Aston Martin;DBS;dbs
+004005;Aston Martin;DBX;dbx
+004006;Aston Martin;DBX 707;dbx 707
+004007;Aston Martin;V12 Vantage;v12 vantage
+004008;Aston Martin;V8 Vantage;v8 vantage
+004009;Aston Martin;Vanquish;vanquish
+004010;Aston Martin;Vantage;vantage
+005001;Audi;A4;a4
+005002;Audi;A5;a5
+005003;Audi;A5 Cabriolet;a5 cabriolet
+005004;Audi;A5 Sportback;a5 sportback
+005005;Audi;A6;a6
+005006;Audi;A6 Allroad;a6 allroad
+005007;Audi;A6 e-tron;a6 e-tron
+005008;Audi;A7;a7
+005009;Audi;A7 Sportback;a7 sportback
+005010;Audi;A8;a8
+005011;Audi;A8L;a8l
+005012;Audi;e-tron;e-tron
+005013;Audi;e-tron GT quattro;e-tron gt quattro
+005014;Audi;e-tron Sportback;e-tron sportback
+005015;Audi;Q2;q2
+005016;Audi;Q3;q3
+005017;Audi;Q3 Sportback;q3 sportback
+005018;Audi;Q4 e-tron;q4 e-tron
+005019;Audi;Q4 Sportback e-tron;q4 sportback e-tron
+005020;Audi;Q5;q5
+005021;Audi;Q5 Sportback;q5 sportback
+005022;Audi;Q6 e-tron;q6 e-tron
+005023;Audi;Q7;q7
+005024;Audi;Q8;q8
+005025;Audi;Q8 e-tron;q8 e-tron
+005026;Audi;Q8 Sportback e-tron;q8 sportback e-tron
+005027;Audi;R8 Coupé;r8 coupé
+005028;Audi;R8 Spyder;r8 spyder
+005029;Audi;RS e-tron GT;rs e-tron gt
+005030;Audi;RS Q3;rs q3
+005031;Audi;RS Q3 Sportback;rs q3 sportback
+005032;Audi;RS Q8;rs q8
+005033;Audi;RS3;rs3
+005034;Audi;RS3 Sportback;rs3 sportback
+005035;Audi;RS4;rs4
+005036;Audi;RS5;rs5
+005037;Audi;RS5 Sportback;rs5 sportback
+005038;Audi;RS6;rs6
+005039;Audi;RS7;rs7
+005040;Audi;RS7 Sportback;rs7 sportback
+005041;Audi;S3;s3
+005042;Audi;S4;s4
+005043;Audi;S5;s5
+005044;Audi;S5 Cabriolet;s5 cabriolet
+005045;Audi;S5 Sportback;s5 sportback
+005046;Audi;S6;s6
+005047;Audi;S7;s7
+005048;Audi;S7 Sportback;s7 sportback
+005049;Audi;S8;s8
+005050;Audi;SQ2;sq2
+005051;Audi;SQ5;sq5
+005052;Audi;SQ5 Sportback;sq5 sportback
+005053;Audi;SQ6 e-tron;sq6 e-tron
+005054;Audi;SQ7;sq7
+005055;Audi;SQ8;sq8
+005056;Audi;SQ8 e-tron;sq8 e-tron
+005057;Audi;SQ8 Sportback e-tron;sq8 sportback e-tron
+005058;Audi;TT Roadster;tt roadster
+005059;Audi;TT RS;tt rs
+005060;Audi;TTS;tts
+006001;Bentley;Bentayga;bentayga
+006002;Bentley;Continental;continental
+006003;Bentley;Continental GT;continental gt
+006004;Bentley;Continental GT Convertible;continental gt convertible
+006005;Bentley;Flying Spur;flying spur
+006006;Bentley;Mulsanne;mulsanne
+007001;BMW;120;120
+007002;BMW;120 Coupé;120 coupé
+007003;BMW;123;123
+007004;BMW;135;135
+007005;BMW;218;218
+007006;BMW;218 Active Tourer;218 active tourer
+007007;BMW;223 Active Tourer;223 active tourer
+007008;BMW;225 Active Tourer;225 active tourer
+007009;BMW;230;230
+007010;BMW;230e Active Tourer;230e active tourer
+007011;BMW;318;318
+007012;BMW;320;320
+007013;BMW;330;330
+007014;BMW;330e;330e
+007015;BMW;340;340
+007016;BMW;420;420
+007017;BMW;420 Gran Coupé;420 gran coupé
+007018;BMW;430;430
+007019;BMW;430 Cabriolet;430 cabriolet
+007020;BMW;430 Gran Coupé;430 gran coupé
+007021;BMW;440;440
+007022;BMW;520;520
+007023;BMW;530;530
+007024;BMW;530e;530e
+007025;BMW;540;540
+007026;BMW;545e;545e
+007027;BMW;550;550
+007028;BMW;550e;550e
+007029;BMW;730;730
+007030;BMW;740;740
+007031;BMW;740L;740l
+007032;BMW;745;745
+007033;BMW;745e;745e
+007034;BMW;750;750
+007035;BMW;750e;750e
+007036;BMW;750L;750l
+007037;BMW;760;760
+007038;BMW;840;840
+007039;BMW;i4;i4
+007040;BMW;i5;i5
+007041;BMW;i7;i7
+007042;BMW;i8;i8
+007043;BMW;iX;ix
+007044;BMW;iX1;ix1
+007045;BMW;iX2;ix2
+007046;BMW;iX3;ix3
+007047;BMW;M135;m135
+007048;BMW;M2;m2
+007049;BMW;M235;m235
+007050;BMW;M240;m240
+007051;BMW;M3;m3
+007052;BMW;M340;m340
+007053;BMW;M4;m4
+007054;BMW;M4 Cabriolet;m4 cabriolet
+007055;BMW;M440;m440
+007056;BMW;M5;m5
+007057;BMW;M550;m550
+007058;BMW;M6;m6
+007059;BMW;M6 Cabriolet;m6 cabriolet
+007060;BMW;M760;m760
+007061;BMW;M760e;m760e
+007062;BMW;M8;m8
+007063;BMW;M850;m850
+007064;BMW;X1;x1
+007065;BMW;X2;x2
+007066;BMW;X3;x3
+007067;BMW;X4;x4
+007068;BMW;X5;x5
+007069;BMW;X5 M;x5 m
+007070;BMW;X5 M50;x5 m50
+007071;BMW;X6;x6
+007072;BMW;X6 M;x6 m
+007073;BMW;X6 M50;x6 m50
+007074;BMW;X7;x7
+007075;BMW;XM;xm
+007076;BMW;Z4;z4
+008001;Cadillac;Escalade;escalade
+009001;Chevrolet;Camaro SS;camaro ss
+009002;Chevrolet;Corvette;corvette
+009003;Chevrolet;Silverado;silverado
+009004;Chevrolet;Tahoe;tahoe
+010001;Chrysler;Pacifica;pacifica
+011001;Corvette;C7;c7
+011002;Corvette;C8;c8
+011003;Corvette;Grand Sport;grand sport
+011004;Corvette;Stingray;stingray
+011005;Corvette;Z06;z06
+012001;Cupra;Ateca;ateca
+012002;Cupra;Formentor;formentor
+012003;Cupra;Leon;leon
+012004;Cupra;Tavascan;tavascan
+012005;Cupra;Terramar;terramar
+013001;Dodge;Challenger;challenger
+013002;Dodge;Charger;charger
+013003;Dodge;Durango;durango
+013004;Dodge;Ram;ram
+014001;DS Automobiles;DS7 Crossback;ds7 crossback
+015001;Ferrari;296;296
+015002;Ferrari;458;458
+015003;Ferrari;488;488
+015004;Ferrari;812;812
+015005;Ferrari;California;california
+015006;Ferrari;F12;f12
+015007;Ferrari;F8;f8
+015008;Ferrari;FF;ff
+015009;Ferrari;GTC4Lusso;gtc4lusso
+015010;Ferrari;Portofino;portofino
+015011;Ferrari;Purosangue;purosangue
+015012;Ferrari;Roma;roma
+015013;Ferrari;SF90;sf90
+016001;Ford;Bronco;bronco
+016002;Ford;Capri;capri
+016003;Ford;E-Transit;e-transit
+016004;Ford;Econoline;econoline
+016005;Ford;Edge;edge
+016006;Ford;Explorer;explorer
+016007;Ford;F-150;f-150
+016008;Ford;Mustang;mustang
+016009;Ford;Mustang GT;mustang gt
+016010;Ford;Mustang Mach-E;mustang mach-e
+016011;Ford;Mustang Mach-E GT;mustang mach-e gt
+016012;Ford;Ranger;ranger
+016013;Ford;Tourneo;tourneo
+016014;Ford;Tourneo Custom;tourneo custom
+016015;Ford;Transit;transit
+016016;Ford;Transit Custom;transit custom
+017001;Genesis;G80;g80
+018001;GMC;Sierra;sierra
+019001;Honda;Civic;civic
+019002;Honda;CR-V;cr-v
+020001;Hyundai;Ioniq 5;ioniq 5
+020002;Hyundai;Kona;kona
+020003;Hyundai;Santa Fe;santa fe
+020004;Hyundai;Staria;staria
+020005;Hyundai;Tucson;tucson
+021001;Ineos;Grenadier;grenadier
+022001;Iveco;Daily;daily
+023001;Jaguar;E-Pace;e-pace
+023002;Jaguar;F-Pace;f-pace
+023003;Jaguar;F-Type;f-type
+023004;Jaguar;I-Pace;i-pace
+023005;Jaguar;XE;xe
+024001;Jeep;Gladiator;gladiator
+024002;Jeep;Grand Cherokee;grand cherokee
+024003;Jeep;Wrangler;wrangler
+024004;Jeep;Wrangler Unlimited;wrangler unlimited
+025001;Kia;e-Niro;e-niro
+025002;Kia;EV6;ev6
+025003;Kia;EV9;ev9
+025004;Kia;ProCeed;proceed
+025005;Kia;Sorento;sorento
+025006;Kia;Sportage;sportage
+025007;Kia;Stinger;stinger
+026001;Lamborghini;Aventador;aventador
+026002;Lamborghini;Huracán;huracán
+026003;Lamborghini;Revuelto;revuelto
+026004;Lamborghini;Urus;urus
+027001;Land Rover;Defender;defender
+027002;Land Rover;Discovery 5;discovery 5
+027003;Land Rover;Discovery Sport;discovery sport
+027004;Land Rover;Range Rover;range rover
+027005;Land Rover;Range Rover evoque;range rover evoque
+027006;Land Rover;Range Rover Sport;range rover sport
+027007;Land Rover;Range Rover Velar;range rover velar
+028001;Lexus;ES300;es300
+028002;Lexus;ES300H;es300h
+028003;Lexus;NX350h;nx350h
+028004;Lexus;NX450h+;nx450h+
+028005;Lexus;RC F;rc f
+028006;Lexus;RX450h;rx450h
+028007;Lexus;RX500h;rx500h
+028008;Lexus;RZ 450e;rz 450e
+028009;Lexus;UX;ux
+029001;Lotus;Eletre;eletre
+029002;Lotus;Emeya;emeya
+030001;MAN;TGE;tge
+031001;Maserati;Ghibli;ghibli
+031002;Maserati;GranCabrio;grancabrio
+031003;Maserati;Granturismo;granturismo
+031004;Maserati;Grecale;grecale
+031005;Maserati;Grecale Folgore;grecale folgore
+031006;Maserati;Levante;levante
+031007;Maserati;MC20;mc20
+031008;Maserati;Quattroporte;quattroporte
+032001;Maxus;MIFA 9;mifa 9
+033001;Mazda;CX-5;cx-5
+033002;Mazda;CX-60;cx-60
+033003;Mazda;CX-80;cx-80
+033004;Mazda;MX30;mx30
+034001;McLaren;570S;570s
+034002;McLaren;600LT;600lt
+034003;McLaren;650S;650s
+034004;McLaren;720S;720s
+034005;McLaren;765LT;765lt
+034006;McLaren;GT;gt
+035001;Mercedes-Benz;180;180
+035002;Mercedes-Benz;200;200
+035003;Mercedes-Benz;300;300
+035004;Mercedes-Benz;350;350
+035005;Mercedes-Benz;A45 AMG;a45 amg
+035006;Mercedes-Benz;AMG GT;amg gt
+035007;Mercedes-Benz;AMG GT 43;amg gt 43
+035008;Mercedes-Benz;AMG GT 53;amg gt 53
+035009;Mercedes-Benz;AMG GT 63;amg gt 63
+035010;Mercedes-Benz;AMG GT C;amg gt c
+035011;Mercedes-Benz;AMG GT R;amg gt r
+035012;Mercedes-Benz;AMG GT S;amg gt s
+035013;Mercedes-Benz;AMG GT63 S E Performance;amg gt63 s e performance
+035014;Mercedes-Benz;B220;b220
+035015;Mercedes-Benz;B250e;b250e
+035016;Mercedes-Benz;C180;c180
+035017;Mercedes-Benz;C200;c200
+035018;Mercedes-Benz;C220;c220
+035019;Mercedes-Benz;C300;c300
+035020;Mercedes-Benz;C300e;c300e
+035021;Mercedes-Benz;C400;c400
+035022;Mercedes-Benz;C43 AMG;c43 amg
+035023;Mercedes-Benz;C63 AMG;c63 amg
+035024;Mercedes-Benz;C63S AMG;c63s amg
+035025;Mercedes-Benz;CLA200;cla200
+035026;Mercedes-Benz;CLA220;cla220
+035027;Mercedes-Benz;CLA250e;cla250e
+035028;Mercedes-Benz;CLA250e Shooting Brake;cla250e shooting brake
+035029;Mercedes-Benz;CLA35 AMG;cla35 amg
+035030;Mercedes-Benz;CLA35 AMG Shooting Brake;cla35 amg shooting brake
+035031;Mercedes-Benz;CLA45 AMG;cla45 amg
+035032;Mercedes-Benz;CLA45 AMG Shooting Brake;cla45 amg shooting brake
+035033;Mercedes-Benz;CLE200;cle200
+035034;Mercedes-Benz;CLE220;cle220
+035035;Mercedes-Benz;CLE300;cle300
+035036;Mercedes-Benz;CLE450;cle450
+035037;Mercedes-Benz;CLE53 AMG;cle53 amg
+035038;Mercedes-Benz;CLS450;cls450
+035039;Mercedes-Benz;CLS53 AMG;cls53 amg
+035040;Mercedes-Benz;CLS63 AMG;cls63 amg
+035041;Mercedes-Benz;E-Sprinter;e-sprinter
+035042;Mercedes-Benz;E200;e200
+035043;Mercedes-Benz;E220;e220
+035044;Mercedes-Benz;E300;e300
+035045;Mercedes-Benz;E400;e400
+035046;Mercedes-Benz;E450;e450
+035047;Mercedes-Benz;E53 AMG;e53 amg
+035048;Mercedes-Benz;E63 AMG;e63 amg
+035049;Mercedes-Benz;E63S AMG;e63s amg
+035050;Mercedes-Benz;EQA250;eqa250
+035051;Mercedes-Benz;EQA300;eqa300
+035052;Mercedes-Benz;EQB250+;eqb250+
+035053;Mercedes-Benz;EQB300;eqb300
+035054;Mercedes-Benz;EQB350;eqb350
+035055;Mercedes-Benz;EQC400;eqc400
+035056;Mercedes-Benz;EQE AMG 43;eqe amg 43
+035057;Mercedes-Benz;EQE AMG 53;eqe amg 53
+035058;Mercedes-Benz;EQE300;eqe300
+035059;Mercedes-Benz;EQE350;eqe350
+035060;Mercedes-Benz;EQE500;eqe500
+035061;Mercedes-Benz;EQS 53 AMG;eqs 53 amg
+035062;Mercedes-Benz;EQS450+;eqs450+
+035063;Mercedes-Benz;EQS500;eqs500
+035064;Mercedes-Benz;EQS580;eqs580
+035065;Mercedes-Benz;EQV300;eqv300
+035066;Mercedes-Benz;G350;g350
+035067;Mercedes-Benz;G400;g400
+035068;Mercedes-Benz;G450;g450
+035069;Mercedes-Benz;G500;g500
+035070;Mercedes-Benz;G500 4x4²;g500 4x4²
+035071;Mercedes-Benz;G580;g580
+035072;Mercedes-Benz;G63 AMG;g63 amg
+035073;Mercedes-Benz;GLA180;gla180
+035074;Mercedes-Benz;GLA35 AMG;gla35 amg
+035075;Mercedes-Benz;GLA45 AMG;gla45 amg
+035076;Mercedes-Benz;GLB200;glb200
+035077;Mercedes-Benz;GLB220;glb220
+035078;Mercedes-Benz;GLB35;glb35
+035079;Mercedes-Benz;GLC200;glc200
+035080;Mercedes-Benz;GLC220;glc220
+035081;Mercedes-Benz;GLC300;glc300
+035082;Mercedes-Benz;GLC300e;glc300e
+035083;Mercedes-Benz;GLC400d;glc400d
+035084;Mercedes-Benz;GLC43 AMG;glc43 amg
+035085;Mercedes-Benz;GLC450;glc450
+035086;Mercedes-Benz;GLC63 AMG;glc63 amg
+035087;Mercedes-Benz;GLE300;gle300
+035088;Mercedes-Benz;GLE350;gle350
+035089;Mercedes-Benz;GLE350e;gle350e
+035090;Mercedes-Benz;GLE400;gle400
+035091;Mercedes-Benz;GLE43 AMG;gle43 amg
+035092;Mercedes-Benz;GLE450 AMG;gle450 amg
+035093;Mercedes-Benz;GLE53 AMG;gle53 amg
+035094;Mercedes-Benz;GLE580;gle580
+035095;Mercedes-Benz;GLE63 AMG;gle63 amg
+035096;Mercedes-Benz;GLS350;gls350
+035097;Mercedes-Benz;GLS400;gls400
+035098;Mercedes-Benz;GLS450;gls450
+035099;Mercedes-Benz;GLS580;gls580
+035100;Mercedes-Benz;GLS600 Maybach;gls600 maybach
+035101;Mercedes-Benz;GLS63 AMG;gls63 amg
+035102;Mercedes-Benz;S350;s350
+035103;Mercedes-Benz;S400;s400
+035104;Mercedes-Benz;S450;s450
+035105;Mercedes-Benz;S500;s500
+035106;Mercedes-Benz;S500L;s500l
+035107;Mercedes-Benz;S560;s560
+035108;Mercedes-Benz;S580;s580
+035109;Mercedes-Benz;S63 AMG;s63 amg
+035110;Mercedes-Benz;S65 AMG;s65 amg
+035111;Mercedes-Benz;S680 Maybach;s680 maybach
+035112;Mercedes-Benz;SL400;sl400
+035113;Mercedes-Benz;SL43 AMG;sl43 amg
+035114;Mercedes-Benz;SL500;sl500
+035115;Mercedes-Benz;SL55 AMG;sl55 amg
+035116;Mercedes-Benz;SL63 AMG;sl63 amg
+035117;Mercedes-Benz;SLS AMG;sls amg
+035118;Mercedes-Benz;Sprinter;sprinter
+035119;Mercedes-Benz;V220;v220
+035120;Mercedes-Benz;V250;v250
+035121;Mercedes-Benz;V300;v300
+035122;Mercedes-Benz;Vito;vito
+036001;Mini;Cooper S;cooper s
+036002;Mini;Countryman;countryman
+036003;Mini;John Cooper Works;john cooper works
+037001;Mitsubishi;Eclipse Cross;eclipse cross
+038001;Morgan;Plus;plus
+039001;Nissan;GT-R;gt-r
+039002;Nissan;Navara;navara
+039003;Nissan;Primastar;primastar
+039004;Nissan;X-Trail;x-trail
+040001;Opel;Grandland X;grandland x
+041001;Peugeot;3008;3008
+041002;Peugeot;5008;5008
+041003;Peugeot;508;508
+041004;Peugeot;e-3008;e-3008
+042001;Porsche;718;718
+042002;Porsche;718 Boxster;718 boxster
+042003;Porsche;718 Boxster GTS;718 boxster gts
+042004;Porsche;718 Boxster S;718 boxster s
+042005;Porsche;718 Cayman;718 cayman
+042006;Porsche;718 Cayman GT4;718 cayman gt4
+042007;Porsche;718 Cayman GTS;718 cayman gts
+042008;Porsche;718 Cayman S;718 cayman s
+042009;Porsche;718 Spyder;718 spyder
+042010;Porsche;911;911
+042011;Porsche;911 Carrera;911 carrera
+042012;Porsche;911 Carrera 4;911 carrera 4
+042013;Porsche;911 Carrera 4 Cabriolet;911 carrera 4 cabriolet
+042014;Porsche;911 Carrera 4 GTS;911 carrera 4 gts
+042015;Porsche;911 Carrera 4S;911 carrera 4s
+042016;Porsche;911 Carrera 4S Cabriolet;911 carrera 4s cabriolet
+042017;Porsche;911 Carrera Cabriolet;911 carrera cabriolet
+042018;Porsche;911 Carrera GTS;911 carrera gts
+042019;Porsche;911 Carrera S;911 carrera s
+042020;Porsche;911 Carrera S Cabriolet;911 carrera s cabriolet
+042021;Porsche;911 Carrera T;911 carrera t
+042022;Porsche;911 GT3;911 gt3
+042023;Porsche;911 GT3 RS;911 gt3 rs
+042024;Porsche;911 Sport Classic;911 sport classic
+042025;Porsche;911 Targa 4;911 targa 4
+042026;Porsche;911 Targa 4S;911 targa 4s
+042027;Porsche;911 Turbo;911 turbo
+042028;Porsche;911 Turbo Cabriolet;911 turbo cabriolet
+042029;Porsche;911 Turbo S;911 turbo s
+042030;Porsche;911 Turbo S Cabriolet;911 turbo s cabriolet
+042031;Porsche;911S;911s
+042032;Porsche;991;991
+042033;Porsche;992;992
+042034;Porsche;Boxster;boxster
+042035;Porsche;Boxster GTS;boxster gts
+042036;Porsche;Boxster S;boxster s
+042037;Porsche;Boxster Spyder;boxster spyder
+042038;Porsche;Cayenne;cayenne
+042039;Porsche;Cayenne GTS;cayenne gts
+042040;Porsche;Cayenne S;cayenne s
+042041;Porsche;Cayenne S E-Hybrid;cayenne s e-hybrid
+042042;Porsche;Cayenne Turbo;cayenne turbo
+042043;Porsche;Cayenne Turbo E-Hybrid;cayenne turbo e-hybrid
+042044;Porsche;Cayenne Turbo GT;cayenne turbo gt
+042045;Porsche;Cayenne Turbo S;cayenne turbo s
+042046;Porsche;Cayman;cayman
+042047;Porsche;Cayman GT4;cayman gt4
+042048;Porsche;Cayman GTS;cayman gts
+042049;Porsche;Macan;macan
+042050;Porsche;Macan GTS;macan gts
+042051;Porsche;Macan S;macan s
+042052;Porsche;Macan Turbo;macan turbo
+042053;Porsche;Panamera;panamera
+042054;Porsche;Panamera 4;panamera 4
+042055;Porsche;Panamera 4S;panamera 4s
+042056;Porsche;Panamera GTS;panamera gts
+042057;Porsche;Panamera S E-Hybrid;panamera s e-hybrid
+042058;Porsche;Panamera Turbo;panamera turbo
+042059;Porsche;Panamera Turbo E-Hybrid;panamera turbo e-hybrid
+042060;Porsche;Panamera Turbo S;panamera turbo s
+042061;Porsche;Taycan;taycan
+042062;Porsche;Taycan 4S;taycan 4s
+042063;Porsche;Taycan GTS;taycan gts
+042064;Porsche;Taycan Turbo;taycan turbo
+042065;Porsche;Taycan Turbo S;taycan turbo s
+043001;RAM;1500;1500
+044001;Renault;Austral;austral
+044002;Renault;Espace;espace
+044003;Renault;Rafale;rafale
+044004;Renault;Trafic;trafic
+045001;Rolls Royce;Cullinan;cullinan
+045002;Rolls Royce;Dawn;dawn
+045003;Rolls Royce;Ghost;ghost
+045004;Rolls Royce;Phantom;phantom
+045005;Rolls Royce;Spectre;spectre
+045006;Rolls Royce;Wraith;wraith
+046001;Seat;Ateca;ateca
+046002;Seat;Tarraco;tarraco
+047001;Skoda;Enyaq iV;enyaq iv
+047002;Skoda;Kamiq;kamiq
+047003;Skoda;Karoq;karoq
+047004;Skoda;Kodiaq;kodiaq
+047005;Skoda;Octavia;octavia
+047006;Skoda;Scala;scala
+047007;Skoda;Superb;superb
+048001;Ssangyong;Rexton;rexton
+049001;Subaru;Crosstrek;crosstrek
+049002;Subaru;Outback;outback
+049003;Subaru;XV;xv
+050001;Tesla;Model S;model s
+050002;Tesla;Model X;model x
+051001;Toyota;C-HR;c-hr
+051002;Toyota;Camry;camry
+051003;Toyota;Corolla;corolla
+051004;Toyota;Highlander;highlander
+051005;Toyota;HiLux;hilux
+051006;Toyota;Land Cruiser;land cruiser
+051007;Toyota;Proace;proace
+051008;Toyota;Proace Verso;proace verso
+051009;Toyota;RAV4;rav4
+051010;Toyota;RAV4 Hybrid;rav4 hybrid
+051011;Toyota;Supra;supra
+051012;Toyota;Yaris;yaris
+051013;Toyota;Yaris Hybrid;yaris hybrid
+052001;Volvo;EC40;ec40
+052002;Volvo;EX30;ex30
+052003;Volvo;EX40;ex40
+052004;Volvo;EX90;ex90
+052005;Volvo;S60;s60
+052006;Volvo;S90;s90
+052007;Volvo;V60;v60
+052008;Volvo;V60 CC;v60 cc
+052009;Volvo;V90;v90
+052010;Volvo;V90 CC;v90 cc
+052011;Volvo;XC40;xc40
+052012;Volvo;XC60;xc60
+052013;Volvo;XC90;xc90
+053001;Voyah;Free;free
+054001;VW;Amarok;amarok
+054002;VW;Arteon;arteon
+054003;VW;California;california
+054004;VW;Caravelle;caravelle
+054005;VW;Crafter;crafter
+054006;VW;ID. Buzz;id buzz
+054007;VW;ID.4;id 4
+054008;VW;ID.5;id 5
+054009;VW;ID.7;id 7
+054010;VW;LT;lt
+054011;VW;Multivan;multivan
+054012;VW;Passat;passat
+054013;VW;T-Cross;t-cross
+054014;VW;T-Roc;t-roc
+054015;VW;T6.1;t6 1
+054016;VW;T7;t7
+054017;VW;Tayron;tayron
+054018;VW;Tiguan;tiguan
+054019;VW;Tiguan Allspace;tiguan allspace
+054020;VW;Touareg;touareg
+054021;VW;Touran;touran
+055001;XPENG;G9;g9

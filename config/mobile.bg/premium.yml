@@ -1,0 +1,73 @@
+# config/mobile_bg/extras.yml
+# Как се ползва:
+# - param: името на query параметъра в URL (mobile.bg: 'extri')
+# - join: как се комбинират няколко стойности (',' за списък)
+# - mapping: списък с feature-и от формата (по id 'fXX'), човешко име и extri код.
+#   Ако extri е null → пропускай го (или логни warning), докато не попълним кода.
+base_url: "https://www.mobile.bg/obiavi/avtomobili-dzhipove"
+param: extri
+join: "~"
+
+mapping:
+  - f: "f88"
+    name: "4x4"
+    extri: 3 # потвърдено от теб: f88 -> extri=3
+    aliases: ["4x4", "4WD", "AWD", "xDrive", "quattro", "4MATIC"]
+
+  - f: "f48"
+    name: "Парктроник"
+    extri: 66
+    aliases: ["Парктроник", "Parking sensors", "Park Assist", "PDC"]
+
+  - f: "f84"
+    name: "Круиз контрол / автопилот"
+    extri: 85
+    aliases:
+      ["Cruise Control", "Tempomat", "ACC", "Adaptive Cruise", "Distronic"]
+
+  - f: "f79"
+    name: "Подгряване на седалките"
+    extri: 69
+    aliases: ["Seat heating", "Heated seats"]
+
+  - f: "f111"
+    name: "Панорамен люк"
+    extri: 65
+    aliases: ["Panoramic roof", "Panorama", "Sunroof"]
+
+  - f: "f116"
+    name: "Шибедах"
+    extri: 99
+    aliases: ["Шибедах", "Schibidach", "Sunroof"]
+
+  - f: "f125"
+    name: "Кожен салон"
+    extri: 49
+    aliases: ["Leather", "Full leather"]
+
+  - f: "f75"
+    name: "Навигация"
+    extri: 60
+    aliases: ["Navigation", "Navi", "GPS"]
+
+filters:
+  extri: "66~60~69~85~3~49"
+
+variables:
+  year_from: "2024"
+  year_to: "2025"
+
+path_segments:
+  - "ot-{year_from}"
+  - "do-{year_to}"
+
+paging:
+  type: path         # path-базиран paging, не query
+  pattern: "p-{page}"# ще стане /p-3
+  start: 1
+  max: 10
+
+query_defaults:
+  nup: "014"      # нов/употребяван (014 = всички / според UI комбинацията)
+  pictonly: "1"   # само със снимки
+  privonly: "2"   # дилъри
