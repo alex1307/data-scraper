@@ -22,3 +22,6 @@ Cargo.lock
 ```slack-config.sh
 .env
 slack.env
+slack-config.sh
+slack.env
+.env
