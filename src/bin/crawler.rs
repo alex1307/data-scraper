@@ -151,43 +151,47 @@ async fn run_vehicle_crawler(
         };
         let searches_vec = filter_searches(&crawler, filter);
         let scraper = AutouncleScraper::AutouncleScraper::new(url, "page", &crawler, 250);
-        let main_url = searches_vec.first().map(|s| s.url.clone());
         let host = gethostname().to_string_lossy().into_owned();
-        match run_job(
-            scraper.clone(),
-            searches_vec,
-            sink_type.clone(),
-            browser.clone(),
-            crawler.clone(),
-            source_to_config_path(&crawler),
-            main_url,
-        )
-        .await
-        {
-            Ok(status) => {
-                notifier
-                    .notify_job_finished_with_url(
-                        &crawler,
-                        status.cfg_path.as_deref(),
-                        status.actual as i32,
-                        status.duration_s,
-                        &host,
-                        status.url.as_deref(),
-                    )
-                    .await;
-            }
-            Err(err) => {
-                let mut msg = format!(
-                    "🛑 {} failed\ncfg={}\nerror={}\nhost={}",
-                    &crawler,
-                    err.cfg_path.as_deref().unwrap_or("-"),
-                    err.message,
-                    host
-                );
-                if let Some(u) = err.url.as_deref() {
-                    msg.push_str(&format!("\nurl={}", u));
+
+        for search in searches_vec.iter().cloned() {
+            let main_url = Some(search.url.clone());
+            let single = vec![search.clone()];
+            match run_job(
+                scraper.clone(),
+                single,
+                sink_type.clone(),
+                browser.clone(),
+                crawler.clone(),
+                source_to_config_path(&crawler),
+                main_url,
+            )
+            .await
+            {
+                Ok(status) => {
+                    notifier
+                        .notify_job_finished_with_url(
+                            &crawler,
+                            status.cfg_path.as_deref(),
+                            status.actual as i32,
+                            status.duration_s,
+                            &host,
+                            status.url.as_deref(),
+                        )
+                        .await;
                 }
-                notifier.notify_text(Channel::Error, &msg, None).await;
+                Err(err) => {
+                    let mut msg = format!(
+                        "🛑 {} failed\ncfg={}\nerror={}\nhost={}",
+                        &crawler,
+                        err.cfg_path.as_deref().unwrap_or("-"),
+                        err.message,
+                        host
+                    );
+                    if let Some(u) = err.url.as_deref() {
+                        msg.push_str(&format!("\nurl={}", u));
+                    }
+                    notifier.notify_text(Channel::Error, &msg, None).await;
+                }
             }
         }
     }

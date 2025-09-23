@@ -1,0 +1,28 @@
+# autouncle.yml
+
+# Базов URL (смени домейна според пазара: .ch, .de, .it, .fr, .nl)
+base_url: "https://www.autouncle.nl/en/cars_search"
+
+# Опционален бранд (ако е празно или липсва → без /<brand> в path)
+brand:
+
+# Филтри (Rails-style nested params → encoder ще добави %5B %5D автоматично)
+filters:
+  s[has_4wd]: true
+  s[has_climate_control]: true
+  s[has_full_leather]: true
+  s[has_headup_display]: true
+  s[has_parking]: true
+  s[has_pilot]: true
+  s[has_stop_and_go]: true
+  s[has_lane_warning]: true
+  s[has_glass_roof]: true
+  s[order_by]: au_rating_desc
+  s[min_year]: 2019
+  s[max_year]: 2020
+
+# Paging конфигурация
+paging:
+  param: page # query parameter for paging
+  start: 1 # first page
+  max: 10 # max pages to scrape (adjust as needed)

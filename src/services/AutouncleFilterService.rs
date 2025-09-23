@@ -8,13 +8,21 @@ use walkdir::WalkDir;
 use crate::utils::ConfigLoader::load_config; // add to Cargo.toml: walkdir = "2"
 
 fn find_autouncle_configs(root: &str) -> Vec<String> {
-    WalkDir::new(root)
+    let mut configs: Vec<String> = WalkDir::new(root)
         .into_iter()
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension() == Some(OsStr::new("yml")))
+        .filter(|e| match e.path().extension().and_then(OsStr::to_str) {
+            Some(ext) if ext.eq_ignore_ascii_case("yml") || ext.eq_ignore_ascii_case("yaml") => {
+                true
+            }
+            _ => false,
+        })
         .map(|e| e.path().to_string_lossy().to_string())
-        .collect()
+        .collect();
+    configs.sort();
+    configs.dedup();
+    configs
 }
 
 pub fn scrape_all_autouncle() -> anyhow::Result<()> {
@@ -22,6 +30,16 @@ pub fn scrape_all_autouncle() -> anyhow::Result<()> {
     if config_files.is_empty() {
         log::warn!("No autouncle configs found under config/autouncle");
         return Ok(());
+    }
+
+    // Pretty log the files we are about to process (local-only visibility)
+    log::info!(
+        "📂 Found {} autouncle configs under {}:",
+        config_files.len(),
+        "config/autouncle"
+    );
+    for f in &config_files {
+        log::info!("   📝 {}", f);
     }
 
     for cfg_path in config_files {
@@ -84,6 +102,14 @@ pub fn build_searches(cfg_root: &str) -> Vec<Search> {
     let source = format!("autouncle.{}", market);
 
     let config_files = find_autouncle_configs(cfg_root);
+    log::info!(
+        "📂 Found {} autouncle configs under {}:",
+        config_files.len(),
+        cfg_root
+    );
+    for f in &config_files {
+        log::info!("   📝 {}", f);
+    }
     if config_files.is_empty() {
         log::warn!("No autouncle configs found under {}", cfg_root);
         return searches;
@@ -114,6 +140,7 @@ pub fn build_searches(cfg_root: &str) -> Vec<Search> {
                 // DO NOT insert page here
                 params.insert("url".to_string(), base.clone());
                 params.insert(CRAWLER_KEY.to_string(), source.clone());
+                params.insert("cfg_path".to_string(), cfg_path.clone());
                 // Stable ID based on market and file index
                 let id_val = format!("{}-{}", market, file_idx + 1);
                 params.insert(ID_KEY.to_string(), id_val);
