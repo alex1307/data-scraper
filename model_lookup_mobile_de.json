@@ -1,0 +1,2155 @@
+{
+  "Maserati": [
+    {
+      "value": "Granturismo",
+      "tags": [
+        "granturismo"
+      ]
+    },
+    {
+      "value": "Ghibli",
+      "tags": [
+        "ghibli"
+      ]
+    },
+    {
+      "value": "Levante",
+      "tags": [
+        "levante"
+      ]
+    },
+    {
+      "value": "GranCabrio",
+      "tags": [
+        "grancabrio"
+      ]
+    },
+    {
+      "value": "MC20",
+      "tags": [
+        "mc20"
+      ]
+    }
+  ],
+  "XPENG": [
+    {
+      "value": "G9",
+      "tags": [
+        "g9"
+      ]
+    }
+  ],
+  "Abarth": [
+    {
+      "value": "695",
+      "tags": [
+        "695"
+      ]
+    }
+  ],
+  "Morgan": [
+    {
+      "value": "Roadster",
+      "tags": [
+        "roadster"
+      ]
+    },
+    {
+      "value": "Plus 4",
+      "tags": [
+        "plus",
+        "4"
+      ]
+    }
+  ],
+  "Rolls-Royce": [
+    {
+      "value": "Dawn",
+      "tags": [
+        "dawn"
+      ]
+    },
+    {
+      "value": "Wraith",
+      "tags": [
+        "wraith"
+      ]
+    },
+    {
+      "value": "Ghost",
+      "tags": [
+        "ghost"
+      ]
+    }
+  ],
+  "Volvo": [
+    {
+      "value": "S60",
+      "tags": [
+        "s60"
+      ]
+    },
+    {
+      "value": "XC90",
+      "tags": [
+        "xc90"
+      ]
+    },
+    {
+      "value": "XC60",
+      "tags": [
+        "xc60"
+      ]
+    },
+    {
+      "value": "V60 Cross Country",
+      "tags": [
+        "v60",
+        "cross",
+        "country"
+      ]
+    },
+    {
+      "value": "EX90",
+      "tags": [
+        "ex90"
+      ]
+    },
+    {
+      "value": "V60",
+      "tags": [
+        "v60"
+      ]
+    },
+    {
+      "value": "V90",
+      "tags": [
+        "v90"
+      ]
+    }
+  ],
+  "Alfa Romeo": [
+    {
+      "value": "8C",
+      "tags": [
+        "8c"
+      ]
+    },
+    {
+      "value": "4C",
+      "tags": [
+        "4c"
+      ]
+    },
+    {
+      "value": "Stelvio",
+      "tags": [
+        "stelvio"
+      ]
+    },
+    {
+      "value": "Giulia",
+      "tags": [
+        "giulia"
+      ]
+    }
+  ],
+  "INEOS": [
+    {
+      "value": "Grenadier",
+      "tags": [
+        "grenadier"
+      ]
+    }
+  ],
+  "KTM": [
+    {
+      "value": "X-BOW",
+      "tags": [
+        "x-bow"
+      ]
+    }
+  ],
+  "Ford": [
+    {
+      "value": "Bronco",
+      "tags": [
+        "bronco"
+      ]
+    },
+    {
+      "value": "Mustang",
+      "tags": [
+        "mustang"
+      ]
+    },
+    {
+      "value": "GT",
+      "tags": [
+        "gt"
+      ]
+    },
+    {
+      "value": "Kuga",
+      "tags": [
+        "kuga"
+      ]
+    },
+    {
+      "value": "Ranger",
+      "tags": [
+        "ranger"
+      ]
+    },
+    {
+      "value": "Explorer",
+      "tags": [
+        "explorer"
+      ]
+    },
+    {
+      "value": "Tourneo Custom",
+      "tags": [
+        "tourneo",
+        "custom"
+      ]
+    }
+  ],
+  "Toyota": [
+    {
+      "value": "Supra",
+      "tags": [
+        "supra"
+      ]
+    },
+    {
+      "value": "Land Cruiser",
+      "tags": [
+        "land",
+        "cruiser"
+      ]
+    }
+  ],
+  "Cadillac": [
+    {
+      "value": "Escalade",
+      "tags": [
+        "escalade"
+      ]
+    }
+  ],
+  "Maybach": [
+    {
+      "value": "Other",
+      "tags": [
+        "other"
+      ]
+    },
+    {
+      "value": "S650",
+      "tags": [
+        "s650"
+      ]
+    }
+  ],
+  "Jeep": [
+    {
+      "value": "Gladiator",
+      "tags": [
+        "gladiator"
+      ]
+    }
+  ],
+  "MAN": [
+    {
+      "value": "TGE",
+      "tags": [
+        "tge"
+      ]
+    }
+  ],
+  "Bentley": [
+    {
+      "value": "Mulsanne",
+      "tags": [
+        "mulsanne"
+      ]
+    },
+    {
+      "value": "Continental GTC",
+      "tags": [
+        "continental",
+        "gtc"
+      ]
+    },
+    {
+      "value": "Continental GT",
+      "tags": [
+        "continental",
+        "gt"
+      ]
+    },
+    {
+      "value": "Bentayga",
+      "tags": [
+        "bentayga"
+      ]
+    },
+    {
+      "value": "Flying Spur",
+      "tags": [
+        "flying",
+        "spur"
+      ]
+    }
+  ],
+  "Land Rover": [
+    {
+      "value": "Defender",
+      "tags": [
+        "defender"
+      ]
+    },
+    {
+      "value": "Range Rover",
+      "tags": [
+        "range",
+        "rover"
+      ]
+    },
+    {
+      "value": "Range Rover Evoque",
+      "tags": [
+        "range",
+        "rover",
+        "evoque"
+      ]
+    },
+    {
+      "value": "Range Rover Sport",
+      "tags": [
+        "range",
+        "rover",
+        "sport"
+      ]
+    },
+    {
+      "value": "Range Rover Velar",
+      "tags": [
+        "range",
+        "rover",
+        "velar"
+      ]
+    }
+  ],
+  "Porsche": [
+    {
+      "value": "911",
+      "tags": [
+        "911"
+      ]
+    },
+    {
+      "value": "991",
+      "tags": [
+        "991"
+      ]
+    },
+    {
+      "value": "Taycan",
+      "tags": [
+        "taycan"
+      ]
+    },
+    {
+      "value": "Other",
+      "tags": [
+        "other"
+      ]
+    },
+    {
+      "value": "Cayman",
+      "tags": [
+        "cayman"
+      ]
+    },
+    {
+      "value": "997",
+      "tags": [
+        "997"
+      ]
+    },
+    {
+      "value": "Boxster",
+      "tags": [
+        "boxster"
+      ]
+    },
+    {
+      "value": "Macan",
+      "tags": [
+        "macan"
+      ]
+    },
+    {
+      "value": "992",
+      "tags": [
+        "992"
+      ]
+    },
+    {
+      "value": "Cayenne",
+      "tags": [
+        "cayenne"
+      ]
+    },
+    {
+      "value": "Panamera",
+      "tags": [
+        "panamera"
+      ]
+    }
+  ],
+  "Ferrari": [
+    {
+      "value": "458",
+      "tags": [
+        "458"
+      ]
+    },
+    {
+      "value": "Roma",
+      "tags": [
+        "roma"
+      ]
+    },
+    {
+      "value": "GTC4Lusso",
+      "tags": [
+        "gtc4lusso"
+      ]
+    },
+    {
+      "value": "SF90",
+      "tags": [
+        "sf90"
+      ]
+    },
+    {
+      "value": "Purosangue",
+      "tags": [
+        "purosangue"
+      ]
+    },
+    {
+      "value": "F12",
+      "tags": [
+        "f12"
+      ]
+    },
+    {
+      "value": "California",
+      "tags": [
+        "california"
+      ]
+    },
+    {
+      "value": "488 Spider",
+      "tags": [
+        "488",
+        "spider"
+      ]
+    },
+    {
+      "value": "812",
+      "tags": [
+        "812"
+      ]
+    },
+    {
+      "value": "296 GTS",
+      "tags": [
+        "296",
+        "gts"
+      ]
+    },
+    {
+      "value": "296 GTB",
+      "tags": [
+        "296",
+        "gtb"
+      ]
+    },
+    {
+      "value": "LaFerrari",
+      "tags": [
+        "laferrari"
+      ]
+    },
+    {
+      "value": "488 GTB",
+      "tags": [
+        "488",
+        "gtb"
+      ]
+    }
+  ],
+  "Tesla": [
+    {
+      "value": "Model X",
+      "tags": [
+        "model",
+        "x"
+      ]
+    }
+  ],
+  "ALPINA": [
+    {
+      "value": "D4",
+      "tags": [
+        "d4"
+      ]
+    },
+    {
+      "value": "XD3",
+      "tags": [
+        "xd3"
+      ]
+    },
+    {
+      "value": "B7",
+      "tags": [
+        "b7"
+      ]
+    }
+  ],
+  "Kia": [
+    {
+      "value": "Sorento",
+      "tags": [
+        "sorento"
+      ]
+    }
+  ],
+  "Lexus": [
+    {
+      "value": "RX 500",
+      "tags": [
+        "rx",
+        "500"
+      ]
+    },
+    {
+      "value": "LFA",
+      "tags": [
+        "lfa"
+      ]
+    },
+    {
+      "value": "LC 500",
+      "tags": [
+        "lc",
+        "500"
+      ]
+    },
+    {
+      "value": "LM",
+      "tags": [
+        "lm"
+      ]
+    },
+    {
+      "value": "RC F",
+      "tags": [
+        "rc",
+        "f"
+      ]
+    }
+  ],
+  "Cupra": [
+    {
+      "value": "Tavascan",
+      "tags": [
+        "tavascan"
+      ]
+    }
+  ],
+  "Jaguar": [
+    {
+      "value": "F-Pace",
+      "tags": [
+        "f-pace"
+      ]
+    },
+    {
+      "value": "F-Type",
+      "tags": [
+        "f-type"
+      ]
+    }
+  ],
+  "Aston Martin": [
+    {
+      "value": "Vanquish",
+      "tags": [
+        "vanquish"
+      ]
+    },
+    {
+      "value": "Rapide",
+      "tags": [
+        "rapide"
+      ]
+    },
+    {
+      "value": "V12 Vantage",
+      "tags": [
+        "v12",
+        "vantage"
+      ]
+    },
+    {
+      "value": "DB11",
+      "tags": [
+        "db11"
+      ]
+    },
+    {
+      "value": "DB9",
+      "tags": [
+        "db9"
+      ]
+    },
+    {
+      "value": "V8 Vantage",
+      "tags": [
+        "v8",
+        "vantage"
+      ]
+    }
+  ],
+  "Nissan": [
+    {
+      "value": "GT-R",
+      "tags": [
+        "gt-r"
+      ]
+    }
+  ],
+  "Lotus": [
+    {
+      "value": "Exige",
+      "tags": [
+        "exige"
+      ]
+    },
+    {
+      "value": "Super Seven",
+      "tags": [
+        "super",
+        "seven"
+      ]
+    }
+  ],
+  "Mercedes-Benz": [
+    {
+      "value": "EQS",
+      "tags": [
+        "eqs"
+      ]
+    },
+    {
+      "value": "GLE 450",
+      "tags": [
+        "gle",
+        "450"
+      ]
+    },
+    {
+      "value": "S 500",
+      "tags": [
+        "s",
+        "500"
+      ]
+    },
+    {
+      "value": "GLE 53 AMG",
+      "tags": [
+        "gle",
+        "53",
+        "amg"
+      ]
+    },
+    {
+      "value": "GLE 43 AMG",
+      "tags": [
+        "gle",
+        "43",
+        "amg"
+      ]
+    },
+    {
+      "value": "SLS AMG",
+      "tags": [
+        "sls",
+        "amg"
+      ]
+    },
+    {
+      "value": "220",
+      "tags": [
+        "220"
+      ]
+    },
+    {
+      "value": "E 200",
+      "tags": [
+        "e",
+        "200"
+      ]
+    },
+    {
+      "value": "SL 43 AMG",
+      "tags": [
+        "sl",
+        "43",
+        "amg"
+      ]
+    },
+    {
+      "value": "CLE 180",
+      "tags": [
+        "cle",
+        "180"
+      ]
+    },
+    {
+      "value": "CLE 200",
+      "tags": [
+        "cle",
+        "200"
+      ]
+    },
+    {
+      "value": "CLS 53 AMG",
+      "tags": [
+        "cls",
+        "53",
+        "amg"
+      ]
+    },
+    {
+      "value": "GLC 450",
+      "tags": [
+        "glc",
+        "450"
+      ]
+    },
+    {
+      "value": "CLE 450",
+      "tags": [
+        "cle",
+        "450"
+      ]
+    },
+    {
+      "value": "A 45 AMG",
+      "tags": [
+        "a",
+        "45",
+        "amg"
+      ]
+    },
+    {
+      "value": "CLA 35 AMG Shooting Brake",
+      "tags": [
+        "cla",
+        "35",
+        "amg",
+        "shooting",
+        "brake"
+      ]
+    },
+    {
+      "value": "CLA 35 AMG",
+      "tags": [
+        "cla",
+        "35",
+        "amg"
+      ]
+    },
+    {
+      "value": "G 450",
+      "tags": [
+        "g",
+        "450"
+      ]
+    },
+    {
+      "value": "E 63 AMG",
+      "tags": [
+        "e",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "EQS SUV",
+      "tags": [
+        "eqs",
+        "suv"
+      ]
+    },
+    {
+      "value": "V 220",
+      "tags": [
+        "v",
+        "220"
+      ]
+    },
+    {
+      "value": "S 650",
+      "tags": [
+        "s",
+        "650"
+      ]
+    },
+    {
+      "value": "S 580",
+      "tags": [
+        "s",
+        "580"
+      ]
+    },
+    {
+      "value": "CLE 220",
+      "tags": [
+        "cle",
+        "220"
+      ]
+    },
+    {
+      "value": "AMG GT C",
+      "tags": [
+        "amg",
+        "gt",
+        "c"
+      ]
+    },
+    {
+      "value": "S 450",
+      "tags": [
+        "s",
+        "450"
+      ]
+    },
+    {
+      "value": "SL 400",
+      "tags": [
+        "sl",
+        "400"
+      ]
+    },
+    {
+      "value": "V 300",
+      "tags": [
+        "v",
+        "300"
+      ]
+    },
+    {
+      "value": "G 500",
+      "tags": [
+        "g",
+        "500"
+      ]
+    },
+    {
+      "value": "EQE SUV",
+      "tags": [
+        "eqe",
+        "suv"
+      ]
+    },
+    {
+      "value": "GLB 35 AMG",
+      "tags": [
+        "glb",
+        "35",
+        "amg"
+      ]
+    },
+    {
+      "value": "CLS 300",
+      "tags": [
+        "cls",
+        "300"
+      ]
+    },
+    {
+      "value": "GLC 43 AMG",
+      "tags": [
+        "glc",
+        "43",
+        "amg"
+      ]
+    },
+    {
+      "value": "E 400",
+      "tags": [
+        "e",
+        "400"
+      ]
+    },
+    {
+      "value": "GLC 400",
+      "tags": [
+        "glc",
+        "400"
+      ]
+    },
+    {
+      "value": "E 300",
+      "tags": [
+        "e",
+        "300"
+      ]
+    },
+    {
+      "value": "GLC 200",
+      "tags": [
+        "glc",
+        "200"
+      ]
+    },
+    {
+      "value": "CLE 300",
+      "tags": [
+        "cle",
+        "300"
+      ]
+    },
+    {
+      "value": "V 250",
+      "tags": [
+        "v",
+        "250"
+      ]
+    },
+    {
+      "value": "GLE 400",
+      "tags": [
+        "gle",
+        "400"
+      ]
+    },
+    {
+      "value": "Other",
+      "tags": [
+        "other"
+      ]
+    },
+    {
+      "value": "GLC 63 AMG",
+      "tags": [
+        "glc",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "C 220",
+      "tags": [
+        "c",
+        "220"
+      ]
+    },
+    {
+      "value": "AMG GT S",
+      "tags": [
+        "amg",
+        "gt",
+        "s"
+      ]
+    },
+    {
+      "value": "C 300",
+      "tags": [
+        "c",
+        "300"
+      ]
+    },
+    {
+      "value": "GLS 63",
+      "tags": [
+        "gls",
+        "63"
+      ]
+    },
+    {
+      "value": "Sprinter",
+      "tags": [
+        "sprinter"
+      ]
+    },
+    {
+      "value": "CLS 400",
+      "tags": [
+        "cls",
+        "400"
+      ]
+    },
+    {
+      "value": "AMG GT R",
+      "tags": [
+        "amg",
+        "gt",
+        "r"
+      ]
+    },
+    {
+      "value": "GLA 45 AMG",
+      "tags": [
+        "gla",
+        "45",
+        "amg"
+      ]
+    },
+    {
+      "value": "AMG GT",
+      "tags": [
+        "amg",
+        "gt"
+      ]
+    },
+    {
+      "value": "GLS 450",
+      "tags": [
+        "gls",
+        "450"
+      ]
+    },
+    {
+      "value": "EQV",
+      "tags": [
+        "eqv"
+      ]
+    },
+    {
+      "value": "GLB 220",
+      "tags": [
+        "glb",
+        "220"
+      ]
+    },
+    {
+      "value": "G 400",
+      "tags": [
+        "g",
+        "400"
+      ]
+    },
+    {
+      "value": "CLE 53 AMG",
+      "tags": [
+        "cle",
+        "53",
+        "amg"
+      ]
+    },
+    {
+      "value": "C 43 AMG",
+      "tags": [
+        "c",
+        "43",
+        "amg"
+      ]
+    },
+    {
+      "value": "GLS 400",
+      "tags": [
+        "gls",
+        "400"
+      ]
+    },
+    {
+      "value": "S 63 AMG",
+      "tags": [
+        "s",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "G 65 AMG",
+      "tags": [
+        "g",
+        "65",
+        "amg"
+      ]
+    },
+    {
+      "value": "GLS 580",
+      "tags": [
+        "gls",
+        "580"
+      ]
+    },
+    {
+      "value": "GLC 220",
+      "tags": [
+        "glc",
+        "220"
+      ]
+    },
+    {
+      "value": "S 65 AMG",
+      "tags": [
+        "s",
+        "65",
+        "amg"
+      ]
+    },
+    {
+      "value": "S 350",
+      "tags": [
+        "s",
+        "350"
+      ]
+    },
+    {
+      "value": "Vito",
+      "tags": [
+        "vito"
+      ]
+    },
+    {
+      "value": "S 560",
+      "tags": [
+        "s",
+        "560"
+      ]
+    },
+    {
+      "value": "SL 63 AMG",
+      "tags": [
+        "sl",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "G 350",
+      "tags": [
+        "g",
+        "350"
+      ]
+    },
+    {
+      "value": "S 400",
+      "tags": [
+        "s",
+        "400"
+      ]
+    },
+    {
+      "value": "GLC 300",
+      "tags": [
+        "glc",
+        "300"
+      ]
+    },
+    {
+      "value": "CLA 45 AMG",
+      "tags": [
+        "cla",
+        "45",
+        "amg"
+      ]
+    },
+    {
+      "value": "E 53 AMG",
+      "tags": [
+        "e",
+        "53",
+        "amg"
+      ]
+    },
+    {
+      "value": "C 63 AMG",
+      "tags": [
+        "c",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "S 600",
+      "tags": [
+        "s",
+        "600"
+      ]
+    },
+    {
+      "value": "GLE 63 AMG",
+      "tags": [
+        "gle",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "SL 500",
+      "tags": [
+        "sl",
+        "500"
+      ]
+    },
+    {
+      "value": "G 63 AMG",
+      "tags": [
+        "g",
+        "63",
+        "amg"
+      ]
+    },
+    {
+      "value": "GLE 350",
+      "tags": [
+        "gle",
+        "350"
+      ]
+    },
+    {
+      "value": "E 450",
+      "tags": [
+        "e",
+        "450"
+      ]
+    },
+    {
+      "value": "E 220",
+      "tags": [
+        "e",
+        "220"
+      ]
+    },
+    {
+      "value": "EQE",
+      "tags": [
+        "eqe"
+      ]
+    },
+    {
+      "value": "GLE 300",
+      "tags": [
+        "gle",
+        "300"
+      ]
+    }
+  ],
+  "Dodge": [
+    {
+      "value": "Durango",
+      "tags": [
+        "durango"
+      ]
+    },
+    {
+      "value": "Viper",
+      "tags": [
+        "viper"
+      ]
+    },
+    {
+      "value": "RAM",
+      "tags": [
+        "ram"
+      ]
+    },
+    {
+      "value": "Challenger",
+      "tags": [
+        "challenger"
+      ]
+    },
+    {
+      "value": "Charger",
+      "tags": [
+        "charger"
+      ]
+    }
+  ],
+  "Alpine": [
+    {
+      "value": "A110",
+      "tags": [
+        "a110"
+      ]
+    }
+  ],
+  "BMW": [
+    {
+      "value": "430 Gran Coupé",
+      "tags": [
+        "430",
+        "gran",
+        "coupé"
+      ]
+    },
+    {
+      "value": "X5",
+      "tags": [
+        "x5"
+      ]
+    },
+    {
+      "value": "Z4 M",
+      "tags": [
+        "z4",
+        "m"
+      ]
+    },
+    {
+      "value": "X5 M60",
+      "tags": [
+        "x5",
+        "m60"
+      ]
+    },
+    {
+      "value": "X4 M40",
+      "tags": [
+        "x4",
+        "m40"
+      ]
+    },
+    {
+      "value": "X3 M40",
+      "tags": [
+        "x3",
+        "m40"
+      ]
+    },
+    {
+      "value": "M2",
+      "tags": [
+        "m2"
+      ]
+    },
+    {
+      "value": "X5 M50",
+      "tags": [
+        "x5",
+        "m50"
+      ]
+    },
+    {
+      "value": "iX",
+      "tags": [
+        "ix"
+      ]
+    },
+    {
+      "value": "M3",
+      "tags": [
+        "m3"
+      ]
+    },
+    {
+      "value": "520",
+      "tags": [
+        "520"
+      ]
+    },
+    {
+      "value": "M340i",
+      "tags": [
+        "m340i"
+      ]
+    },
+    {
+      "value": "740",
+      "tags": [
+        "740"
+      ]
+    },
+    {
+      "value": "M6",
+      "tags": [
+        "m6"
+      ]
+    },
+    {
+      "value": "XM",
+      "tags": [
+        "xm"
+      ]
+    },
+    {
+      "value": "M550",
+      "tags": [
+        "m550"
+      ]
+    },
+    {
+      "value": "X5 M",
+      "tags": [
+        "x5",
+        "m"
+      ]
+    },
+    {
+      "value": "330",
+      "tags": [
+        "330"
+      ]
+    },
+    {
+      "value": "X4 M",
+      "tags": [
+        "x4",
+        "m"
+      ]
+    },
+    {
+      "value": "X1",
+      "tags": [
+        "x1"
+      ]
+    },
+    {
+      "value": "M440",
+      "tags": [
+        "m440"
+      ]
+    },
+    {
+      "value": "X7 M60",
+      "tags": [
+        "x7",
+        "m60"
+      ]
+    },
+    {
+      "value": "X6 M50",
+      "tags": [
+        "x6",
+        "m50"
+      ]
+    },
+    {
+      "value": "840",
+      "tags": [
+        "840"
+      ]
+    },
+    {
+      "value": "X6 M60",
+      "tags": [
+        "x6",
+        "m60"
+      ]
+    },
+    {
+      "value": "X7",
+      "tags": [
+        "x7"
+      ]
+    },
+    {
+      "value": "X3 M",
+      "tags": [
+        "x3",
+        "m"
+      ]
+    },
+    {
+      "value": "535",
+      "tags": [
+        "535"
+      ]
+    },
+    {
+      "value": "X6 M",
+      "tags": [
+        "x6",
+        "m"
+      ]
+    },
+    {
+      "value": "iX3",
+      "tags": [
+        "ix3"
+      ]
+    },
+    {
+      "value": "M850",
+      "tags": [
+        "m850"
+      ]
+    },
+    {
+      "value": "Other",
+      "tags": [
+        "other"
+      ]
+    },
+    {
+      "value": "iX1",
+      "tags": [
+        "ix1"
+      ]
+    },
+    {
+      "value": "530",
+      "tags": [
+        "530"
+      ]
+    },
+    {
+      "value": "i7",
+      "tags": [
+        "i7"
+      ]
+    },
+    {
+      "value": "i4",
+      "tags": [
+        "i4"
+      ]
+    },
+    {
+      "value": "545",
+      "tags": [
+        "545"
+      ]
+    },
+    {
+      "value": "730",
+      "tags": [
+        "730"
+      ]
+    },
+    {
+      "value": "X3",
+      "tags": [
+        "x3"
+      ]
+    },
+    {
+      "value": "420 Gran Coupé",
+      "tags": [
+        "420",
+        "gran",
+        "coupé"
+      ]
+    },
+    {
+      "value": "M340d",
+      "tags": [
+        "m340d"
+      ]
+    },
+    {
+      "value": "M4",
+      "tags": [
+        "m4"
+      ]
+    },
+    {
+      "value": "760",
+      "tags": [
+        "760"
+      ]
+    },
+    {
+      "value": "M760",
+      "tags": [
+        "m760"
+      ]
+    },
+    {
+      "value": "X4",
+      "tags": [
+        "x4"
+      ]
+    },
+    {
+      "value": "745",
+      "tags": [
+        "745"
+      ]
+    },
+    {
+      "value": "i8",
+      "tags": [
+        "i8"
+      ]
+    },
+    {
+      "value": "750",
+      "tags": [
+        "750"
+      ]
+    },
+    {
+      "value": "X2",
+      "tags": [
+        "x2"
+      ]
+    },
+    {
+      "value": "i5",
+      "tags": [
+        "i5"
+      ]
+    },
+    {
+      "value": "430",
+      "tags": [
+        "430"
+      ]
+    },
+    {
+      "value": "X6",
+      "tags": [
+        "x6"
+      ]
+    },
+    {
+      "value": "540",
+      "tags": [
+        "540"
+      ]
+    },
+    {
+      "value": "X3 M50",
+      "tags": [
+        "x3",
+        "m50"
+      ]
+    },
+    {
+      "value": "M5",
+      "tags": [
+        "m5"
+      ]
+    },
+    {
+      "value": "550",
+      "tags": [
+        "550"
+      ]
+    }
+  ],
+  "Hyundai": [
+    {
+      "value": "IONIQ 5",
+      "tags": [
+        "ioniq",
+        "5"
+      ]
+    }
+  ],
+  "Corvette": [
+    {
+      "value": "C7",
+      "tags": [
+        "c7"
+      ]
+    },
+    {
+      "value": "Z06",
+      "tags": [
+        "z06"
+      ]
+    }
+  ],
+  "Renault": [
+    {
+      "value": "Austral",
+      "tags": [
+        "austral"
+      ]
+    }
+  ],
+  "Opel": [
+    {
+      "value": "Grandland (X)",
+      "tags": [
+        "grandland",
+        "(x)"
+      ]
+    },
+    {
+      "value": "Zafira Life",
+      "tags": [
+        "zafira",
+        "life"
+      ]
+    }
+  ],
+  "Lamborghini": [
+    {
+      "value": "Aventador",
+      "tags": [
+        "aventador"
+      ]
+    },
+    {
+      "value": "Urus",
+      "tags": [
+        "urus"
+      ]
+    },
+    {
+      "value": "Huracán",
+      "tags": [
+        "huracán"
+      ]
+    }
+  ],
+  "Audi": [
+    {
+      "value": "RS e-tron GT",
+      "tags": [
+        "rs",
+        "e-tron",
+        "gt"
+      ]
+    },
+    {
+      "value": "quattro",
+      "tags": [
+        "quattro"
+      ]
+    },
+    {
+      "value": "S3",
+      "tags": [
+        "s3"
+      ]
+    },
+    {
+      "value": "RS6",
+      "tags": [
+        "rs6"
+      ]
+    },
+    {
+      "value": "Q8",
+      "tags": [
+        "q8"
+      ]
+    },
+    {
+      "value": "Q4",
+      "tags": [
+        "q4"
+      ]
+    },
+    {
+      "value": "A8",
+      "tags": [
+        "a8"
+      ]
+    },
+    {
+      "value": "RS7",
+      "tags": [
+        "rs7"
+      ]
+    },
+    {
+      "value": "e-tron GT",
+      "tags": [
+        "e-tron",
+        "gt"
+      ]
+    },
+    {
+      "value": "Q7",
+      "tags": [
+        "q7"
+      ]
+    },
+    {
+      "value": "S6",
+      "tags": [
+        "s6"
+      ]
+    },
+    {
+      "value": "RS4",
+      "tags": [
+        "rs4"
+      ]
+    },
+    {
+      "value": "A6",
+      "tags": [
+        "a6"
+      ]
+    },
+    {
+      "value": "RSQ3",
+      "tags": [
+        "rsq3"
+      ]
+    },
+    {
+      "value": "A6 e-tron",
+      "tags": [
+        "a6",
+        "e-tron"
+      ]
+    },
+    {
+      "value": "SQ5",
+      "tags": [
+        "sq5"
+      ]
+    },
+    {
+      "value": "S8",
+      "tags": [
+        "s8"
+      ]
+    },
+    {
+      "value": "Q6 e-tron",
+      "tags": [
+        "q6",
+        "e-tron"
+      ]
+    },
+    {
+      "value": "Q3",
+      "tags": [
+        "q3"
+      ]
+    },
+    {
+      "value": "Q4 e-tron",
+      "tags": [
+        "q4",
+        "e-tron"
+      ]
+    },
+    {
+      "value": "A5",
+      "tags": [
+        "a5"
+      ]
+    },
+    {
+      "value": "S7",
+      "tags": [
+        "s7"
+      ]
+    },
+    {
+      "value": "A7",
+      "tags": [
+        "a7"
+      ]
+    },
+    {
+      "value": "RS5",
+      "tags": [
+        "rs5"
+      ]
+    },
+    {
+      "value": "R8",
+      "tags": [
+        "r8"
+      ]
+    },
+    {
+      "value": "SQ7",
+      "tags": [
+        "sq7"
+      ]
+    },
+    {
+      "value": "RS3",
+      "tags": [
+        "rs3"
+      ]
+    },
+    {
+      "value": "RSQ8",
+      "tags": [
+        "rsq8"
+      ]
+    },
+    {
+      "value": "S6 e-tron",
+      "tags": [
+        "s6",
+        "e-tron"
+      ]
+    },
+    {
+      "value": "SQ8",
+      "tags": [
+        "sq8"
+      ]
+    },
+    {
+      "value": "e-tron",
+      "tags": [
+        "e-tron"
+      ]
+    },
+    {
+      "value": "A6 Allroad",
+      "tags": [
+        "a6",
+        "allroad"
+      ]
+    },
+    {
+      "value": "TT RS",
+      "tags": [
+        "tt",
+        "rs"
+      ]
+    },
+    {
+      "value": "S5",
+      "tags": [
+        "s5"
+      ]
+    },
+    {
+      "value": "Q8 e-tron",
+      "tags": [
+        "q8",
+        "e-tron"
+      ]
+    },
+    {
+      "value": "Q5",
+      "tags": [
+        "q5"
+      ]
+    }
+  ],
+  "Mazda": [
+    {
+      "value": "CX-80",
+      "tags": [
+        "cx-80"
+      ]
+    }
+  ],
+  "McLaren": [
+    {
+      "value": "675LT Spider",
+      "tags": [
+        "675lt",
+        "spider"
+      ]
+    },
+    {
+      "value": "750S",
+      "tags": [
+        "750s"
+      ]
+    },
+    {
+      "value": "570S",
+      "tags": [
+        "570s"
+      ]
+    },
+    {
+      "value": "Artura",
+      "tags": [
+        "artura"
+      ]
+    },
+    {
+      "value": "675LT",
+      "tags": [
+        "675lt"
+      ]
+    },
+    {
+      "value": "650S Spider",
+      "tags": [
+        "650s",
+        "spider"
+      ]
+    },
+    {
+      "value": "720S",
+      "tags": [
+        "720s"
+      ]
+    }
+  ],
+  "Donkervoort": [
+    {
+      "value": "D8",
+      "tags": [
+        "d8"
+      ]
+    }
+  ],
+  "Genesis": [
+    {
+      "value": "GV70",
+      "tags": [
+        "gv70"
+      ]
+    }
+  ],
+  "Volkswagen": [
+    {
+      "value": "T6 Multivan",
+      "tags": [
+        "t6",
+        "multivan"
+      ]
+    },
+    {
+      "value": "Golf",
+      "tags": [
+        "golf"
+      ]
+    },
+    {
+      "value": "XL1",
+      "tags": [
+        "xl1"
+      ]
+    },
+    {
+      "value": "Tiguan",
+      "tags": [
+        "tiguan"
+      ]
+    },
+    {
+      "value": "Amarok",
+      "tags": [
+        "amarok"
+      ]
+    },
+    {
+      "value": "T7 Transporter",
+      "tags": [
+        "t7",
+        "transporter"
+      ]
+    },
+    {
+      "value": "T6 Caravelle",
+      "tags": [
+        "t6",
+        "caravelle"
+      ]
+    },
+    {
+      "value": "ID.4",
+      "tags": [
+        "id",
+        "4"
+      ]
+    },
+    {
+      "value": "ID. Buzz",
+      "tags": [
+        "id",
+        "buzz"
+      ]
+    },
+    {
+      "value": "T7 Multivan",
+      "tags": [
+        "t7",
+        "multivan"
+      ]
+    },
+    {
+      "value": "Touareg",
+      "tags": [
+        "touareg"
+      ]
+    },
+    {
+      "value": "ID.7",
+      "tags": [
+        "id",
+        "7"
+      ]
+    },
+    {
+      "value": "Crafter",
+      "tags": [
+        "crafter"
+      ]
+    },
+    {
+      "value": "T6 California",
+      "tags": [
+        "t6",
+        "california"
+      ]
+    },
+    {
+      "value": "T7 California",
+      "tags": [
+        "t7",
+        "california"
+      ]
+    },
+    {
+      "value": "T2",
+      "tags": [
+        "t2"
+      ]
+    },
+    {
+      "value": "Tiguan Allspace",
+      "tags": [
+        "tiguan",
+        "allspace"
+      ]
+    },
+    {
+      "value": "Tayron",
+      "tags": [
+        "tayron"
+      ]
+    }
+  ],
+  "MINI": [
+    {
+      "value": "Cooper SE Countryman",
+      "tags": [
+        "cooper",
+        "se",
+        "countryman"
+      ]
+    }
+  ],
+  "Chevrolet": [
+    {
+      "value": "Silverado",
+      "tags": [
+        "silverado"
+      ]
+    },
+    {
+      "value": "Camaro",
+      "tags": [
+        "camaro"
+      ]
+    }
+  ]
+}
