@@ -19,6 +19,7 @@ filters:
   s[has_lane_warning]: true
   s[order_by]: au_rating_desc
   s[min_year]: 2025
+  s[not_damaged]: true
 
 # Paging конфигурация
 paging:

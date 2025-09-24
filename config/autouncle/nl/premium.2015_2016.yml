@@ -20,6 +20,7 @@ filters:
   s[order_by]: au_rating_desc
   s[min_year]: 2015
   s[max_year]: 2016
+  s[not_damaged]: true
 
 # Paging конфигурация
 paging:
