@@ -18,6 +18,7 @@ filters:
   s[has_glass_roof]: true
   #s[has_lane_warning]: true
   s[order_by]: au_rating_desc
+  s[not_damaged]: true
 
 # Paging конфигурация
 paging:
