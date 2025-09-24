@@ -14,7 +14,12 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_file(file_name: &str) -> Self {
-        let mut file = File::open(file_name).unwrap();
+        let mut file = match File::open(file_name) {
+            Ok(f) => f,
+            Err(e) => {
+                panic!("Failed to open config file {}: {}", file_name, e);
+            }
+        };
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
         let config: AppConfig = serde_yaml::from_str(&contents).unwrap();
