@@ -9,18 +9,18 @@ brand:
 # Филтри (Rails-style nested params → encoder ще добави %5B %5D автоматично)
 filters:
   s[has_4wd]: true
-  s[has_climate_control]: true
-  s[has_full_leather]: true
-  s[has_headup_display]: true
+  # s[has_climate_control]: true
+  # s[has_full_leather]: true
+  # s[has_headup_display]: true
   s[has_parking]: true
   s[has_pilot]: true
   s[has_seat_heat]: true
-  s[has_sunroof]: true
-  s[has_lane_warning]: true
+  s[has_glass_roof]: true
+  #s[has_lane_warning]: true
   s[order_by]: au_rating_desc
 
 # Paging конфигурация
 paging:
   param: page # query parameter for paging
   start: 1 # first page
-  max: 10 # max pages to scrape (adjust as needed)
+  # max: 10 # max pages to scrape (adjust as needed)
