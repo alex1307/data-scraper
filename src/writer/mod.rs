@@ -1,9 +1,7 @@
 use prost::Message;
-#[cfg(feature = "postgres")]
 pub mod db_writer;
 pub mod flle_writer;
 pub mod formatters;
-#[cfg(feature = "kafka")]
 pub mod kafka_writer;
 pub mod persistance;
 pub mod sink;

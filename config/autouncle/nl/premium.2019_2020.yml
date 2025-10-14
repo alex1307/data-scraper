@@ -26,4 +26,4 @@ filters:
 paging:
   param: page # query parameter for paging
   start: 1 # first page
-  max: 10 # max pages to scrape (adjust as needed)
+  max: 1000 # max pages to scrape (adjust as needed)

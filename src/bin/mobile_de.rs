@@ -5,19 +5,17 @@ use data_scraper::constants::URL::{
     AUTOUNCLE_CH_URL, AUTOUNCLE_DE_URL, AUTOUNCLE_FR_URL, AUTOUNCLE_IT_URL, AUTOUNCLE_NL_URL,
     AUTOUNCLE_PL_URL, AUTOUNCLE_RO_URL, MOBILE_BG_URL,
 };
-#[cfg(feature = "kafka")]
+
 use data_scraper::kafka::KafkaConsumer::{consumeMobileDeRawHtml, processMessages};
-#[cfg(feature = "kafka")]
-use data_scraper::kafka::MOBILE_DE_TOPIC;
-#[cfg(feature = "kafka")]
+use data_scraper::kafka::MetaDataConsumer::consumeMetaTopic;
 use data_scraper::kafka::broker;
+use data_scraper::kafka::{METADATA_TOPIC, MOBILE_DE_TOPIC};
 
 use data_scraper::LOG_CONFIG;
 use data_scraper::model::Search::Search;
 use data_scraper::model::VehicleDataModel::DownloadStatus;
 use data_scraper::scraper::AutouncleScraper;
 use data_scraper::scraper::BrowserController::BrowserController;
-#[cfg(feature = "kafka")]
 use data_scraper::writer::sink;
 
 use data_scraper::scraper::VehicleTraits::VehicleScrapeTrait;
@@ -39,6 +37,7 @@ use data_scraper::{
 };
 
 use log::{error, info};
+use rdkafka::bindings::rd_kafka_metadata_broker;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -46,32 +45,22 @@ async fn main() {
     dotenvy::dotenv().ok();
     info!("Starting data scraper...");
     let sink_type = SinkType::PostgresDB;
-    info!("Puppeteer command is not implemented yet");
-    #[cfg(feature = "kafka")]
-    run_consumers(broker(), sink_type).await;
-    #[cfg(not(feature = "kafka"))]
-    {
-        error!("Kafka feature is not enabled. Cannot run consumer.");
-    }
-}
-
-#[cfg(feature = "kafka")]
-async fn run_consumers(broker: String, sink_type: SinkType) {
-    let task = tokio::spawn(async move {
-        let group = "mobile_de_group_1";
-        #[cfg(feature = "kafka")]
-        {
-            consumeMobileDeRawHtml(&broker, &group, MOBILE_DE_TOPIC, sink_type).await
-        }
-        #[cfg(not(feature = "kafka"))]
-        {
-            error!("Kafka feature is not enabled. Cannot run consumer.");
-        }
+    let broker = broker();
+    let rd_kafka_metadata_broker = broker.clone();
+    let mobile_de_broker = broker.clone();
+    let meta_task = tokio::spawn(async move {
+        consumeMetaTopic(
+            &rd_kafka_metadata_broker,
+            "raptor-meta-group",
+            METADATA_TOPIC,
+        )
+        .await;
     });
-    let r1 = tokio::spawn(task).await;
-    if r1.is_ok() {
-        info!("car.gr consumer finished");
-    } else {
-        info!("car.gr consumer failed");
-    }
+    let raw_html_task = tokio::spawn(async move {
+        let group = "mobile_de_group";
+
+        { consumeMobileDeRawHtml(&mobile_de_broker, &group, MOBILE_DE_TOPIC, sink_type).await }
+    });
+    let _ = tokio::join!(meta_task, raw_html_task);
+    info!("Data scraper finished.");
 }

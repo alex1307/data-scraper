@@ -16,8 +16,6 @@ use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 
 use lazy_static::lazy_static;
-use serde_json::error;
-use std::f64::consts::E;
 use std::str::FromStr;
 
 lazy_static! {

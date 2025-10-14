@@ -10,6 +10,7 @@ use crate::{
     unwrap_or_message,
     utils::files::vehicle_file_name,
     writer::{
+        db_writer::db::DBWriter,
         flle_writer::file::FileWriter,
         kafka_writer::kafka::KafkaProducer,
         sink::{FormatterType, Sink, SinkType},
@@ -227,7 +228,7 @@ pub async fn consumeMobileDeJsons(broker: &str, group: &str, topic: &str, sink_t
 
         SinkType::PostgresDB => {
             info!("Using PostgresDB sink for vehicles");
-            Box::new(crate::writer::db_writer::db::DBWriter::new().await)
+            Box::new(DBWriter::new().await)
         }
     };
 
@@ -313,7 +314,7 @@ pub async fn consumeMobileDeRawHtml(broker: &str, group: &str, topic: &str, sink
 
         SinkType::PostgresDB => {
             info!("Using PostgresDB sink for vehicles");
-            Box::new(crate::writer::db_writer::db::DBWriter::new().await)
+            Box::new(DBWriter::new().await)
         }
     };
     let mut counter = 0;

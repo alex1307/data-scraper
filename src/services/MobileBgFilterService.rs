@@ -1,4 +1,3 @@
-use log::info;
 use std::collections::HashMap;
 
 use crate::utils::ConfigLoader::{ScraperConfig, load_config};

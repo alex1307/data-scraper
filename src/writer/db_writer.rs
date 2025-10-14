@@ -2,6 +2,8 @@ pub mod db {
     use sqlx::FromRow;
     use sqlx::PgPool;
 
+    use crate::model::MetaDataModel::MetaDataDBRecord;
+    use crate::model::MetaDataModel::MetaDataKafkaRecord;
     use crate::model::VehicleDataModel::Vehicle;
     use crate::writer::sink::Sink;
 
@@ -184,6 +186,51 @@ pub mod db {
 
         async fn flush(&self) -> Result<(), String> {
             Ok(()) // no-op
+        }
+    }
+
+    pub struct MetaDBWriter {
+        pool: PgPool,
+    }
+
+    impl MetaDBWriter {
+        pub fn new(pool: PgPool) -> Self {
+            Self { pool }
+        }
+
+        /// Записва или актуализира meta записа в таблицата `metadata`.
+        pub async fn write(&self, record: MetaDataKafkaRecord) -> Result<(), sqlx::Error> {
+            let db_record: MetaDataDBRecord = MetaDataKafkaRecord::from(record).into();
+
+            sqlx::query!(
+                r#"
+            INSERT INTO metadata (
+                filter_id, source, flow, page_type, url, filters, equipment, last_run_on
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (filter_id)
+            DO UPDATE SET
+                source = EXCLUDED.source,
+                flow = EXCLUDED.flow,
+                page_type = EXCLUDED.page_type,
+                url = EXCLUDED.url,
+                filters = EXCLUDED.filters,
+                equipment = EXCLUDED.equipment,
+                last_run_on = EXCLUDED.last_run_on
+            "#,
+                db_record.filter_id,
+                db_record.source,
+                db_record.flow,
+                db_record.page_type,
+                db_record.url,
+                db_record.filters,
+                &db_record.equipment,
+                db_record.last_run_on,
+            )
+            .execute(&self.pool)
+            .await?;
+
+            Ok(())
         }
     }
 }

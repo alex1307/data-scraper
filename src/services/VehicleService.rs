@@ -13,12 +13,8 @@ use tokio::{
 use lazy_static::lazy_static;
 use uuid::Uuid;
 
-#[cfg(feature = "kafka")]
-use crate::kafka::{BASE_INFO_TOPIC, DETAILS_TOPIC, PRICE_TOPIC, VEHICLE_TOPIC, broker};
-#[cfg(feature = "kafka")]
-use crate::writer::kafka_writer::kafka::KafkaProducer;
-
 use crate::{
+    kafka::{VEHICLE_TOPIC, broker},
     model::{
         Search::Search,
         VehicleDataModel::{DownloadStatus, Vehicle},
@@ -27,6 +23,7 @@ use crate::{
     utils::files::vehicle_file_name,
     writer::{
         flle_writer::file::FileWriter,
+        kafka_writer::kafka::KafkaProducer,
         sink::{FormatterType, Sink, SinkType},
     },
 };
@@ -244,16 +241,12 @@ pub async fn send_data(
     let mut wait_counter = 0;
 
     let vehicle_sink: Box<dyn Sink<Vehicle>> = match sink_type {
-        #[cfg(feature = "kafka")]
         SinkType::Kafka => Box::new(KafkaProducer::new(
             &broker(),
             VEHICLE_TOPIC,
             FormatterType::Protobuf,
         )),
-        #[cfg(not(feature = "kafka"))]
-        SinkType::Kafka => panic!(
-            "Kafka sink is not enabled. Please enable the 'kafka' feature in your Cargo.toml."
-        ),
+
         SinkType::ProtobufFile => {
             let file_name = vehicle_file_name(&sink_type);
             Box::new(FileWriter::new(&file_name, FormatterType::Protobuf))
@@ -262,16 +255,12 @@ pub async fn send_data(
             let file_name = vehicle_file_name(&sink_type);
             Box::new(FileWriter::new(&file_name, FormatterType::Csv))
         }
-        #[cfg(feature = "postgres")]
+
         SinkType::PostgresDB => {
             info!("Using PostgresDB sink");
             info!("PostgresDB sink is enabled");
             Box::new(crate::writer::db_writer::db::DBWriter::new().await)
         }
-        #[cfg(not(feature = "postgres"))]
-        SinkType::PostgresDB => panic!(
-            "Kafka sink is not enabled. Please enable the 'kafka' feature in your Cargo.toml."
-        ),
     };
 
     loop {

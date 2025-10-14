@@ -1,5 +1,6 @@
 pub mod AutouncleJsonModel;
 pub mod DataConversionError;
+pub mod MetaDataModel;
 pub mod MobileDe;
 pub mod MobileDeAdvJson;
 pub mod Search;

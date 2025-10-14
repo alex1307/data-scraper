@@ -1,5 +1,5 @@
 use log::{error, info, warn};
-use std::borrow::Cow;
+
 // slack/SlackNotifier.rs
 use serde_json::json;
 use std::process::Command;

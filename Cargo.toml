@@ -35,22 +35,18 @@ crossbeam = "0.8.4"
 crossbeam-channel = "0.5.15"
 mockito = "1.7.0"
 async-trait = "0.1.89"
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "^4", features = ["derive"] }
 rand = "0.9.2"
 prost = "0.14.1"
-rdkafka = { version = "0.38.0", features = ["tokio"], optional = true }
-uuid = { version = "1.18.1", features = [
-    "v4",
-    "fast-rng",
-    "macro-diagnostics",
-] }
+rdkafka = { version = "0.38.0", features = ["tokio"] }
+uuid = { version = "^1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio-rustls",
     "postgres",
     "macros",
     "chrono",
     "bigdecimal",
-], optional = true }
+] }
 dotenvy = "0.15.7"
 flate2 = "1.1.2"
 url = "^2"
@@ -62,12 +58,11 @@ flate2 = "1.1.2"
 [[bin]]
 name = "crawler"
 path = "src/bin/crawler.rs"
-required-features = ["postgres"]
+
 
 [[bin]]
 name = "mobile_de"
 path = "src/bin/mobile_de.rs"
-required-features = ["postgres", "kafka"]
 
 
 [profile.release]
@@ -79,5 +74,3 @@ strip = true
 
 [features]
 default = []
-kafka = ["dep:rdkafka"]
-postgres = ["dep:sqlx"]
