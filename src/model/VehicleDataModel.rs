@@ -53,6 +53,7 @@ pub struct Vehicle {
 
     #[serde(skip_serializing)]
     pub thresholds: Vec<u32>,
+    pub filter_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -217,6 +218,7 @@ where
             ranges: item.ranges(),
             rating: item.rating(),
             thresholds: item.thresholds(),
+            filter_id: None,
         }
     }
 }

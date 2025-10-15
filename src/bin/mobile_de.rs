@@ -57,7 +57,7 @@ async fn main() {
         .await;
     });
     let raw_html_task = tokio::spawn(async move {
-        let group = "mobile_de_group";
+        let group = "mobile_de_group1";
 
         { consumeMobileDeRawHtml(&mobile_de_broker, &group, MOBILE_DE_TOPIC, sink_type).await }
     });

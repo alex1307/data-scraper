@@ -432,6 +432,7 @@ impl TryFrom<SearchItem> for Vehicle {
             ranges,
             rating,
             thresholds,
+            filter_id: None, // To be set externally if needed
         })
     }
 }

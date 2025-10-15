@@ -39,6 +39,7 @@ pub mod db {
         pub days_in_sale: Option<i32>,
         pub ranges: Option<String>,
         pub rating: Option<String>,
+        pub filter_id: Option<String>,
         pub created_on: Option<chrono::NaiveDate>,
         pub updated_on: Option<chrono::NaiveDate>,
         pub deleted_on: Option<chrono::NaiveDate>,
@@ -74,6 +75,7 @@ pub mod db {
                 days_in_sale: vehicle.days_in_sale.map(|v| v as i32),
                 ranges: vehicle.ranges,
                 rating: vehicle.rating,
+                filter_id: vehicle.filter_id,
                 created_on: None,
                 updated_on: None,
                 deleted_on: None, // Assuming not deleted
@@ -109,14 +111,14 @@ pub mod db {
                 power_ps, power_kw, currency, price, estimated_price, cc,
                 url, location, equipment, seller_name, seller_url,
                 range, consumption_fuel, consumption_kw, co2,
-                days_in_sale, ranges, rating
+                days_in_sale, ranges, rating,filter_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9,
                 $10, $11, $12, $13, $14, $15,
                 $16, $17, $18, $19, $20,
                 $21, $22, $23, $24,
-                $25, $26, $27
+                $25, $26, $27, $28
             )
             ON CONFLICT(id, source) DO UPDATE SET
                 updated_on = CURRENT_DATE,
@@ -144,7 +146,8 @@ pub mod db {
                 co2 = EXCLUDED.co2,
                 days_in_sale = EXCLUDED.days_in_sale,
                 ranges = EXCLUDED.ranges,
-                rating = EXCLUDED.rating
+                rating = EXCLUDED.rating,
+                filter_id = EXCLUDED.filter_id
             "#,
                 db_vehicle.id,
                 db_vehicle.source,
@@ -173,6 +176,7 @@ pub mod db {
                 db_vehicle.days_in_sale,
                 db_vehicle.ranges,
                 db_vehicle.rating,
+                db_vehicle.filter_id,
             )
             .execute(&self.pool)
             .await

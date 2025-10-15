@@ -322,36 +322,24 @@ pub async fn consumeMobileDeRawHtml(broker: &str, group: &str, topic: &str, sink
         match ev {
             Ok(msg) => {
                 // Extract meta
-                let page_type_s = header_str(&msg, "x-raptor-page-type");
-                let url_s = header_str(&msg, "x-raptor-url");
-                let source_s = header_str(&msg, "x-raptor-source");
-                let enc_s = header_str(&msg, "content-encoding");
-
-                let page_type = page_type_s.as_deref().unwrap_or("");
-                let url = url_s.as_deref().unwrap_or("");
-                let source = source_s.as_deref().unwrap_or("");
-                let enc = enc_s.as_deref().unwrap_or("");
-
+                let filter_id = msg
+                    .key()
+                    .and_then(|k| std::str::from_utf8(k).ok())
+                    .unwrap_or("");
+                info!(
+                    "Received RAW HTML message: topic: {}, partition: {}, offset: {}, key: {}, bytes={}",
+                    msg.topic(),
+                    msg.partition(),
+                    msg.offset(),
+                    filter_id,
+                    msg.payload().map_or(0, |p| p.len())
+                );
                 // Decode payload to UTF-8 HTML
                 match decode_html_payload(&msg) {
                     Ok(html) => {
-                        info!(
-                            "RAW HTML received: source={}, type={}, enc={}, bytes={}, url={}",
-                            source,
-                            page_type,
-                            enc,
-                            html.len(),
-                            url
-                        );
+                        info!("RAW HTML received: bytes={}", html.len());
 
                         // Only process SRP pages
-                        if !page_type.eq_ignore_ascii_case("srp") || !is_srp_url(url) {
-                            info!(
-                                "Skipping non-SRP payload (type='{}', url='{}')",
-                                page_type, url
-                            );
-                            continue;
-                        }
 
                         let json_candidate = extract_mobilede_srp_json(&html);
                         match json_candidate {
@@ -363,8 +351,10 @@ pub async fn consumeMobileDeRawHtml(broker: &str, group: &str, topic: &str, sink
                                         Ok(list) => {
                                             info!("Processing {} items from SRP JSON", list.len());
                                             for item in list {
-                                                if let Ok(vehicle) = Vehicle::try_from(item.clone())
+                                                if let Ok(mut vehicle) =
+                                                    Vehicle::try_from(item.clone())
                                                 {
+                                                    vehicle.filter_id = Some(filter_id.to_string());
                                                     vehicle_sink
                                                         .write(vehicle)
                                                         .await
