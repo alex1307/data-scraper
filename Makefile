@@ -3,16 +3,16 @@
 # ================================================================
 
 # -------- Configuration --------
-
+export DATABASE_URL := postgres://admin:1234@localhost:5432/vehicles 
 ifeq ($(shell uname),Darwin)
-    BIN_DIR := $(HOME)/Software/docker-env/crawler
+    BIN_DIR := ~/Software/docker-env/crawler
 else
-    BIN_DIR := $(HOME)/crawler-app
+    BIN_DIR := /home/matkat/crawler-app
 endif
 
 
 TARGET_DIR    := target/release
-BINARIES      := crawler mobile_de raptor-agent
+BINARIES      := crawler mobile_de
 
 # -------- Commands --------
 CARGO         := cargo
@@ -48,7 +48,7 @@ info:
 # ---------------------------------------------------------------
 build:
 	@echo "$(YELLOW)==> Building Rust binaries...$(RESET)"
-	DATABASE_URL=postgres://admin:1234@localhost:5432/vehicles cargo build --release 
+	cargo build --release 
 	@echo "$(GREEN)✅ Build completed successfully.$(RESET)"
 
 # ---------------------------------------------------------------
