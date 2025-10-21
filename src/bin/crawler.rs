@@ -12,10 +12,8 @@ use data_scraper::model::VehicleDataModel::DownloadStatus;
 use data_scraper::scraper::AutouncleScraper;
 use data_scraper::scraper::BrowserController::BrowserController;
 
-use data_scraper::scraper::VehicleTraits::VehicleScrapeTrait;
 use data_scraper::services::AutouncleFilterService;
-use data_scraper::services::ScraperAppVehicleService;
-use data_scraper::services::ScraperAppVehicleService::{JobError, JobResult, JobStatus, run_job};
+use data_scraper::services::ScraperAppVehicleService::run_job;
 use data_scraper::services::SearchBuilder::{
     CRAWLER_AUTOUNCLE_CH, CRAWLER_AUTOUNCLE_DE, CRAWLER_AUTOUNCLE_IT, CRAWLER_AUTOUNCLE_PL,
     ID_AUTOUNCLE_CH_START, ID_AUTOUNCLE_DE_START, ID_AUTOUNCLE_FR, ID_AUTOUNCLE_IT_START,
