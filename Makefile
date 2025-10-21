@@ -14,10 +14,6 @@ endif
 TARGET_DIR    := target/release
 BINARIES      := crawler mobile_de raptor-agent
 
-# Database connection string (used during build or runtime)
-include makefile.env
-export $(shell sed -n 's/^\(.*\)=.*/\1/p' makefile.env)
-
 # -------- Commands --------
 CARGO         := cargo
 RM            := rm -rf
@@ -52,7 +48,7 @@ info:
 # ---------------------------------------------------------------
 build:
 	@echo "$(YELLOW)==> Building Rust binaries...$(RESET)"
-	@$(CARGO) build --release
+	DATABASE_URL=postgres://admin:1234@localhost:5432/vehicles cargo build --release 
 	@echo "$(GREEN)✅ Build completed successfully.$(RESET)"
 
 # ---------------------------------------------------------------
